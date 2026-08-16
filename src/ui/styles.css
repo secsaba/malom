@@ -1,11 +1,11 @@
 /*
  * The board's structure — its lines and its empty points — is grey, and only
- * the pieces are warm or dark. The table sits between the two greys and the
- * pieces, rather than at one end of the range, which is what leaves room for a
- * light piece to be told from an empty point at a glance.
+ * the pieces are warm or dark. The board's ground sits between the two greys
+ * and the pieces, rather than at one end of the range, which is what leaves
+ * room for a light piece to be told from an empty point at a glance.
  */
 :root {
-  --board-line: #776f65;
+  --board-line-ink: #776f65;
   --board-ground: #f2e3c8;
   --point-fill: #a29a8d;
   /* Darker than the lines: the labels are body-size text on a phone. */
@@ -14,7 +14,6 @@
   --page-ink: #f2e3c8;
   --page-ink-dim: #b9a88a;
   --point-legal-ink: #a8341f;
-  --point-legal-fill: #c9765a;
   --point-selected-ink: #1f5d7a;
   --capture-ink: #e8875f;
   --result-ink: #f2e3c8;
@@ -70,7 +69,7 @@ body {
 }
 
 .board__lines line {
-  stroke: var(--board-line);
+  stroke: var(--board-line-ink);
   stroke-width: 6;
   stroke-linecap: round;
 }
@@ -88,8 +87,9 @@ body {
 /*
  * The two sides are told apart by lightness rather than by hue. Each is a dome
  * lit from the upper left rather than a flat disc, and each casts a shadow, so
- * both read as objects resting on the table — which is what lets the lighter
- * one define its own edge without a ring around it.
+ * both read as objects standing on the board rather than as discs printed on
+ * it — which is what lets the lighter one define its own edge without a ring
+ * around it.
  */
 .board__points circle[data-occupant] {
   filter: url(#piece-shadow);
@@ -114,13 +114,15 @@ body {
 }
 
 /*
- * Where the piece that has been picked up may go: the one red mark on a board
- * that is otherwise grey and cream. Empty points are marked only while a piece
- * is picked up — during the placing phase every empty point is legal, so
- * marking them all would say nothing.
+ * Where the piece that has been picked up may go: one solid red mark on a board
+ * that is otherwise grey and cream. Ink and fill are the same colour on purpose
+ * — a paler fill would separate from an unmarked point by hue alone, which is
+ * the very thing the greys above exist to stop. Empty points are marked only
+ * while a piece is picked up: during the placing phase every empty point is
+ * legal, so marking them all would say nothing.
  */
 .board[data-selection] .board__points circle[data-legal]:not([data-occupant]) {
-  fill: var(--point-legal-fill);
+  fill: var(--point-legal-ink);
   stroke: var(--point-legal-ink);
   stroke-width: 6;
 }

@@ -73,12 +73,15 @@ export const Board = ({
     aria-label={strings.board.label}
   >
     {/*
-     * What makes a piece an object resting on the table rather than a disc
+     * What makes a piece an object standing on the board rather than a disc
      * printed on it: a dome, lit from the upper left, and a shadow beneath.
-     * Both are here rather than in the stylesheet because both are measured in
-     * the viewBox's units, so they scale with the board and not with the
-     * viewport — a CSS `drop-shadow()` would be in screen pixels and would
-     * grow coarser the smaller the board got.
+     *
+     * Both have to be SVG. A gradient can only paint a `fill` as a paint
+     * server, and the shadow is measured in the viewBox's units, so it scales
+     * with the board rather than with the viewport — a CSS `drop-shadow()`
+     * would be in screen pixels and would grow coarser the smaller the board
+     * got. The stop colours could have been custom properties, but a gradient
+     * split half into the stylesheet is harder to read than one kept whole.
      */}
     <defs>
       <radialGradient id="piece-light" cx="36%" cy="28%" r="80%">
