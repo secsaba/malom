@@ -11,15 +11,18 @@
 import type { PointId } from "../engine/board";
 import {
   EMPTY_POSITION,
+  type Ending,
   type Position,
   SIDES,
   type Side,
   capturableFrom,
+  destinationsFrom,
   emptyPoints,
+  endingAgainst,
+  flies,
   millsThrough,
+  movablePointsOf,
   opponentOf,
-  pointsHeldBy,
-  slidesFrom,
   withPiece,
   withoutPiece,
 } from "../engine/position";
@@ -30,17 +33,20 @@ import {
  */
 export type Phase = "placing" | "moving" | "flying";
 
-/** What ended a game: the loser was reduced to two pieces, or left with no legal move. */
-export type Ending = "reduced" | "blocked";
-
-/** How a game ended. */
+/** How a game ended: who won, and what the engine says ended it. */
 export type Result = { readonly winner: Side; readonly ending: Ending };
+
+export type { Ending };
 
 /**
  * What a player tried to do. The spec sketches the facade's intents as place,
  * move and capture; selecting is the fourth, because picking a piece up is a
  * step a player can take back — tapping away puts it down again without moving
  * — and that is a rule rather than a detail of any one interface.
+ *
+ * These are gestures, not the glossary's Move: a whole turn is the place or the
+ * move and the capture it may earn, which the session assembles from two of
+ * these intents.
  */
 export type Intent =
   | { readonly type: "place"; readonly point: PointId }
@@ -84,34 +90,17 @@ export type GameState = {
 /** How many pieces each side starts with in hand. */
 const PIECES_PER_SIDE = 9;
 
-/** How few pieces a side is left with when it starts to fly, and when it has lost. */
-const PIECES_TO_FLY = 3;
-const PIECES_TO_LOSE = 2;
-
 const phaseOf = (game: Recorded): Phase => {
   if (game.placing) return "placing";
-
-  return pointsHeldBy(game.position, game.sideToMove).length === PIECES_TO_FLY
-    ? "flying"
-    : "moving";
+  return flies(game.position, game.sideToMove) ? "flying" : "moving";
 };
-
-/** Where a piece of the side to move may go: anywhere empty while it flies, next door otherwise. */
-const destinationsFrom = (game: Recorded, from: PointId): readonly PointId[] =>
-  phaseOf(game) === "flying" ? emptyPoints(game.position) : slidesFrom(game.position, from);
-
-/** The pieces of the side to move that have somewhere to go. */
-const movablePoints = (game: Recorded): readonly PointId[] =>
-  pointsHeldBy(game.position, game.sideToMove).filter(
-    (point) => destinationsFrom(game, point).length > 0,
-  );
 
 const legalPointsOf = (game: Recorded): readonly PointId[] => {
   if (game.result) return [];
   if (game.pendingCapture) return capturableFrom(game.position, opponentOf(game.sideToMove));
   if (game.placing) return emptyPoints(game.position);
-  if (game.selection) return destinationsFrom(game, game.selection);
-  return movablePoints(game);
+  if (game.selection) return destinationsFrom(game.position, game.selection);
+  return movablePointsOf(game.position, game.sideToMove);
 };
 
 // What the players see is spelled out rather than spread from what is recorded,
@@ -139,21 +128,6 @@ const NEW_GAME: Recorded = {
 };
 
 /**
- * What has become of the side about to play: nothing, or the loss it cannot
- * play its way out of. Neither loss can arrive while pieces are still being
- * placed — a side that has not placed all nine is never down to two on the
- * board, and there is always somewhere to place.
- */
-const endingAgainst = (game: Recorded): Ending | undefined => {
-  if (game.placing) return undefined;
-  if (pointsHeldBy(game.position, game.sideToMove).length <= PIECES_TO_LOSE) return "reduced";
-
-  // A side down to three flies, and the board it flies over always has an empty
-  // point, so only a side with more pieces than that can be shut in.
-  return movablePoints(game).length === 0 ? "blocked" : undefined;
-};
-
-/**
  * The move — the placement or the move proper, and the capture it may have
  * earned — is over, so the opponent comes to play, unless what it comes to is a
  * game it has already lost.
@@ -171,7 +145,11 @@ const withMoveComplete = (game: Recorded): Recorded => {
     pendingCapture: false,
   };
 
-  const ending = endingAgainst(handedOver);
+  // A side still holding pieces has them to put down, however few of them are
+  // on the board, so only a side past the placing phase can have lost.
+  const ending = handedOver.placing
+    ? undefined
+    : endingAgainst(handedOver.position, handedOver.sideToMove);
 
   return ending === undefined
     ? handedOver
@@ -220,7 +198,9 @@ const afterSelecting = (game: Recorded, point: PointId): Recorded => {
   if (game.placing) return game;
 
   const picked =
-    point !== game.selection && movablePoints(game).includes(point) ? point : undefined;
+    point !== game.selection && movablePointsOf(game.position, game.sideToMove).includes(point)
+      ? point
+      : undefined;
 
   return picked === game.selection ? game : { ...game, selection: picked };
 };

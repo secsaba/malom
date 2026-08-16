@@ -2,32 +2,13 @@ import { type Page, expect, test } from "@playwright/test";
 
 import type { PointId } from "../../src/engine/board";
 import { strings } from "../../src/strings";
+import { DARK_PICKINGS, MILL_FREE_PLACING, WALLED_IN } from "../fixtures/placements";
 
 const tap = async (page: Page, ...points: readonly PointId[]) => {
   for (const point of points) await page.locator(`[data-target="${point}"]`).click();
 };
 
 const pointAt = (page: Page, point: PointId) => page.locator(`[data-point="${point}"]`);
-
-/**
- * Eighteen placements that close no mill, so the placing phase runs to its end
- * uninterrupted and leaves both sides with somewhere to go. Light ends on a1,
- * a7, b2, c3, d1, d5, e3, f6 and g4; b4, c4, d2, d6, e4 and f4 are left empty.
- */
-const MILL_FREE_PLACING = [
-  "a1", "g1", "d1", "a4", "a7", "d7", "g4", "g7", "c3",
-  "d3", "e3", "c5", "d5", "e5", "b2", "b6", "f6", "f2",
-] as const satisfies readonly PointId[];
-
-/**
- * Eighteen placements that wall light in: the only empty points left are a1, a4,
- * a7, d1, d7 and g1, and none of them is next to a light piece. Light comes to
- * move with all nine of its pieces and no move, which loses the game.
- */
-const WALLED_IN = [
-  "b2", "b4", "c4", "b6", "c5", "c3", "d3", "d2", "d5",
-  "d6", "e3", "e5", "e4", "f4", "f2", "g4", "f6", "g7",
-] as const satisfies readonly PointId[];
 
 test.beforeEach(async ({ page }) => {
   await page.goto("./");
@@ -70,7 +51,7 @@ test("asks for a capture when a mill closes in the moving phase", async ({ page 
   await expect(page.getByTestId("capture-prompt")).toHaveText(strings.game.capture);
   await expect(page.getByTestId("side-to-move")).toHaveText(strings.game.toMove.light);
 
-  await tap(page, "b4"); // take a dark piece
+  await tap(page, "b4"); // capture a dark piece
 
   await expect(pointAt(page, "b4")).not.toHaveAttribute("data-occupant", /.*/);
   await expect(page.getByTestId("capture-prompt")).toHaveCount(0);
@@ -78,11 +59,33 @@ test("asks for a capture when a mill closes in the moving phase", async ({ page 
 });
 
 test("plays a whole game through to a declared result", async ({ page }) => {
+  const [first, ...rest] = DARK_PICKINGS;
+
+  await tap(page, ...MILL_FREE_PLACING);
+
+  await tap(page, "e3", "e4", "a4", "b4", "f6", "f4", first); // light closes e4-f4-g4
+
+  // Light runs the mill — f4 out to f6 and back — while dark shuffles between a4
+  // and b4, so every second move captures another dark piece.
+  for (const [index, picking] of rest.entries()) {
+    if (index === rest.length - 1) {
+      // The swing before the last leaves dark with the three pieces it flies with.
+      await expect(page.getByTestId("phase")).toHaveText(strings.game.phase.flying);
+    }
+
+    await tap(page, "b4", "a4", "f4", "f6", "a4", "b4", "f6", "f4", picking);
+  }
+
+  await expect(page.getByTestId("result")).toHaveText(strings.game.result.winner.light);
+  await expect(page.getByTestId("ending")).toHaveText(strings.game.result.ending.reduced.dark);
+  await expect(page.getByTestId("side-to-move")).toHaveCount(0);
+});
+
+test("declares the result against a side that is walled in", async ({ page }) => {
   await tap(page, ...WALLED_IN);
 
   await expect(page.getByTestId("result")).toHaveText(strings.game.result.winner.dark);
   await expect(page.getByTestId("ending")).toHaveText(strings.game.result.ending.blocked.light);
-  await expect(page.getByTestId("side-to-move")).toHaveCount(0);
 
   await tap(page, "a1"); // the board answers nothing now
 

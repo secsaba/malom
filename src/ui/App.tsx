@@ -13,8 +13,11 @@ import { useGameSession } from "./useGameSession";
  * already picked up, and otherwise picking one up — or putting it down again,
  * which is what a tap away from its destinations comes to.
  *
- * Which of them is legal is the game session's business, not this one's: an
- * illegal intent is ignored, so every point can be offered as a target.
+ * Naming the gesture is all this does. Whether the named intent is legal is the
+ * game session's business, and an illegal one is ignored, so every point of the
+ * board can be offered as a target; the one thing read off `legalPoints` here is
+ * whether a tap lands where the picked-up piece could go, which is what tells a
+ * move from a change of mind.
  */
 const intentFor = (game: GameState, point: PointId): Intent => {
   if (game.pendingCapture) return { type: "capture", point };

@@ -38,12 +38,52 @@ export const emptyPoints = (position: Position): readonly PointId[] =>
   POINTS.filter((point) => !position.has(point));
 
 /** The empty points a piece on this point can slide to, ordered by file and then by rank. */
-export const slidesFrom = (position: Position, point: PointId): readonly PointId[] =>
+const slidesFrom = (position: Position, point: PointId): readonly PointId[] =>
   neighboursOf(point).filter((neighbour) => !position.has(neighbour));
 
 /** The points one side's pieces stand on, ordered by file and then by rank. */
 export const pointsHeldBy = (position: Position, side: Side): readonly PointId[] =>
   POINTS.filter((point) => position.get(point) === side);
+
+/** How few pieces a side is left with when it starts to fly, and when it has lost. */
+const PIECES_TO_FLY = 3;
+const PIECES_TO_LOSE = 2;
+
+/** Whether this side is down to the three pieces that let it jump rather than slide. */
+export const flies = (position: Position, side: Side): boolean =>
+  pointsHeldBy(position, side).length === PIECES_TO_FLY;
+
+/**
+ * The points the piece standing here may go to: any empty point while its side
+ * flies, and the empty points next door otherwise. Nowhere, from an empty point.
+ */
+export const destinationsFrom = (position: Position, point: PointId): readonly PointId[] => {
+  const side = position.get(point);
+  if (side === undefined) return [];
+
+  return flies(position, side) ? emptyPoints(position) : slidesFrom(position, point);
+};
+
+/** The pieces of one side that have somewhere to go. */
+export const movablePointsOf = (position: Position, side: Side): readonly PointId[] =>
+  pointsHeldBy(position, side).filter((point) => destinationsFrom(position, point).length > 0);
+
+/** What ended a game: the loser was reduced to two pieces, or left with no legal move. */
+export type Ending = "reduced" | "blocked";
+
+/**
+ * What has become of this side where it stands: nothing, or the loss it cannot
+ * play its way out of. It asks only about the board, so a side that still has
+ * pieces in hand — one that has somewhere to put them, and a board that always
+ * has room — must not be asked.
+ */
+export const endingAgainst = (position: Position, side: Side): Ending | undefined => {
+  if (pointsHeldBy(position, side).length <= PIECES_TO_LOSE) return "reduced";
+
+  // A side down to three flies, and the board it flies over always has an empty
+  // point, so only a side with more pieces than that can be shut in.
+  return movablePointsOf(position, side).length === 0 ? "blocked" : undefined;
+};
 
 // The two lines every point lies on — the only lines a piece placed there can
 // close. Derived from LINES so the board stays the single source of truth.

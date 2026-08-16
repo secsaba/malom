@@ -32,13 +32,14 @@ CI runs all of them on every push and pull request, inside this same dev shell. 
 
 ```
 src/
-├── engine/    rules: the board, legal moves, mills, captures, phases
+├── engine/    rules: the board, legal moves, mills, captures, endings
 ├── ai/        search and evaluation            (arrives with #6)
+├── session/   one game, played through intents — what the interface talks to
 ├── strings/   every user-facing string, Hungarian for now
 └── ui/        React components and their geometry
 ```
 
-`src/ui` depends on `src/engine` and `src/ai`. The dependency never runs the other way, and neither `src/engine` nor `src/ai` may import React, touch the DOM, or read the strings module — that is [ADR-0002](docs/adr/0002-engine-has-no-ui-dependencies.md), and `pnpm lint` fails the build when it is broken. The rule lives in [`eslint.config.js`](eslint.config.js); [`tests/unit/engine-boundary.test.ts`](tests/unit/engine-boundary.test.ts) lints deliberately-bad fixtures to prove it still bites.
+`src/ui` talks to `src/session`, which sequences a game out of the rules in `src/engine`. The dependency never runs the other way, and none of `src/engine`, `src/ai` or `src/session` may import React, touch the DOM, or read the strings module — that is [ADR-0002](docs/adr/0002-engine-has-no-ui-dependencies.md), and `pnpm lint` fails the build when it is broken. The rule lives in [`eslint.config.js`](eslint.config.js); [`tests/unit/engine-boundary.test.ts`](tests/unit/engine-boundary.test.ts) lints deliberately-bad fixtures to prove it still bites.
 
 The same lint pass rejects user-facing text written into a component, so the strings module stays the one place text lives and the English translation stays a data change.
 

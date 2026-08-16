@@ -93,6 +93,11 @@ One player's complete turn, including the capture it may earn.
 _Hungarian_: lépés
 _Avoid_: turn, ply, action
 
+**Selection**:
+The piece a player has picked up and not yet moved. Picking one up commits to nothing: tapping away from its destinations puts it down again, so a selection is part of the rules rather than of any one interface.
+_Hungarian_: none — nothing in the interface words it; the board shows it
+_Avoid_: active piece, held piece, highlight
+
 **Result**:
 How a game ended: which player won, and which of the two endings ended it — the loser reduced to two pieces, or blocked. Both endings are named after the state the loser was left in rather than after the winning move. A game still being played has no result.
 _Hungarian_: eredmény

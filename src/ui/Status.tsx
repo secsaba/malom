@@ -1,10 +1,26 @@
 import { SIDES, opponentOf } from "../engine/position";
-import type { GameState } from "../session/game-session";
+import type { GameState, Result } from "../session/game-session";
 import { strings } from "../strings";
 
 type StatusProps = {
   /** What the game session says the game looks like now. */
   readonly game: GameState;
+};
+
+/** Who won, and the sentence about the side that lost which says why. */
+const Ended = ({ result }: { readonly result: Result }) => {
+  const loser = opponentOf(result.winner);
+
+  return (
+    <>
+      <p className="status__result" data-testid="result">
+        {strings.game.result.winner[result.winner]}
+      </p>
+      <p className="status__ending" data-testid="ending">
+        {strings.game.result.ending[result.ending][loser]}
+      </p>
+    </>
+  );
 };
 
 /**
@@ -23,14 +39,7 @@ export const Status = ({ game }: StatusProps) => (
     </p>
 
     {game.result ? (
-      <>
-        <p className="status__result" data-testid="result">
-          {strings.game.result.winner[game.result.winner]}
-        </p>
-        <p className="status__ending" data-testid="ending">
-          {strings.game.result.ending[game.result.ending][opponentOf(game.result.winner)]}
-        </p>
-      </>
+      <Ended result={game.result} />
     ) : (
       <p className="status__side-to-move" data-testid="side-to-move">
         {strings.game.toMove[game.sideToMove]}
