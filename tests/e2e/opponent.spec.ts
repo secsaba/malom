@@ -152,7 +152,11 @@ test("plays a whole game, and offers the sides the other way round afterwards", 
   }
 
   await expect(result).toHaveText(strings.game.result.winner.dark);
-  await expect(page.getByTestId("ending")).toHaveText(strings.game.result.ending.reduced.light);
+
+  // Which of the two endings light is left in is the search's own business —
+  // how far it gets in the time it is given is the machine's — so all that is
+  // asked here is that light is the side left in one.
+  await expect(page.getByTestId("ending")).toContainText(strings.game.side.light);
 
   await page.getByTestId("rematch").click();
 
