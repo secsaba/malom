@@ -8,7 +8,7 @@ import {
   PIECE_RADIUS,
   POINT_RADIUS,
   TARGET_RADIUS,
-  positionOf,
+  centreOf,
 } from "./board-layout";
 
 type BoardProps = {
@@ -54,7 +54,7 @@ export const Board = ({ position, legalPoints, showCoordinates, onSelect }: Boar
 
     <g className="board__points">
       {POINTS.map((point) => {
-        const { x, y } = positionOf(point);
+        const { x, y } = centreOf(point);
         const occupant = position.get(point);
 
         return (
@@ -84,7 +84,7 @@ export const Board = ({ position, legalPoints, showCoordinates, onSelect }: Boar
 
     <g className="board__targets">
       {POINTS.map((point) => {
-        const { x, y } = positionOf(point);
+        const { x, y } = centreOf(point);
         return (
           <circle
             key={point}

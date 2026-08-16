@@ -40,23 +40,23 @@ export const PIECE_RADIUS = 34;
 /** How much of the board around a point takes a tap meant for it. */
 export const TARGET_RADIUS = STEP / 2;
 
-export type Position = { readonly x: number; readonly y: number };
+export type Centre = { readonly x: number; readonly y: number };
 
 const xOf = (file: File) => MARGIN + FILES.indexOf(file) * STEP;
 
 // Rank 1 is the bottom of the board, but SVG's y axis grows downwards.
 const yOf = (rank: Rank) => MARGIN + (RANKS.length - rank) * STEP;
 
-/** Where a point sits in the viewBox. */
-export const positionOf = (point: PointId): Position => ({
+/** Where the centre of a point sits in the viewBox. */
+export const centreOf = (point: PointId): Centre => ({
   x: xOf(fileOf(point)),
   y: yOf(rankOf(point)),
 });
 
 export type LineSegment = {
   readonly line: Line;
-  readonly from: Position;
-  readonly to: Position;
+  readonly from: Centre;
+  readonly to: Centre;
 };
 
 /**
@@ -67,8 +67,8 @@ export type LineSegment = {
  */
 export const LINE_SEGMENTS: readonly LineSegment[] = LINES.map((line) => ({
   line,
-  from: positionOf(line[0]),
-  to: positionOf(line[2]),
+  from: centreOf(line[0]),
+  to: centreOf(line[2]),
 }));
 
 /**
@@ -78,7 +78,7 @@ export const LINE_SEGMENTS: readonly LineSegment[] = LINES.map((line) => ({
  * Hungarian and in English — so they come from the board itself and not from
  * the strings module.
  */
-export type CoordinateLabel = Position & { readonly text: string };
+export type CoordinateLabel = Centre & { readonly text: string };
 
 /** The file letters below the board, then the rank digits to its left. */
 export const COORDINATE_LABELS: readonly CoordinateLabel[] = [

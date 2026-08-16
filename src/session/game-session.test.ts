@@ -31,7 +31,7 @@ describe("a new game", () => {
 });
 
 describe("placing a piece", () => {
-  it("puts the moving side's piece on the point and passes the turn", () => {
+  it("puts the moving side's piece on the point and hands over to the opponent", () => {
     const session = createGameSession();
 
     place(session, "a1");
@@ -81,7 +81,7 @@ describe("closing a mill", () => {
     return session;
   };
 
-  it("holds the turn until the capture is taken", () => {
+  it("holds the move open until the capture is taken", () => {
     const session = upToLightsMill();
 
     place(session, "g1");
@@ -98,7 +98,7 @@ describe("closing a mill", () => {
     expect([...session.state.legalPoints].sort()).toEqual(["a7", "d7"]);
   });
 
-  it("takes the captured piece off the board and passes the turn", () => {
+  it("takes the captured piece off the board and ends the move", () => {
     const session = upToLightsMill();
     place(session, "g1");
 
@@ -186,11 +186,11 @@ describe("a mill on any of the sixteen lines", () => {
 
 describe("capturing from a mill", () => {
   /**
-   * Dark closes the mill a7-d7-g7 and takes light's f6; light then closes
+   * Dark closes the mill a7-d7-g7 and takes light's f6; light then answers with
    * c3-d3-e3. Dark's three pieces all stand in the mill unless `spare` puts a
    * fourth one outside it.
    */
-  const upToLightsMill = (spare?: PointId) => {
+  const upToTheAnsweringMill = (spare?: PointId) => {
     const session = createGameSession();
 
     place(session, "c3", "a7", "d3", "d7", "f6", "g7");
@@ -203,7 +203,7 @@ describe("capturing from a mill", () => {
   };
 
   it("is refused while an opponent piece stands outside a mill", () => {
-    const session = upToLightsMill("b2");
+    const session = upToTheAnsweringMill("b2");
 
     expect(session.state.pendingCapture).toBe(true);
     expect(session.state.legalPoints).toEqual(["b2"]);
@@ -216,7 +216,7 @@ describe("capturing from a mill", () => {
   });
 
   it("is allowed once every opponent piece stands in one", () => {
-    const session = upToLightsMill();
+    const session = upToTheAnsweringMill();
 
     expect([...session.state.legalPoints].sort()).toEqual(["a7", "d7", "g7"]);
 

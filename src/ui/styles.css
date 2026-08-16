@@ -100,6 +100,15 @@ body {
   cursor: pointer;
 }
 
+.board__coordinates text {
+  fill: var(--board-ink);
+  font-family: system-ui, sans-serif;
+  font-size: 34px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+
 .status {
   display: flex;
   flex-direction: column;
@@ -115,7 +124,7 @@ body {
   text-transform: uppercase;
 }
 
-.status__turn {
+.status__side-to-move {
   margin: 0;
   font-size: 1.25rem;
 }
@@ -151,12 +160,4 @@ body {
 .status__capture {
   margin: 0.75rem 0 0;
   color: var(--capture-ink);
-}
-
-.board__coordinates text {
-  fill: var(--board-ink);
-  font-family: system-ui, sans-serif;
-  font-size: 34px;
-  text-anchor: middle;
-  dominant-baseline: middle;
 }

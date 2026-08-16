@@ -20,7 +20,7 @@ export const Status = ({ game }: StatusProps) => (
       {strings.game.phase[game.phase]}
     </p>
 
-    <p className="status__turn" data-testid="turn">
+    <p className="status__side-to-move" data-testid="side-to-move">
       {strings.game.toMove[game.sideToMove]}
     </p>
 
