@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { LINES, type PointId } from "../engine/board";
+import { type Game, type Move, legalMovesOf } from "../engine/game";
 import { pointsHeldBy } from "../engine/position";
 import {
   DARK_PICKINGS,
@@ -8,7 +9,7 @@ import {
   REPETITION_CYCLE,
   WALLED_IN,
 } from "../../tests/fixtures/games";
-import { type GameSession, createGameSession } from "./game-session";
+import { type ChooseMove, type GameSession, createGameSession } from "./game-session";
 
 const place = (session: GameSession, ...points: readonly PointId[]) => {
   for (const point of points) session.apply({ type: "place", point });
@@ -34,6 +35,40 @@ const upToTheMovingPhase = () => {
   place(session, ...MILL_FREE_PLACING);
   return session;
 };
+
+/** Everything queued behind the answer an opponent has just given. */
+const settled = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+/**
+ * A stand-in for the engine: it writes down the game it was asked about and
+ * answers only when the test says so, which is what a search running off the
+ * thread looks like from here.
+ */
+const askedOpponent = () => {
+  const asked: Game[] = [];
+  let answer: ((move: Move | undefined) => void) | undefined;
+
+  const chooseMove: ChooseMove = (game) => {
+    asked.push(game);
+    return new Promise((resolve) => {
+      answer = resolve;
+    });
+  };
+
+  return {
+    asked,
+    chooseMove,
+    /** Hand back the move the opponent settled on, and let the session act on it. */
+    reply: async (move: Move | undefined) => {
+      answer?.(move);
+      answer = undefined;
+      await settled();
+    },
+  };
+};
+
+/** An opponent that plays the first move the rules offer, as soon as it is asked. */
+const firstLegalMove: ChooseMove = (game) => Promise.resolve(legalMovesOf(game)[0]);
 
 describe("a new game", () => {
   const session = createGameSession();
@@ -623,5 +658,230 @@ describe("fifty moves by each player without a capture", () => {
     }
 
     expect(session.state.result).toEqual({ draw: "fifty-move" });
+  });
+});
+
+describe("playing the computer", () => {
+  it("asks nobody anything in a game two people are playing", () => {
+    const opponent = askedOpponent();
+
+    const session = createGameSession({ chooseMove: opponent.chooseMove });
+    place(session, "a1");
+
+    expect(opponent.asked).toEqual([]);
+    expect(session.state.thinking).toBe(false);
+    expect(session.state.opponentSide).toBeUndefined();
+  });
+
+  it("asks for a move straight away where the game starts with the computer to move", () => {
+    const opponent = askedOpponent();
+
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      setup: { opponentSide: "light" },
+    });
+
+    expect(opponent.asked).toHaveLength(1);
+    expect(session.state.thinking).toBe(true);
+  });
+
+  it("plays the move it is given and stops thinking", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      setup: { opponentSide: "light" },
+    });
+
+    await opponent.reply({ to: "d2" });
+
+    expect(session.state.position.get("d2")).toBe("light");
+    expect(session.state.sideToMove).toBe("dark");
+    expect(session.state.thinking).toBe(false);
+  });
+
+  it("plays the capture the move it is given earned, in the one move", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      setup: { opponentSide: "dark" },
+    });
+
+    place(session, "b2"); // light, the player
+    await opponent.reply({ to: "a1" });
+    place(session, "b4");
+    await opponent.reply({ to: "d1" });
+    place(session, "c5"); // three light pieces, no two of them on a line
+    await opponent.reply({ to: "g1", capture: "b2" }); // dark closes a1-d1-g1
+
+    expect(session.state.position.has("b2")).toBe(false);
+    expect(session.state.pendingCapture).toBe(false);
+    expect(session.state.sideToMove).toBe("light");
+  });
+
+  it("offers the player nothing to act on while the computer is to move", () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      setup: { opponentSide: "light" },
+    });
+
+    expect(session.state.legalPoints).toEqual([]);
+  });
+
+  it("ignores what the player taps while the computer is to move", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      setup: { opponentSide: "light" },
+    });
+    const before = session.state;
+
+    place(session, "a1");
+    select(session, "a1");
+
+    expect(session.state).toBe(before);
+
+    await opponent.reply({ to: "d2" });
+
+    expect(session.state.position.size).toBe(1);
+  });
+
+  it("asks again as soon as the player has moved", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      setup: { opponentSide: "dark" },
+    });
+
+    expect(opponent.asked).toEqual([]);
+
+    place(session, "a1");
+
+    expect(opponent.asked).toHaveLength(1);
+    expect(opponent.asked[0]?.position.get("a1")).toBe("light");
+    expect(session.state.thinking).toBe(true);
+
+    await opponent.reply({ to: "g7" });
+
+    expect(session.state.sideToMove).toBe("light");
+    expect(session.state.legalPoints).toHaveLength(22);
+  });
+
+  it("waits for the player rather than playing on where the move ends the game", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      setup: { opponentSide: "dark" },
+    });
+
+    for (let index = 0; index < WALLED_IN.length; index += 2) {
+      const [forLight, forDark] = WALLED_IN.slice(index, index + 2);
+      if (!forLight || !forDark) throw new Error("the placing order has an odd number of points");
+
+      place(session, forLight);
+      await opponent.reply({ to: forDark }); // dark's nine wall light in
+    }
+
+    expect(session.state.result).toEqual({ winner: "dark", ending: "blocked" });
+    expect(session.state.thinking).toBe(false);
+    expect(opponent.asked).toHaveLength(9);
+  });
+});
+
+describe("starting another game", () => {
+  it("puts the board back and hands the first move to the player", () => {
+    const session = createGameSession();
+    place(session, "a1", "g7");
+
+    session.start({});
+
+    expect(session.state.position.size).toBe(0);
+    expect(session.state.sideToMove).toBe("light");
+    expect(session.state.piecesInHand).toEqual({ light: 9, dark: 9 });
+    expect(session.state.lastArrival).toBeUndefined();
+  });
+
+  it("hands the first move to the computer where the player took dark", () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({ chooseMove: opponent.chooseMove });
+
+    session.start({ opponentSide: "light" });
+
+    expect(session.state.opponentSide).toBe("light");
+    expect(opponent.asked).toHaveLength(1);
+    expect(session.state.thinking).toBe(true);
+  });
+
+  it("plays the sides the other way round for a rematch", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      setup: { opponentSide: "dark" },
+    });
+    place(session, "a1");
+    await opponent.reply({ to: "g7" });
+
+    session.start({ opponentSide: "light" });
+
+    expect(session.state.position.size).toBe(0);
+    expect(session.state.opponentSide).toBe("light");
+    expect(opponent.asked).toHaveLength(2);
+  });
+
+  it("discards the move the game before was still thinking about", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      setup: { opponentSide: "light" },
+    });
+
+    session.start({ opponentSide: "dark" });
+    await opponent.reply({ to: "d2" }); // the answer to the game that was abandoned
+
+    expect(session.state.position.size).toBe(0);
+    expect(session.state.thinking).toBe(false);
+    expect(session.state.sideToMove).toBe("light");
+  });
+});
+
+describe("the piece that came to rest last", () => {
+  it("is named by where it was placed", () => {
+    const session = createGameSession();
+
+    place(session, "a1");
+
+    expect(session.state.lastArrival).toEqual({ to: "a1" });
+  });
+
+  it("is named by where it came from and where it went once pieces move", () => {
+    const session = upToTheMovingPhase();
+
+    slide(session, "b2", "b4");
+
+    expect(session.state.lastArrival).toEqual({ from: "b2", to: "b4" });
+  });
+
+  it("stays named while the capture it earned is owed", () => {
+    const session = createGameSession();
+    place(session, "a1", "a7", "d1", "d7");
+
+    place(session, "g1"); // closes a1-d1-g1
+
+    expect(session.state.pendingCapture).toBe(true);
+    expect(session.state.lastArrival).toEqual({ to: "g1" });
+
+    capture(session, "a7");
+
+    expect(session.state.lastArrival).toEqual({ to: "g1" });
+  });
+
+  it("names the computer's arrival without the piece it took", async () => {
+    const session = createGameSession({
+      chooseMove: firstLegalMove,
+      setup: { opponentSide: "light" },
+    });
+    await settled();
+
+    expect(session.state.lastArrival).toEqual({ to: "a1" }); // the first point the rules offer
   });
 });

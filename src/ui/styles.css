@@ -114,6 +114,35 @@ body {
   stroke-width: 12;
 }
 
+/*
+ * The piece that moved last, brought in from where it came from rather than
+ * found where it landed — which is what makes the computer's move something the
+ * player watches happen. The travel is set on the piece itself, in the units the
+ * board is drawn in.
+ */
+@keyframes piece-moved {
+  from {
+    transform: translate(var(--arrived-x), var(--arrived-y));
+  }
+}
+
+@keyframes piece-placed {
+  from {
+    transform: scale(0.4);
+    opacity: 0.4;
+  }
+}
+
+.board__points circle[data-arrived="moved"] {
+  animation: piece-moved 240ms ease-out;
+}
+
+.board__points circle[data-arrived="placed"] {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: piece-placed 240ms ease-out;
+}
+
 .board__targets circle {
   fill: transparent;
   cursor: pointer;
@@ -181,6 +210,19 @@ body {
   color: var(--capture-ink);
 }
 
+/* The computer, thinking: it says so, and it breathes while it does. */
+.status__thinking {
+  margin: 0.25rem 0 0;
+  color: var(--page-ink-dim);
+  animation: thinking 1.6s ease-in-out infinite;
+}
+
+@keyframes thinking {
+  50% {
+    opacity: 0.45;
+  }
+}
+
 .status__result {
   margin: 0;
   font-size: 1.5rem;
@@ -196,4 +238,75 @@ body {
 .status__drawn {
   margin: 0.25rem 0 0;
   color: var(--page-ink-dim);
+}
+
+
+.setup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem 1.5rem;
+  max-width: 32rem;
+}
+
+.setup__heading {
+  flex-basis: 100%;
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: normal;
+  color: var(--page-ink-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.setup__choice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--page-ink-dim);
+  border-radius: 0.5rem;
+}
+
+.setup__choice legend {
+  padding: 0 0.35rem;
+  color: var(--page-ink-dim);
+  font-size: 0.875rem;
+}
+
+.setup__option {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.setup__start,
+.rematch {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--page-ink);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--page-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.setup__start:hover,
+.rematch:hover {
+  background: var(--point-selected-ink);
+}
+
+/*
+ * Nothing moves for a player who has asked their system for as little movement
+ * as it can manage.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .board__points circle[data-arrived],
+  .status__thinking {
+    animation: none;
+  }
 }

@@ -3,21 +3,33 @@
  * re-rendering whenever an intent changes the state.
  *
  * The session is the store; React only subscribes to it. Nothing about the
- * rules lives here.
+ * rules lives here — and nothing about the search either: the session is handed
+ * an opponent that thinks in a Web Worker, and what it does with it is its own
+ * business.
  */
 
 import { useState, useSyncExternalStore } from "react";
 
-import { type GameState, type Intent, createGameSession } from "../session/game-session";
+import { createWorkerOpponent } from "../opponent/worker-opponent";
+import {
+  type GameState,
+  type Intent,
+  type Setup,
+  createGameSession,
+} from "../session/game-session";
 
 export type UseGameSession = {
   readonly state: GameState;
   readonly apply: (intent: Intent) => void;
+  /** Throw the game away and start another one. */
+  readonly start: (setup: Setup) => void;
 };
 
 export const useGameSession = (): UseGameSession => {
-  const [session] = useState(createGameSession);
+  const [session] = useState(() =>
+    createGameSession({ chooseMove: createWorkerOpponent() }),
+  );
   const state = useSyncExternalStore(session.subscribe, () => session.state);
 
-  return { state, apply: session.apply };
+  return { state, apply: session.apply, start: session.start };
 };

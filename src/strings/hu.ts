@@ -30,6 +30,8 @@ export const hu = {
     },
     piecesInHand: "Le nem rakott bábuk",
     capture: "Malom! Vegye le az ellenfél egyik bábuját.",
+    /** Shown while the computer is choosing its move. */
+    thinking: "A gép gondolkodik…",
     /**
      * How the game ended: who won and what left the other side unable to go on,
      * or — where neither side could win it — what drew it.
@@ -57,5 +59,19 @@ export const hu = {
         },
       },
     },
+  },
+  /** Starting a game: who is playing it, and which side the player takes. */
+  setup: {
+    heading: "Új játék",
+    /** Who the player is up against, keyed by the choice the interface offers. */
+    against: {
+      legend: "Ellenfél",
+      player: "Másik játékos",
+      computer: "Gép",
+    },
+    /** The side the player takes against the computer. The sides are named in `game.side`. */
+    yourSide: "Az Ön színe",
+    start: "Kezdés",
+    rematch: "Visszavágó cserélt színekkel",
   },
 } as const;

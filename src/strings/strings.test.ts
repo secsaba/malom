@@ -30,6 +30,7 @@ describe("the strings module", () => {
     expect(hu.game.phase.flying).toBe("Ugrálás");
     expect(hu.game.piecesInHand).toBe("Le nem rakott bábuk");
     expect(hu.game.result.draw).toBe("Döntetlen");
+    expect(hu.setup.against.computer).toBe("Gép");
   });
 
   it("never reaches for ütés, which belongs to chess and draughts rather than to malom", () => {

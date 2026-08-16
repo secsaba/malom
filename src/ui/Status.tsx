@@ -35,9 +35,9 @@ const Ended = ({ result }: { readonly result: Result }) =>
 
 /**
  * What the players need to know at a glance: the phase, whose turn it is, how
- * many pieces are still in hand, and whether a capture is owed. Once the game is
- * over, who won and what ended it stand where the turn used to — a finished game
- * has nobody to move.
+ * many pieces are still in hand, whether a capture is owed, and whether the
+ * computer is thinking. Once the game is over, who won and what ended it stand
+ * where the turn used to — a finished game has nobody to move.
  *
  * Every word of it is the strings module's; the game session hands over the
  * phase, the side and the result as values (ADR-0002).
@@ -53,6 +53,12 @@ export const Status = ({ game }: StatusProps) => (
     ) : (
       <p className="status__side-to-move" data-testid="side-to-move">
         {strings.game.toMove[game.sideToMove]}
+      </p>
+    )}
+
+    {game.thinking && (
+      <p className="status__thinking" data-testid="thinking">
+        {strings.game.thinking}
       </p>
     )}
 

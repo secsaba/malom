@@ -3,8 +3,9 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 /**
- * The boundary ADR-0002 draws: `src/engine` (rules), `src/ai` (search) and
- * `src/session` (the facade the interface talks to) are pure TypeScript over
+ * The boundary ADR-0002 draws: `src/engine` (rules), `src/ai` (search),
+ * `src/session` (the facade the interface talks to) and `src/opponent` (the
+ * computer as a player, and the worker it thinks in) are pure TypeScript over
  * plain data. They import nothing from React, nothing from the DOM, and nothing
  * from the strings module — the last of those because they return patterns and
  * phases as data and the interface turns those into sentences.
@@ -14,7 +15,12 @@ import tseslint from "typescript-eslint";
  * quietly break.
  */
 const engineBoundary = {
-  files: ["src/engine/**/*.{ts,tsx}", "src/ai/**/*.{ts,tsx}", "src/session/**/*.{ts,tsx}"],
+  files: [
+    "src/engine/**/*.{ts,tsx}",
+    "src/ai/**/*.{ts,tsx}",
+    "src/session/**/*.{ts,tsx}",
+    "src/opponent/**/*.{ts,tsx}",
+  ],
   rules: {
     "no-restricted-imports": [
       "error",

@@ -32,6 +32,7 @@ describe.each([
   { module: "the engine", path: "src/engine/fixture.ts" },
   { module: "the search", path: "src/ai/fixture.ts" },
   { module: "the game session", path: "src/session/fixture.ts" },
+  { module: "the opponent", path: "src/opponent/fixture.ts" },
 ])("$module", ({ path }) => {
   it.each(forbidden)("cannot reach for $what", async ({ code }) => {
     const messages = await messagesFor(path, code);

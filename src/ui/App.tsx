@@ -1,9 +1,11 @@
 import { useState } from "react";
 
 import type { PointId } from "../engine/board";
-import type { GameState, Intent } from "../session/game-session";
+import { type Side, opponentOf } from "../engine/position";
+import type { GameState, Intent, Setup as GameSetup } from "../session/game-session";
 import { strings } from "../strings";
 import { Board } from "./Board";
+import { FIRST_GAME, type NextGame, Setup } from "./Setup";
 import { Status } from "./Status";
 import { useGameSession } from "./useGameSession";
 
@@ -28,11 +30,26 @@ const intentFor = (game: GameState, point: PointId): Intent => {
     : { type: "select", point };
 };
 
+/** Who plays which side, as the game session takes it. */
+const setupOf = ({ against, humanSide }: NextGame): GameSetup =>
+  against === "computer" ? { opponentSide: opponentOf(humanSide) } : {};
+
 export const App = () => {
   const [showCoordinates, setShowCoordinates] = useState(false);
-  const { state, apply } = useGameSession();
+  const [next, setNext] = useState<NextGame>(FIRST_GAME);
+  const { state, apply, start } = useGameSession();
 
   const select = (point: PointId) => apply(intentFor(state, point));
+
+  const startGame = (chosen: NextGame) => {
+    setNext(chosen);
+    start(setupOf(chosen));
+  };
+
+  // A rematch is offered once a game against the computer is over, and the
+  // player takes the side the computer has just played — which is the whole
+  // point of one: the opening is a different game from each side of it.
+  const rematchSide: Side | undefined = state.result && state.opponentSide;
 
   return (
     <main className="app">
@@ -44,11 +61,25 @@ export const App = () => {
         position={state.position}
         legalPoints={state.legalPoints}
         selection={state.selection}
+        arrival={state.lastArrival}
         showCoordinates={showCoordinates}
         onSelect={select}
       />
 
       <Status game={state} />
+
+      {rematchSide && (
+        <button
+          type="button"
+          className="rematch"
+          data-testid="rematch"
+          onClick={() => startGame({ against: "computer", humanSide: rematchSide })}
+        >
+          {strings.setup.rematch}
+        </button>
+      )}
+
+      <Setup next={next} onChoose={setNext} onStart={() => startGame(next)} />
 
       <label className="app__toggle">
         <input
