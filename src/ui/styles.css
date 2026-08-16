@@ -1,14 +1,20 @@
+/*
+ * The board's structure — its lines and its empty points — is grey, and only
+ * the pieces are warm or dark. The table sits between the two greys and the
+ * pieces, rather than at one end of the range, which is what leaves room for a
+ * light piece to be told from an empty point at a glance.
+ */
 :root {
-  --board-ink: #6b4b2a;
+  --board-line: #776f65;
   --board-ground: #f2e3c8;
-  --point-fill: #fdf6e7;
+  --point-fill: #a29a8d;
+  /* Darker than the lines: the labels are body-size text on a phone. */
+  --coordinate-ink: #4a453e;
   --page-ground: #16130f;
   --page-ink: #f2e3c8;
   --page-ink-dim: #b9a88a;
-  --piece-light: #fffdf7;
-  --piece-dark: #3d2a16;
   --point-legal-ink: #a8341f;
-  --point-legal-fill: #e9c9a8;
+  --point-legal-fill: #c9765a;
   --point-selected-ink: #1f5d7a;
   --capture-ink: #e8875f;
   --result-ink: #f2e3c8;
@@ -64,28 +70,37 @@ body {
 }
 
 .board__lines line {
-  stroke: var(--board-ink);
+  stroke: var(--board-line);
   stroke-width: 6;
   stroke-linecap: round;
 }
 
+/*
+ * Neither an empty point nor a piece is drawn with a ring, so every stroke left
+ * on the board below is a state of the game rather than a thing standing on it.
+ * Each of those has to set its own width, because there is no longer a shared
+ * one here to inherit.
+ */
 .board__points circle {
   fill: var(--point-fill);
-  stroke: var(--board-ink);
-  stroke-width: 6;
 }
 
 /*
- * The two sides are told apart by lightness rather than by hue, and each piece
- * keeps the board's ink as its ring, so the darker one still reads as a piece
- * on a dark background.
+ * The two sides are told apart by lightness rather than by hue. Each is a dome
+ * lit from the upper left rather than a flat disc, and each casts a shadow, so
+ * both read as objects resting on the table — which is what lets the lighter
+ * one define its own edge without a ring around it.
  */
+.board__points circle[data-occupant] {
+  filter: url(#piece-shadow);
+}
+
 .board__points circle[data-occupant="light"] {
-  fill: var(--piece-light);
+  fill: url(#piece-light);
 }
 
 .board__points circle[data-occupant="dark"] {
-  fill: var(--piece-dark);
+  fill: url(#piece-dark);
 }
 
 /*
@@ -95,16 +110,19 @@ body {
 .board__points circle[data-occupant][data-legal] {
   stroke: var(--point-legal-ink);
   stroke-dasharray: 10 8;
+  stroke-width: 6;
 }
 
 /*
- * Where the piece that has been picked up may go. Empty points are marked only
- * while one is: during the placing phase every empty point is legal, so marking
- * them all would say nothing.
+ * Where the piece that has been picked up may go: the one red mark on a board
+ * that is otherwise grey and cream. Empty points are marked only while a piece
+ * is picked up — during the placing phase every empty point is legal, so
+ * marking them all would say nothing.
  */
 .board[data-selection] .board__points circle[data-legal]:not([data-occupant]) {
   fill: var(--point-legal-fill);
   stroke: var(--point-legal-ink);
+  stroke-width: 6;
 }
 
 /* The piece that has been picked up: a solid ring, thicker than any other. */
@@ -149,7 +167,7 @@ body {
 }
 
 .board__coordinates text {
-  fill: var(--board-ink);
+  fill: var(--coordinate-ink);
   font-family: system-ui, sans-serif;
   font-size: 34px;
   text-anchor: middle;

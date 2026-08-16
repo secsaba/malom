@@ -72,6 +72,43 @@ export const Board = ({
     role="img"
     aria-label={strings.board.label}
   >
+    {/*
+     * What makes a piece an object resting on the table rather than a disc
+     * printed on it: a dome, lit from the upper left, and a shadow beneath.
+     * Both are here rather than in the stylesheet because both are measured in
+     * the viewBox's units, so they scale with the board and not with the
+     * viewport — a CSS `drop-shadow()` would be in screen pixels and would
+     * grow coarser the smaller the board got.
+     */}
+    <defs>
+      <radialGradient id="piece-light" cx="36%" cy="28%" r="80%">
+        <stop offset="0%" stopColor="#ffffff" />
+        <stop offset="62%" stopColor="#f7f3e9" />
+        <stop offset="100%" stopColor="#d3ccbd" />
+      </radialGradient>
+
+      <radialGradient id="piece-dark" cx="36%" cy="28%" r="80%">
+        <stop offset="0%" stopColor="#565049" />
+        <stop offset="62%" stopColor="#322e29" />
+        <stop offset="100%" stopColor="#1a1815" />
+      </radialGradient>
+
+      {/*
+       * Room for the blur: the default filter region is a tenth of the shape
+       * around it, which is narrower than this shadow and would cut it into a
+       * square.
+       */}
+      <filter id="piece-shadow" x="-50%" y="-50%" width="200%" height="200%">
+        <feDropShadow
+          dx="0"
+          dy="6"
+          stdDeviation="5"
+          floodColor="#2e2a24"
+          floodOpacity="0.42"
+        />
+      </filter>
+    </defs>
+
     <g className="board__lines">
       {LINE_SEGMENTS.map(({ line, from, to }) => (
         <line
