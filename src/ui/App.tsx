@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { PointId } from "../engine/board";
 import { type Side, opponentOf } from "../engine/position";
-import type { GameState, Intent, Setup as GameSetup } from "../session/game-session";
+import type { GameState, Intent, Players } from "../session/game-session";
 import { strings } from "../strings";
 import { Board } from "./Board";
 import { FIRST_GAME, type NextGame, Setup } from "./Setup";
@@ -31,7 +31,7 @@ const intentFor = (game: GameState, point: PointId): Intent => {
 };
 
 /** Who plays which side, as the game session takes it. */
-const setupOf = ({ against, humanSide }: NextGame): GameSetup =>
+const playersOf = ({ against, humanSide }: NextGame): Players =>
   against === "computer" ? { opponentSide: opponentOf(humanSide) } : {};
 
 export const App = () => {
@@ -43,7 +43,7 @@ export const App = () => {
 
   const startGame = (chosen: NextGame) => {
     setNext(chosen);
-    start(setupOf(chosen));
+    start(playersOf(chosen));
   };
 
   // A rematch is offered once a game against the computer is over, and the

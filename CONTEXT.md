@@ -134,6 +134,11 @@ The computer as a player, configured at one of four difficulties.
 _Hungarian_: gép
 _Avoid_: computer player, CPU, bot
 
+**Rematch**:
+Another game against the opponent, started once one has ended, with the sides the other way round. The swap is the point of it: the opening is a different game from each side of it, and a learner who only ever plays one of them has learnt half of it.
+_Hungarian_: visszavágó
+_Avoid_: replay, again, new game — the last of those being any game started fresh, of which a rematch is the one kind that swaps
+
 **Difficulty**:
 How strongly the opponent plays — a combination of how deeply it searches and how often it deliberately picks a weaker move.
 _Hungarian_: nehézség (Kezdő, Haladó, Erős, Mester)

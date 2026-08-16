@@ -14,21 +14,19 @@ import { createWorkerOpponent } from "../opponent/worker-opponent";
 import {
   type GameState,
   type Intent,
-  type Setup,
+  type Players,
   createGameSession,
 } from "../session/game-session";
 
 export type UseGameSession = {
   readonly state: GameState;
   readonly apply: (intent: Intent) => void;
-  /** Throw the game away and start another one. */
-  readonly start: (setup: Setup) => void;
+  /** Throw the game away and start another one, played by whoever is given. */
+  readonly start: (players: Players) => void;
 };
 
 export const useGameSession = (): UseGameSession => {
-  const [session] = useState(() =>
-    createGameSession({ chooseMove: createWorkerOpponent() }),
-  );
+  const [session] = useState(() => createGameSession({ chooseMove: createWorkerOpponent() }));
   const state = useSyncExternalStore(session.subscribe, () => session.state);
 
   return { state, apply: session.apply, start: session.start };

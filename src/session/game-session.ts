@@ -55,14 +55,14 @@ export type { Draw, Ending, Phase, Result };
 export type ChooseMove = (game: Game) => Promise<Move | undefined>;
 
 /** Who is playing: the side the computer takes, or nobody, for two people sharing a device. */
-export type Setup = {
+export type Players = {
   readonly opponentSide?: Side | undefined;
 };
 
 export type GameSessionOptions = {
   /** Asked for the computer's move. Without it, both sides are played by hand. */
   readonly chooseMove?: ChooseMove | undefined;
-  readonly setup?: Setup | undefined;
+  readonly players?: Players | undefined;
 };
 
 /**
@@ -271,19 +271,19 @@ export type GameSession = {
   /** Watch for state changes. Returns the function that stops watching. */
   readonly subscribe: (listener: () => void) => () => void;
   /**
-   * Throw the game away and start another one, played by whoever the setup says
-   * — which is how a rematch swaps the sides over.
+   * Throw the game away and start another one, played by whoever is given —
+   * which is how a rematch swaps the sides over.
    */
-  readonly start: (setup: Setup) => void;
+  readonly start: (players: Players) => void;
 };
 
 /** Start a game. */
 export const createGameSession = ({
   chooseMove,
-  setup = {},
+  players = {},
 }: GameSessionOptions = {}): GameSession => {
   let recorded = NEW_SESSION;
-  let playing: Playing = { opponentSide: setup.opponentSide, thinking: false };
+  let playing: Playing = { opponentSide: players.opponentSide, thinking: false };
   let state = stateOf(recorded, playing);
   const listeners = new Set<() => void>();
 
@@ -309,31 +309,23 @@ export const createGameSession = ({
     const thought = recorded.game;
     playing = { ...playing, thinking: true };
 
-    const stop = () => {
-      if (asked !== gamesStarted) return false; // another game is being played now
+    const played = (move: Move | undefined) => {
+      if (asked !== gamesStarted) return; // another game is being played now
 
       playing = { ...playing, thinking: false };
-      return true;
+      if (move) recorded = afterChoosing(thought, move);
+      publish();
     };
 
-    void chooseMove(thought).then(
-      (move) => {
-        if (!stop()) return;
-        if (move) recorded = afterChoosing(thought, move);
-        publish();
-      },
-      // A search that fails leaves the game where it stood, with the move still
-      // the computer's to make. There is nowhere here to say so; the interface
-      // reads a computer that has stopped thinking without having moved.
-      () => {
-        if (stop()) publish();
-      },
-    );
+    // A search that fails is a computer with no move to play: the game stays
+    // where it stood, with the move still its own. There is nowhere here to say
+    // so, and the interface reads a computer that has stopped thinking.
+    void chooseMove(thought).then(played, () => played(undefined));
   };
 
   // A game the computer opens is under way from the moment it is created.
   think();
-  state = stateOf(recorded, playing);
+  publish();
 
   return {
     get state() {

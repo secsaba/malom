@@ -678,7 +678,7 @@ describe("playing the computer", () => {
 
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      setup: { opponentSide: "light" },
+      players: { opponentSide: "light" },
     });
 
     expect(opponent.asked).toHaveLength(1);
@@ -689,7 +689,7 @@ describe("playing the computer", () => {
     const opponent = askedOpponent();
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      setup: { opponentSide: "light" },
+      players: { opponentSide: "light" },
     });
 
     await opponent.reply({ to: "d2" });
@@ -703,7 +703,7 @@ describe("playing the computer", () => {
     const opponent = askedOpponent();
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      setup: { opponentSide: "dark" },
+      players: { opponentSide: "dark" },
     });
 
     place(session, "b2"); // light, the player
@@ -722,7 +722,7 @@ describe("playing the computer", () => {
     const opponent = askedOpponent();
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      setup: { opponentSide: "light" },
+      players: { opponentSide: "light" },
     });
 
     expect(session.state.legalPoints).toEqual([]);
@@ -732,7 +732,7 @@ describe("playing the computer", () => {
     const opponent = askedOpponent();
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      setup: { opponentSide: "light" },
+      players: { opponentSide: "light" },
     });
     const before = session.state;
 
@@ -750,7 +750,7 @@ describe("playing the computer", () => {
     const opponent = askedOpponent();
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      setup: { opponentSide: "dark" },
+      players: { opponentSide: "dark" },
     });
 
     expect(opponent.asked).toEqual([]);
@@ -771,7 +771,7 @@ describe("playing the computer", () => {
     const opponent = askedOpponent();
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      setup: { opponentSide: "dark" },
+      players: { opponentSide: "dark" },
     });
 
     for (let index = 0; index < WALLED_IN.length; index += 2) {
@@ -816,7 +816,7 @@ describe("starting another game", () => {
     const opponent = askedOpponent();
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      setup: { opponentSide: "dark" },
+      players: { opponentSide: "dark" },
     });
     place(session, "a1");
     await opponent.reply({ to: "g7" });
@@ -832,7 +832,7 @@ describe("starting another game", () => {
     const opponent = askedOpponent();
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      setup: { opponentSide: "light" },
+      players: { opponentSide: "light" },
     });
 
     session.start({ opponentSide: "dark" });
@@ -878,7 +878,7 @@ describe("the piece that came to rest last", () => {
   it("names the computer's arrival without the piece it took", async () => {
     const session = createGameSession({
       chooseMove: firstLegalMove,
-      setup: { opponentSide: "light" },
+      players: { opponentSide: "light" },
     });
     await settled();
 

@@ -42,11 +42,16 @@ export const createWorkerOpponent = (options?: OpponentOptions): ChooseMove => {
       waiting?.settle(data.result);
     });
 
-    // A worker that cannot run answers nothing, ever, so everything waiting on
-    // it is told as much rather than left waiting.
+    // A worker that has failed answers nothing, ever: everything waiting on it
+    // is told as much rather than left waiting, and it is thrown away so that
+    // the next question starts a thread rather than being posted into the dead
+    // one — where it would wait for an answer that could never come.
     started.addEventListener("error", (event) => {
       const failed = [...pending.values()];
       pending.clear();
+      worker = undefined;
+      started.terminate();
+
       for (const { fail } of failed) fail(new Error(event.message));
     });
 

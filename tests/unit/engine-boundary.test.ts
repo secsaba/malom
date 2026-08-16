@@ -26,6 +26,7 @@ const forbidden = [
   { what: "the document", code: `export const x = () => document.title;` },
   { what: "the window", code: `export const x = () => window.innerWidth;` },
   { what: "local storage", code: `export const x = () => localStorage.getItem("game");` },
+  { what: "a thread of its own", code: `export const x = () => new Worker("");` },
 ];
 
 describe.each([
@@ -45,6 +46,22 @@ describe.each([
       `import { POINTS } from "../engine/board";\nexport const count = POINTS.length;`,
     );
     expect(messages).toEqual([]);
+  });
+});
+
+describe("the adapter the opponent thinks through", () => {
+  const path = "src/opponent/worker-opponent.ts";
+
+  it("is the one place behind the boundary that may start a thread", async () => {
+    const messages = await messagesFor(path, `export const x = () => new Worker("");`);
+
+    expect(messages).toEqual([]);
+  });
+
+  it("may reach for nothing else of the browser's", async () => {
+    const messages = await messagesFor(path, `export const x = () => window.innerWidth;`);
+
+    expect(messages.join("\n")).toMatch(/ADR-0002/);
   });
 });
 
