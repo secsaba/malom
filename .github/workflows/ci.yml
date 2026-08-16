@@ -88,11 +88,16 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      # Points the repo's Pages source at Actions, creating the site on the
-      # first run. Without it deploy-pages fails with "Get Pages site failed".
+      # Reads the repo's Pages config, so a misconfigured site fails here with a
+      # clear message rather than inside deploy-pages. It cannot create the site
+      # — GITHUB_TOKEN is refused that ("Resource not accessible by
+      # integration") even with pages: write — so the site is created once, by
+      # hand, with a user token:
+      #
+      #   gh api repos/secsaba/malom/pages -X POST -f build_type=workflow
+      #
+      # A fork deploying to its own Pages has to run that once too.
       - uses: actions/configure-pages@v6
-        with:
-          enablement: true
 
       - id: deploy
         uses: actions/deploy-pages@v5
