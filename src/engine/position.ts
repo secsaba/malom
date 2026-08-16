@@ -38,7 +38,7 @@ export const emptyPoints = (position: Position): readonly PointId[] =>
   POINTS.filter((point) => !position.has(point));
 
 /** The empty points a piece on this point can slide to, ordered by file and then by rank. */
-const slidesFrom = (position: Position, point: PointId): readonly PointId[] =>
+export const slidesFrom = (position: Position, point: PointId): readonly PointId[] =>
   neighboursOf(point).filter((neighbour) => !position.has(neighbour));
 
 /** The points one side's pieces stand on, ordered by file and then by rank. */
