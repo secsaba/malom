@@ -4,6 +4,44 @@ Nine Men's Morris as a teaching instrument — a hotseat and computer opponent t
 
 What the game is and what its terms mean is in [`CONTEXT.md`](CONTEXT.md); the decisions behind the design are in [`docs/adr/`](docs/adr/).
 
+The site is at <https://secsaba.github.io/malom/>, deployed from `main` by [the CI workflow](.github/workflows/ci.yml).
+
+## Running it
+
+Everything below assumes you are inside the dev shell (see [Development environment](#development-environment)).
+
+```sh
+pnpm install     # once, and whenever pnpm-lock.yaml moves
+pnpm dev         # the site on http://localhost:5173/malom/
+```
+
+| Command          | What it does                                                     |
+| ---------------- | ---------------------------------------------------------------- |
+| `pnpm lint`      | ESLint, including the module boundary below                       |
+| `pnpm typecheck` | `tsc --noEmit`                                                    |
+| `pnpm test`      | The fast suite (Vitest) — everything that needs no browser        |
+| `pnpm e2e`       | The browser suite (Playwright) against the production build       |
+| `pnpm build`     | Typecheck, then the production build into `dist/`                 |
+| `pnpm preview`   | Serve `dist/` on http://localhost:4173/malom/                     |
+
+CI runs all of them on every push and pull request, inside this same dev shell. A green run on `main` deploys `dist/` to GitHub Pages.
+
+`pnpm e2e` needs a browser the first time — see [Playwright browsers](#playwright-browsers).
+
+## How the code is laid out
+
+```
+src/
+├── engine/    rules: the board, legal moves, mills, captures, phases
+├── ai/        search and evaluation            (arrives with #6)
+├── strings/   every user-facing string, Hungarian for now
+└── ui/        React components and their geometry
+```
+
+`src/ui` depends on `src/engine` and `src/ai`. The dependency never runs the other way, and neither `src/engine` nor `src/ai` may import React, touch the DOM, or read the strings module — that is [ADR-0002](docs/adr/0002-engine-has-no-ui-dependencies.md), and `pnpm lint` fails the build when it is broken. The rule lives in [`eslint.config.js`](eslint.config.js); [`tests/unit/engine-boundary.test.ts`](tests/unit/engine-boundary.test.ts) lints deliberately-bad fixtures to prove it still bites.
+
+The same lint pass rejects user-facing text written into a component, so the strings module stays the one place text lives and the English translation stays a data change.
+
 ## Development environment
 
 The toolchain is defined by [`flake.nix`](flake.nix) and pinned by `flake.lock`, so every checkout gets the same versions. No part of it is installed by hand.

@@ -1,0 +1,77 @@
+:root {
+  --board-ink: #6b4b2a;
+  --board-ground: #f2e3c8;
+  --point-fill: #fdf6e7;
+  --page-ground: #16130f;
+  --page-ink: #f2e3c8;
+  --page-ink-dim: #b9a88a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--page-ground);
+  color: var(--page-ink);
+  font-family: system-ui, sans-serif;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+
+.app__header {
+  text-align: center;
+}
+
+.app__header h1 {
+  margin: 0;
+  font-size: 2rem;
+  letter-spacing: 0.05em;
+}
+
+.app__header p {
+  margin: 0.25rem 0 0;
+  color: var(--page-ink-dim);
+}
+
+.app__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.board {
+  width: min(100%, 32rem);
+  height: auto;
+  background: var(--board-ground);
+  border-radius: 0.5rem;
+}
+
+.board__lines line {
+  stroke: var(--board-ink);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.board__points circle {
+  fill: var(--point-fill);
+  stroke: var(--board-ink);
+  stroke-width: 6;
+}
+
+.board__coordinates text {
+  fill: var(--board-ink);
+  font-family: system-ui, sans-serif;
+  font-size: 34px;
+  text-anchor: middle;
+  dominant-baseline: middle;
+}

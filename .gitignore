@@ -4,3 +4,14 @@
 # nix build outputs
 result
 result-*
+
+# node
+node_modules/
+
+# vite
+dist/
+
+# playwright
+test-results/
+playwright-report/
+blob-report/
