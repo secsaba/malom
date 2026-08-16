@@ -6,8 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 
-import { gameOf } from "../../tests/fixtures/positions";
-import { NEW_GAME, afterMove, legalMovesOf } from "../engine/game";
+import { gameOf } from "../../tests/fixtures/games";
+import { type Game, NEW_GAME, afterMove, legalMovesOf } from "../engine/game";
 import { WIN_SCORE, search } from "./search";
 
 /** Deep enough to see a capture answered, shallow enough to keep the suite fast. */
@@ -65,6 +65,24 @@ describe("a position with a move that is plainly the best one", () => {
     expect(move?.capture).toBeDefined();
   });
 
+  it("takes the piece that was one move from a mill, not the one that was harmless", () => {
+    // The same mill again, and this time the capture it earns is the decision:
+    // dark's b2 and b4 are a potential mill waiting on b6, while its d3 and g7
+    // sit on no line with anything. Taking a harmless one leaves dark — down to
+    // three pieces, and so flying — able to reach b6 from anywhere and take a
+    // piece straight back.
+    const game = gameOf({
+      light: ["c5", "e4", "f4", "g1"],
+      dark: ["b2", "b4", "d3", "g7"],
+      sideToMove: "light",
+    });
+
+    const { move } = search(game, { limits: SHALLOW });
+
+    expect(move).toMatchObject({ from: "g1", to: "g4" });
+    expect(["b2", "b4"]).toContain(move?.capture);
+  });
+
   it("jumps into a mill from across the board once it is down to flying", () => {
     // Light's three pieces fly, so c5 can go straight to g1 and close a1-d1-g1
     // — and, once it has, light's whole force stands in a mill it can run.
@@ -106,16 +124,65 @@ describe("a game neither side can win any more", () => {
 
     // With the count nowhere near the fifty, the same position is worth a great
     // deal to dark. It is the draw that takes it down to nothing, not the pieces.
-    expect(search({ ...winning, recent: undefined }, { limits: SHALLOW }).evaluation)
+    expect(search({ ...winning, quietStretch: undefined }, { limits: SHALLOW }).evaluation)
       .toBeGreaterThan(0);
     expect(search(winning, { limits: SHALLOW }).evaluation).toBe(0);
   });
 
-  it("has nothing left to prefer once it is drawn", () => {
+  it("has nothing left to prefer once the fifty moves have run out", () => {
     const drawn = afterMove(onTheHundredthMove("light"), { from: "a1", to: "a4" });
 
     expect(drawn.result).toEqual({ draw: "fifty-move" });
     expect(search(drawn)).toEqual({ move: undefined, evaluation: 0, depth: 0 });
+  });
+
+  /**
+   * Light steps a1 out to a4 and back while dark does the same with b4 and b6.
+   * Neither point closes a mill on the way out or on the way back, so the four
+   * moves leave the board exactly as they found it and can be played as often as
+   * the rules allow — three times round brings the position they started from up
+   * for the third time.
+   */
+  const CYCLE = [
+    { from: "a1", to: "a4" },
+    { from: "b4", to: "b6" },
+    { from: "a4", to: "a1" },
+    { from: "b6", to: "b4" },
+  ] as const;
+
+  it("has nothing left to prefer once the same position has come up three times", () => {
+    let game: Game = onTheHundredthMove("light");
+    // The count the fifty-move rule keeps is the other draw condition's; this is
+    // about the position coming round, so it starts the game with the count clear.
+    game = { ...game, quietStretch: undefined };
+
+    for (let round = 0; round < 3; round += 1) {
+      for (const move of CYCLE) game = afterMove(game, move);
+    }
+
+    expect(game.result).toEqual({ draw: "repetition" });
+    expect(search(game)).toEqual({ move: undefined, evaluation: 0, depth: 0 });
+  });
+
+  it("takes a draw it can repeat its way into rather than the game it is losing", () => {
+    let game: Game = { ...onTheHundredthMove("light"), quietStretch: undefined };
+    // Twice round the cycle leaves every position of it up for the second time,
+    // so the very next move brings one of them up for the third and draws.
+    for (let round = 0; round < 2; round += 1) {
+      for (const move of CYCLE) game = afterMove(game, move);
+    }
+
+    const [drawing] = CYCLE;
+    expect(afterMove(game, drawing).result).toEqual({ draw: "repetition" });
+
+    // Light is four pieces against eight, so every other move leaves it the game
+    // it is losing, and nothing it can play is worth more than a draw's nought.
+    // The search has to see the repetition to prefer that move, and it does.
+    expect(search(game, { limits: { depth: 1 } })).toEqual({
+      move: drawing,
+      evaluation: 0,
+      depth: 1,
+    });
   });
 });
 
@@ -150,6 +217,30 @@ describe("how far the search looks", () => {
     // from a shallower depth rather than half of a deeper one.
     expect(stopped.depth).toBeGreaterThanOrEqual(1);
     expect(stopped.depth).toBeLessThan(8);
+  });
+
+  /**
+   * A budget the search really has to spend, counted in askings rather than in
+   * milliseconds so that the test says the same thing on a fast machine and a
+   * slow one. What a clock is for is the worker (#7); what the search needs is
+   * only something that eventually answers true.
+   */
+  const budgetOf = (askings: number) => {
+    let asked = 0;
+    return () => (asked += 1) > askings;
+  };
+
+  it("goes as deep as the budget it is given runs to, and no deeper", () => {
+    const brief = search(NEW_GAME, { limits: { depth: 8, shouldStop: budgetOf(1) } });
+    const longer = search(NEW_GAME, { limits: { depth: 8, shouldStop: budgetOf(20) } });
+
+    expect(brief.depth).toBeGreaterThanOrEqual(1);
+    expect(longer.depth).toBeGreaterThan(brief.depth);
+    expect(longer.depth).toBeLessThan(8);
+    // Both answers are whole ones: the round the budget cut short is thrown away.
+    for (const answer of [brief, longer]) {
+      expect(legalMovesOf(NEW_GAME)).toContainEqual(answer.move);
+    }
   });
 
   it("gives the same answer twice, so that the strongest opponent is a fixed one", () => {

@@ -3,10 +3,11 @@
  * to. It takes intents — what the player tried to do — and exposes the state
  * they can see. The engine sits behind it as an internal.
  *
- * The rules are not here. `src/engine/game` plays whole moves; this turns the
- * taps an interface deals in into them, and holds what a half-played move leaves
- * over: the piece picked up and not yet moved, and the capture owed by a mill
- * just closed.
+ * How a move is played is not here. `src/engine/game` plays whole moves; this
+ * turns the taps an interface deals in into them. What it does keep is the rules
+ * about a move being assembled — which piece has been picked up, and whether a
+ * capture is still owed — because putting a piece down again is a step the rules
+ * allow rather than a detail of any one interface.
  *
  * It is pure TypeScript over plain data, like the engine (ADR-0002): it returns
  * the phase, the pending capture and the result as values, and `src/ui` words
@@ -116,7 +117,7 @@ const NEW_SESSION: Recorded = { game: NEW_GAME, selection: undefined, arrival: u
  * A piece has arrived on a point — put there or moved there — so the mill it may
  * have closed decides whether the move is over or a capture is owed.
  */
-const afterArriving = ({ game }: Recorded, arrival: Arrival): Recorded =>
+const afterSending = ({ game }: Recorded, arrival: Arrival): Recorded =>
   // A move closing two mills still earns one capture: the debt is owed, not counted.
   afterArrival(game, arrival).captures.length > 0
     ? { game, selection: undefined, arrival }
@@ -168,10 +169,10 @@ const nextRecorded = (recorded: Recorded, intent: Intent): Recorded => {
 
   switch (intent.type) {
     case "place":
-      return afterArriving(recorded, { to: intent.point });
+      return afterSending(recorded, { to: intent.point });
     case "move":
       // Nothing is on its way anywhere until a piece has been picked up.
-      return selection ? afterArriving(recorded, { from: selection, to: intent.point }) : recorded;
+      return selection ? afterSending(recorded, { from: selection, to: intent.point }) : recorded;
     case "capture":
       // The guard above has already established that a capture is owed, which is
       // to say that a piece has arrived and is waiting on it.

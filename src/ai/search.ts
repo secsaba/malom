@@ -18,15 +18,16 @@
 
 import { type Game, type Move, type Result, afterMove, legalMovesOf } from "../engine/game";
 import type { Side } from "../engine/position";
-import { DEFAULT_WEIGHTS, type Weights, evaluate } from "./evaluation";
+import { DEFAULT_WEIGHTS, EVALUATION_LIMIT, type Weights, evaluate } from "./evaluation";
 
 /**
- * What a won game scores, seen from the winner. It is far above the evaluation's
- * own limit, so a win always outranks any position that is merely good and a
- * draw's nought always outranks any loss — which is what keeps a position
- * neither side can win from being scored as one either side has won.
+ * What a won game scores, seen from the winner. It is a multiple of the furthest
+ * an evaluation can reach rather than a number of its own, so that a win always
+ * outranks any position that is merely good and a draw's nought always outranks
+ * any loss — which is what keeps a game neither side can win from ever being
+ * scored as one either side has won.
  */
-export const WIN_SCORE = 1_000_000;
+export const WIN_SCORE = EVALUATION_LIMIT * 10;
 
 /** How far to look, and when to give up looking. */
 export type Limits = {
@@ -74,8 +75,19 @@ const ABANDONED = Symbol("abandoned search");
 const scoreOf = (result: Result, sideToMove: Side, ply: number): number => {
   if ("draw" in result) return 0;
 
-  return result.winner === sideToMove ? WIN_SCORE - ply : ply - WIN_SCORE;
+  return result.winner === sideToMove ? WIN_SCORE - ply : lostAt(ply);
 };
+
+/**
+ * What a game lost this far from the root is worth to the side that lost it.
+ *
+ * A side to move with nothing to play has been shut in, and a side shut in has
+ * lost — so a game offering no move scores this too. The rules end such a game as
+ * it is handed over, which means only a position built by hand rather than played
+ * into being ever arrives here with no result on it; the answer is still the one
+ * the rules would have given, rather than a guess at how the board looks.
+ */
+const lostAt = (ply: number): number => ply - WIN_SCORE;
 
 /**
  * Moves worth looking at first. A move that takes a piece is the likeliest to be
@@ -120,9 +132,7 @@ export const search = (game: Game, options: SearchOptions = {}): SearchResult =>
     checkStop();
 
     const moves = capturesFirst(legalMovesOf(node));
-    // The rules end a game the side to move cannot play, so this is only reached
-    // by a game built by hand rather than played into being. Weigh it as it is.
-    if (moves.length === 0) return evaluate(node, weights);
+    if (moves.length === 0) return lostAt(ply);
 
     let best = -Infinity;
     let window = alpha;
@@ -156,9 +166,7 @@ export const search = (game: Game, options: SearchOptions = {}): SearchResult =>
   if (legal.length === 0) {
     return {
       move: undefined,
-      evaluation: game.result
-        ? scoreOf(game.result, game.sideToMove, 0)
-        : evaluate(game, weights),
+      evaluation: game.result ? scoreOf(game.result, game.sideToMove, 0) : lostAt(0),
       depth: 0,
     };
   }

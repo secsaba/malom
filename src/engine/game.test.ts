@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { gameOf } from "../../tests/fixtures/positions";
+import { gameOf } from "../../tests/fixtures/games";
 import { NEW_GAME, afterMove, legalMovesOf } from "./game";
 import { emptyPoints, opponentOf, pointsHeldBy } from "./position";
 

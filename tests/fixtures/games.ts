@@ -5,6 +5,8 @@
  */
 
 import type { PointId } from "../../src/engine/board";
+import type { Game, QuietStretch } from "../../src/engine/game";
+import { type Position, type Side, withPiece } from "../../src/engine/position";
 
 /**
  * Eighteen placements that close no mill, so the placing phase runs to its end
@@ -49,3 +51,66 @@ export const REPETITION_CYCLE = [
   ["d2", "b2"],
   ["d6", "d7"],
 ] as const satisfies readonly (readonly [PointId, PointId])[];
+
+/**
+ * A game written down as the position it stands in rather than as the moves that
+ * produced it, so that a test about the search can say what the position is for
+ * instead of spending eighteen placements getting there.
+ *
+ * The rules are bypassed on the way in, so a game built here is only as legal as
+ * whoever wrote it made it, and every test that builds one says why its position
+ * is a reachable one. What no fixture can express is a game that has already
+ * stood in the same position twice: the identities below are made up, and a test
+ * about repetition has to play the moves that repeat.
+ */
+export type GameFixture = {
+  /** The points light stands on. */
+  readonly light: readonly PointId[];
+  /** The points dark stands on. */
+  readonly dark: readonly PointId[];
+  readonly sideToMove: Side;
+  /** Left out for a game past the placing phase, where both hands are empty. */
+  readonly piecesInHand?: Readonly<Record<Side, number>>;
+  /** Moves played since the last capture or placement, for a game near the fifty-move draw. */
+  readonly quietMoves?: number;
+};
+
+const NO_PIECES_IN_HAND = { light: 0, dark: 0 } as const;
+
+/**
+ * The stretch a game of `quietMoves` moves without a capture has behind it. Its
+ * positions are named after how far back they are rather than written out: the
+ * fifty-move count is all these fixtures ask of a stretch, and a chain in which
+ * no position repeats is exactly what a game short of the fifty looks like.
+ */
+const stretchOf = (quietMoves: number): QuietStretch | undefined => {
+  let stretch: QuietStretch | undefined = undefined;
+
+  for (let move = 0; move <= quietMoves; move += 1) {
+    stretch = { identity: `fixture ${move}`, quietMoves: move, earlier: stretch };
+  }
+
+  return stretch;
+};
+
+/** A game part-played, built from where the pieces stand. */
+export const gameOf = ({
+  light,
+  dark,
+  sideToMove,
+  piecesInHand = NO_PIECES_IN_HAND,
+  quietMoves = 0,
+}: GameFixture): Game => {
+  let position: Position = new Map<PointId, Side>();
+  for (const point of light) position = withPiece(position, point, "light");
+  for (const point of dark) position = withPiece(position, point, "dark");
+
+  return {
+    position,
+    sideToMove,
+    placing: piecesInHand.light > 0 || piecesInHand.dark > 0,
+    piecesInHand,
+    quietStretch: stretchOf(quietMoves),
+    result: undefined,
+  };
+};

@@ -67,20 +67,21 @@ export type Arrival = {
 export type Move = Arrival & { readonly capture?: PointId | undefined };
 
 /**
- * The positions the game has stood in since its last capture or placement, most
- * recent first, with the number of moves that stretch runs to.
+ * The stretch of quiet moves the game is in: the positions it has stood in since
+ * its last capture or placement, most recent first, and how many moves back that
+ * runs.
  *
- * Nothing from before that point can come round again: a piece taken off the
+ * Nothing from before that point can come round again — a piece taken off the
  * board and a piece taken out of a hand are changes no move puts back, so two
- * identical positions can have neither between them. A chain of the current
- * stretch is therefore all the repetition rule ever needs to see, and its length
- * is exactly what the fifty-move rule counts.
+ * identical positions can have neither between them. A stretch is therefore all
+ * the repetition rule ever needs to see, and its length is exactly what the
+ * fifty-move rule counts.
  */
-export type Recent = {
+export type QuietStretch = {
   readonly identity: string;
   /** Moves played since the last capture or placement — nought at the position one left. */
   readonly quietMoves: number;
-  readonly earlier: Recent | undefined;
+  readonly earlier: QuietStretch | undefined;
 };
 
 /** A game of malom, part-played. */
@@ -90,8 +91,8 @@ export type Game = {
   /** Whether pieces are still being put onto the board. */
   readonly placing: boolean;
   readonly piecesInHand: Readonly<Record<Side, number>>;
-  /** Where the game has stood since its last capture or placement, or nowhere yet. */
-  readonly recent: Recent | undefined;
+  /** The quiet moves the game is in the middle of, or none yet. */
+  readonly quietStretch: QuietStretch | undefined;
   /** How the game ended, once it has. */
   readonly result: Result | undefined;
 };
@@ -115,7 +116,7 @@ export const NEW_GAME: Game = {
   placing: true,
   piecesInHand: { light: PIECES_PER_SIDE, dark: PIECES_PER_SIDE },
   // The empty board a game starts on is the one position it can never come back to.
-  recent: undefined,
+  quietStretch: undefined,
   result: undefined,
 };
 
@@ -141,14 +142,14 @@ export const phaseOf = (game: Game): Phase => {
  * still worth something to whoever is weighing the position up.
  */
 export const roomAround = (game: Game, point: PointId): readonly PointId[] => {
-  const side = game.position.get(point);
-  if (side === undefined) return [];
+  if (!game.position.has(point)) return [];
 
-  return fliesIn(game, side) ? emptyPoints(game.position) : slidesFrom(game.position, point);
+  // Outside the placing phase this is the rules' own answer. Inside it, a side
+  // that happens to hold three pieces is not flying, so the room is next door.
+  return game.placing
+    ? slidesFrom(game.position, point)
+    : destinationsFrom(game.position, point);
 };
-
-/** How many moves have been played since the last capture or placement. */
-export const quietMovesOf = (game: Game): number => game.recent?.quietMoves ?? 0;
 
 /**
  * What makes two positions the same one for the repetition rule: the pieces, the
@@ -164,9 +165,9 @@ const identityOf = (game: Game): string =>
   ].join(" ");
 
 /** How often the game has stood in this position over the current stretch. */
-const timesSeen = (recent: Recent | undefined, identity: string): number => {
+const timesSeen = (stretch: QuietStretch | undefined, identity: string): number => {
   let seen = 0;
-  for (let step = recent; step !== undefined; step = step.earlier) {
+  for (let step = stretch; step !== undefined; step = step.earlier) {
     if (step.identity === identity) seen += 1;
   }
   return seen;
@@ -177,10 +178,10 @@ const timesSeen = (recent: Recent | undefined, identity: string): number => {
  * with having come up for the third time, or fifty moves by each player without
  * a capture. A game that has been won is never asked.
  */
-const drawnBy = (recent: Recent, seen: number): Draw | undefined => {
+const drawnBy = (stretch: QuietStretch, seen: number): Draw | undefined => {
   if (seen >= REPETITIONS_TO_DRAW) return "repetition";
 
-  return recent.quietMoves >= QUIET_MOVES_TO_DRAW ? "fifty-move" : undefined;
+  return stretch.quietMoves >= QUIET_MOVES_TO_DRAW ? "fifty-move" : undefined;
 };
 
 /**
@@ -206,13 +207,13 @@ const withMoveComplete = (game: Game, { captured }: { readonly captured: boolean
     placing: game.placing && !handsEmpty,
   };
 
-  const earlier = captured || game.placing ? undefined : game.recent;
-  const recent: Recent = {
+  const earlier = captured || game.placing ? undefined : game.quietStretch;
+  const quietStretch: QuietStretch = {
     identity: identityOf(handedOver),
     quietMoves: earlier === undefined ? 0 : earlier.quietMoves + 1,
     earlier,
   };
-  const counted: Game = { ...handedOver, recent };
+  const counted: Game = { ...handedOver, quietStretch };
 
   // A side still holding pieces has them to put down, however few of them are
   // on the board, so only a side past the placing phase can have lost.
@@ -224,7 +225,7 @@ const withMoveComplete = (game: Game, { captured }: { readonly captured: boolean
 
   // A win is a win: a game that ends on its hundredth quiet move, or on a
   // position seen three times, has still been won if the side to move has lost.
-  const draw = drawnBy(recent, timesSeen(recent, recent.identity));
+  const draw = drawnBy(quietStretch, timesSeen(quietStretch, quietStretch.identity));
 
   return draw === undefined ? counted : { ...counted, result: { draw } };
 };

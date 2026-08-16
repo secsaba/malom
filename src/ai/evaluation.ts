@@ -60,11 +60,12 @@ export const EVALUATION_LIMIT = 100_000;
  * Provisional weights, in units of roughly a hundredth of a piece in the moving
  * phase. The reasoning, all of it to be checked by #9 rather than trusted:
  *
- * - **Material** is near-irrelevant while placing — both sides will have nine
- *   pieces out and a one-piece deficit is ordinary — and dominant while flying,
- *   where three pieces against four is the whole game. It is not nothing during
- *   the placing phase, though: a capture there is still a capture, and a weight
- *   of zero would make the search indifferent to closing mills.
+ * - **Material** is the smallest thing on the board while placing — both sides
+ *   will have nine pieces out and a one-piece deficit is ordinary — and dominant
+ *   while flying, where three pieces against four is the whole game. It is not
+ *   quite nothing during the placing phase, because a capture there is still a
+ *   capture; but a mill is worth several pieces, so the search closes one for
+ *   the shape of it rather than for the piece it takes.
  * - **Mills and potential mills** matter most during the placing phase, where
  *   the shape of the position is being decided and there is nothing else to play
  *   for.
@@ -80,11 +81,11 @@ export const EVALUATION_LIMIT = 100_000;
  */
 export const DEFAULT_WEIGHTS: Weights = {
   placing: {
-    material: 30,
-    mills: 26,
+    material: 8,
+    mills: 30,
     runningMills: 0,
-    potentialMills: 12,
-    forks: 26,
+    potentialMills: 14,
+    forks: 30,
     blocked: -10,
     mobility: 2,
     degree: 6,

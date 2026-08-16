@@ -93,6 +93,11 @@ One player's complete turn, including the capture it may earn.
 _Hungarian_: lépés
 _Avoid_: turn, ply, action
 
+**Arrival**:
+Half a move: a piece coming to rest on a point, whether out of a hand or off another point, before the capture the mill it closed may earn. The rules have no use for the halves — a move is played whole — but an interface does, because a player taps the destination and then taps the piece to take, and between the two taps an arrival is where the game stands.
+_Hungarian_: none — nothing in the interface words it; the board shows the piece where it landed
+_Avoid_: drop, landing, placement — the last of those being one kind of arrival rather than the word for both
+
 **Selection**:
 The piece a player has picked up and not yet moved. Picking one up commits to nothing: tapping away from its destinations puts it down again, so a selection is part of the rules rather than of any one interface.
 _Hungarian_: none — nothing in the interface words it; the board shows it

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { gameOf } from "../../tests/fixtures/positions";
+import { gameOf } from "../../tests/fixtures/games";
 import type { PointId } from "../engine/board";
 import { DEFAULT_WEIGHTS, TERMS, evaluate } from "./evaluation";
 
@@ -26,7 +26,7 @@ const mirrorOf = (points: readonly Mirrored[]) => points.map((point) => HALF_TUR
 /** Two hands with the same number of pieces left in them. */
 const evenHands = (pieces: number) => ({ light: pieces, dark: pieces });
 
-describe("a position neither side is better off in", () => {
+describe("a game neither side is better off in", () => {
   const LIGHT = ["a1", "d1", "c3", "b2", "a4"] as const satisfies readonly Mirrored[];
 
   const level = (piecesInHand: { light: number; dark: number }) =>
@@ -134,10 +134,13 @@ describe("a mill in the moving phase", () => {
  * broke either of these would no longer be playing the game the phases describe.
  */
 describe("the provisional weights", () => {
-  it("let the shape of the position outweigh a piece while the pieces are being placed", () => {
+  it("make material the least of the position's parts while the pieces are being placed", () => {
     const { placing } = DEFAULT_WEIGHTS;
+    const shape = [placing.mills, placing.potentialMills, placing.forks];
 
-    expect(placing.material).toBeLessThan(placing.mills + placing.potentialMills);
+    // Near-irrelevant means exactly that: every shape a piece can be part of is
+    // worth more than the piece, so the search plays for mills and not for count.
+    for (const term of shape) expect(placing.material).toBeLessThan(term);
     expect(placing.material).toBeLessThan(DEFAULT_WEIGHTS.moving.material);
   });
 
