@@ -8,7 +8,7 @@
  * them in Hungarian.
  */
 
-import type { PointId } from "../engine/board";
+import { type PointId, POINTS } from "../engine/board";
 import {
   EMPTY_POSITION,
   type Ending,
@@ -33,8 +33,14 @@ import {
  */
 export type Phase = "placing" | "moving" | "flying";
 
-/** How a game ended: who won, and what the engine says ended it. */
-export type Result = { readonly winner: Side; readonly ending: Ending };
+/**
+ * What drew a game neither side could win: the same position for the third time,
+ * or fifty moves by each player without a capture.
+ */
+export type Draw = "repetition" | "fifty-move";
+
+/** How a game ended: who won and what ended it, or what drew it. */
+export type Result = { readonly winner: Side; readonly ending: Ending } | { readonly draw: Draw };
 
 export type { Ending };
 
@@ -66,6 +72,10 @@ type Recorded = {
   readonly pendingCapture: boolean;
   /** The piece the side to move has picked up, if it has picked one up. */
   readonly selection: PointId | undefined;
+  /** How often each position the game has stood in has come up, the third time drawing it. */
+  readonly positionsSeen: ReadonlyMap<string, number>;
+  /** Quiet moves played: those since the last capture, or since the last placement. */
+  readonly quietMoves: number;
   /** How the game ended, once it has. */
   readonly result: Result | undefined;
 };
@@ -90,9 +100,42 @@ export type GameState = {
 /** How many pieces each side starts with in hand. */
 const PIECES_PER_SIDE = 9;
 
+/** How often a position may come up before the game is drawn. */
+const REPETITIONS_TO_DRAW = 3;
+
+/**
+ * How many moves without a capture draw the game — fifty by each player, a move
+ * being one player's turn.
+ */
+const QUIET_MOVES_TO_DRAW = 100;
+
 const phaseOf = (game: Recorded): Phase => {
   if (game.placing) return "placing";
   return flies(game.position, game.sideToMove) ? "flying" : "moving";
+};
+
+/**
+ * What makes two positions the same one for the repetition rule: the pieces, the
+ * side to move, the phase, and what is still in hand. Boards that look alike but
+ * offer different moves are different positions, so all four go into the name.
+ */
+const identityOf = (game: Recorded): string =>
+  [
+    POINTS.map((point) => game.position.get(point) ?? "-").join("/"),
+    game.sideToMove,
+    phaseOf(game),
+    SIDES.map((side) => game.piecesInHand[side]).join("/"),
+  ].join(" ");
+
+/**
+ * What has drawn the game, if anything: the position the side to move is faced
+ * with having come up for the third time, or fifty moves by each player without
+ * a capture. A game that has been won is never asked.
+ */
+const drawnBy = (game: Recorded, timesSeen: number): Draw | undefined => {
+  if (timesSeen >= REPETITIONS_TO_DRAW) return "repetition";
+
+  return game.quietMoves >= QUIET_MOVES_TO_DRAW ? "fifty-move" : undefined;
 };
 
 const legalPointsOf = (game: Recorded): readonly PointId[] => {
@@ -124,36 +167,63 @@ const NEW_GAME: Recorded = {
   piecesInHand: { light: PIECES_PER_SIDE, dark: PIECES_PER_SIDE },
   pendingCapture: false,
   selection: undefined,
+  // Positions are counted as each move completes, and the empty board a game
+  // starts on is the one position it can never come back to.
+  positionsSeen: new Map(),
+  quietMoves: 0,
   result: undefined,
 };
 
 /**
  * The move — the placement or the move proper, and the capture it may have
  * earned — is over, so the opponent comes to play, unless what it comes to is a
- * game it has already lost.
+ * game it has already lost, or one neither side can win any more.
  *
  * A completed move is where the placing phase can end: it lasts until both hands
  * are empty, so the last placement of the game keeps the phase until the capture
  * it earned has been taken.
+ *
+ * It is also where the two draw conditions are counted, so what they count is
+ * whole moves rather than the halves of one a pending capture divides it into.
+ * A placement is progress in the way a capture is — a hand it comes out of is a
+ * hand that will empty — so it starts the count of quiet moves again as well,
+ * and the fifty each side is given are fifty of the moving phase's own.
  */
-const withMoveComplete = (game: Recorded): Recorded => {
+const withMoveComplete = (
+  game: Recorded,
+  { captured }: { readonly captured: boolean },
+): Recorded => {
   const handsEmpty = SIDES.every((side) => game.piecesInHand[side] === 0);
   const handedOver: Recorded = {
     ...game,
     sideToMove: opponentOf(game.sideToMove),
     placing: game.placing && !handsEmpty,
     pendingCapture: false,
+    quietMoves: captured || game.placing ? 0 : game.quietMoves + 1,
+  };
+
+  const identity = identityOf(handedOver);
+  const timesSeen = (handedOver.positionsSeen.get(identity) ?? 0) + 1;
+  const counted: Recorded = {
+    ...handedOver,
+    positionsSeen: new Map(handedOver.positionsSeen).set(identity, timesSeen),
   };
 
   // A side still holding pieces has them to put down, however few of them are
   // on the board, so only a side past the placing phase can have lost.
-  const ending = handedOver.placing
+  const ending = counted.placing
     ? undefined
-    : endingAgainst(handedOver.position, handedOver.sideToMove);
+    : endingAgainst(counted.position, counted.sideToMove);
 
-  return ending === undefined
-    ? handedOver
-    : { ...handedOver, result: { winner: opponentOf(handedOver.sideToMove), ending } };
+  if (ending !== undefined) {
+    return { ...counted, result: { winner: opponentOf(counted.sideToMove), ending } };
+  }
+
+  // A win is a win: a game that ends on its hundredth quiet move, or on a
+  // position seen three times, has still been won if the side to move has lost.
+  const draw = drawnBy(counted, timesSeen);
+
+  return draw === undefined ? counted : { ...counted, result: { draw } };
 };
 
 /**
@@ -166,7 +236,7 @@ const afterArriving = (game: Recorded, position: Position, at: PointId): Recorde
   // A move closing two mills still earns one capture: the debt is owed, not counted.
   return millsThrough(position, at, game.sideToMove).length > 0
     ? { ...arrived, pendingCapture: true }
-    : withMoveComplete(arrived);
+    : withMoveComplete(arrived, { captured: false });
 };
 
 const afterPlacing = (game: Recorded, point: PointId): Recorded => {
@@ -186,7 +256,7 @@ const afterMoving = (game: Recorded, from: PointId, to: PointId): Recorded =>
   afterArriving(game, withPiece(withoutPiece(game.position, from), to, game.sideToMove), to);
 
 const afterCapturing = (game: Recorded, point: PointId): Recorded =>
-  withMoveComplete({ ...game, position: withoutPiece(game.position, point) });
+  withMoveComplete({ ...game, position: withoutPiece(game.position, point) }, { captured: true });
 
 /**
  * Picking a piece up, or putting the one already picked up back down: only a

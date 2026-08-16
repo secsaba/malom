@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { LINES, type PointId } from "../engine/board";
 import { pointsHeldBy } from "../engine/position";
-import { DARK_PICKINGS, MILL_FREE_PLACING, WALLED_IN } from "../../tests/fixtures/placements";
+import {
+  DARK_PICKINGS,
+  MILL_FREE_PLACING,
+  REPETITION_CYCLE,
+  WALLED_IN,
+} from "../../tests/fixtures/games";
 import { type GameSession, createGameSession } from "./game-session";
 
 const place = (session: GameSession, ...points: readonly PointId[]) => {
@@ -516,5 +521,107 @@ describe("a side with nowhere to go", () => {
     capture(session, "g7");
 
     expect(session.state).toBe(before);
+  });
+});
+
+describe("a position that comes up three times", () => {
+  /** Both sides step a piece out and back again, leaving the position they found. */
+  const shuffle = (session: GameSession, times: number) => {
+    for (let time = 0; time < times; time += 1) {
+      for (const [from, to] of REPETITION_CYCLE) slide(session, from, to);
+    }
+  };
+
+  it("is still a game to play the second time round", () => {
+    const session = upToTheMovingPhase();
+
+    shuffle(session, 1);
+
+    expect(session.state.result).toBeUndefined();
+    expect(session.state.legalPoints.length).toBeGreaterThan(0);
+  });
+
+  it("draws the game", () => {
+    const session = upToTheMovingPhase();
+
+    shuffle(session, 2);
+
+    expect(session.state.result).toEqual({ draw: "repetition" });
+  });
+
+  it("leaves nothing to play once it has drawn it", () => {
+    const session = upToTheMovingPhase();
+    shuffle(session, 2);
+    const before = session.state;
+
+    expect(before.legalPoints).toEqual([]);
+
+    slide(session, "b2", "d2");
+
+    expect(session.state).toBe(before);
+  });
+});
+
+describe("fifty moves by each player without a capture", () => {
+  /**
+   * Two orbits of empty points for dark's wanderers, five points and six, so the
+   * pair of them comes back round only after thirty turns each — longer than the
+   * fifty moves played here, and so a game in which no position ever comes up
+   * twice. Neither orbit touches c3 or c4, which light shuffles between.
+   */
+  const [FIVE, SIX] = [
+    ["d2", "d3", "d6", "d7", "f2"],
+    ["a4", "b6", "c5", "e3", "e5", "f6"],
+  ] as const satisfies readonly (readonly PointId[])[];
+
+  /** One of dark's loose pieces: where it stands, and the orbit it is going round. */
+  type Wanderer = { at: PointId; readonly orbit: readonly PointId[] };
+
+  /** Where a wanderer goes on its nth turn: one point further round its orbit. */
+  const around = (orbit: readonly PointId[], turn: number): PointId => {
+    const point = orbit[turn % orbit.length];
+    if (!point) throw new Error("the wanderer has no orbit to go round");
+    return point;
+  };
+
+  const MOVES_EACH = 50;
+
+  /**
+   * Dark, worn down to three pieces and flying, sends its two loose pieces round
+   * their orbits turn and turn about while light shuffles c3 out to c4 and back.
+   * Dark's third piece stays on b4, which no line joins to g1, so dark cannot
+   * close a mill however it flies; light's mill is closed already and shuffling
+   * c3 does not close another. Nothing is captured for a hundred moves.
+   */
+  it("draws the game, counting from the last capture rather than from the first move", () => {
+    const session = upToTheRunningMill();
+    runTheMill(session, DARK_PICKINGS.slice(0, 6));
+
+    expect(session.state.phase).toBe("flying");
+    expect(session.state.sideToMove).toBe("dark");
+
+    const five: Wanderer = { at: "g1", orbit: FIVE };
+    const six: Wanderer = { at: "g7", orbit: SIX };
+    let light: PointId = "c3";
+
+    for (let move = 0; move < MOVES_EACH; move += 1) {
+      const wanderer = move % 2 === 0 ? five : six;
+      const flyTo = around(wanderer.orbit, Math.floor(move / 2));
+      slide(session, wanderer.at, flyTo);
+      wanderer.at = flyTo;
+
+      // Dark's move is never the hundredth: light plays that one.
+      expect(session.state.result, `after dark's move ${move + 1}`).toBeUndefined();
+
+      const stepTo: PointId = light === "c3" ? "c4" : "c3";
+      slide(session, light, stepTo);
+      light = stepTo;
+
+      if (move < MOVES_EACH - 1) {
+        expect(session.state.result, `after light's move ${move + 1}`).toBeUndefined();
+      }
+    }
+
+    expect(session.state.result).toEqual({ draw: "fifty-move" });
   });
 });

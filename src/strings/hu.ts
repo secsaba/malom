@@ -30,11 +30,20 @@ export const hu = {
     },
     piecesInHand: "Le nem rakott bábuk",
     capture: "Malom! Vegye le az ellenfél egyik bábuját.",
-    /** How the game ended: who won, and what left the other side unable to go on. */
+    /**
+     * How the game ended: who won and what left the other side unable to go on,
+     * or — where neither side could win it — what drew it.
+     */
     result: {
       winner: {
         light: "Világos nyert",
         dark: "Sötét nyert",
+      },
+      draw: "Döntetlen",
+      /** Keyed by the draw condition the game ran into. */
+      drawnBy: {
+        repetition: "Ugyanaz az állás harmadszor is előállt.",
+        "fifty-move": "Ötven-ötven lépés telt el levétel nélkül.",
       },
       /** Keyed by the side that lost, since that is the side each sentence is about. */
       ending: {

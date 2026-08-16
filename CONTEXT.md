@@ -98,10 +98,25 @@ The piece a player has picked up and not yet moved. Picking one up commits to no
 _Hungarian_: none — nothing in the interface words it; the board shows it
 _Avoid_: active piece, held piece, highlight
 
+**Position**:
+Which side, if any, stands on each of the 24 points. It is the board and nothing else: whose turn it is, the phase and the pieces in hand are asked alongside it rather than being part of it — though a draw by repetition needs all four to agree before it counts two positions as the same one.
+_Hungarian_: állás
+_Avoid_: state, board state, layout
+
 **Result**:
-How a game ended: which player won, and which of the two endings ended it — the loser reduced to two pieces, or blocked. Both endings are named after the state the loser was left in rather than after the winning move. A game still being played has no result.
+How a game ended: which player won and which of the two endings ended it — the loser reduced to two pieces, or blocked — or, where neither player could win it, that it was drawn. Both endings are named after the state the loser was left in rather than after the winning move. A game still being played has no result.
 _Hungarian_: eredmény
 _Avoid_: outcome, verdict, score — and _reason_ for the ending, a word this glossary keeps for the sentence behind a grade
+
+**Draw**:
+A game that ends with no winner, on one of two conditions: the same position coming up for the third time, or fifty moves by each player without a capture. Neither is a question a single position can answer, so both are counted as the game is played.
+_Hungarian_: döntetlen
+_Avoid_: tie, stalemate — the second belonging to chess, where it names a position this game decides by blocking instead
+
+**Quiet move**:
+A move that captures nothing, and so takes the game one closer to the fifty each player is allowed. A placement starts the count again in the way a capture does: a piece coming out of a hand is progress, and the fifty are fifty of the moving phase's own.
+_Hungarian_: none — nothing in the interface words it; only the draw it ends in is shown
+_Avoid_: idle move, empty move, non-capturing move
 
 ## Playing the computer
 

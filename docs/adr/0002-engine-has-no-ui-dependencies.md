@@ -1,8 +1,8 @@
 # The rules engine and search have no UI dependencies
 
-`src/engine` (rules, legal moves, mill and capture logic, phase transitions, draw conditions) and `src/ai` (search and evaluation) import nothing from React, the DOM, or the strings module. They are pure TypeScript over plain data. `src/ui` depends on them; they never depend on it. A lint rule fails the build if that direction is violated.
+`src/engine` (rules, legal moves, mill and capture logic, phase transitions, endings) and `src/ai` (search and evaluation) import nothing from React, the DOM, or the strings module. They are pure TypeScript over plain data. `src/ui` depends on them; they never depend on it. A lint rule fails the build if that direction is violated.
 
-`src/session` — the game session facade, the only thing `src/ui` plays the game through — sits on the engine's side of that boundary and under the same lint rule. (`src/ui` still reads the board itself, for the points and lines it draws; what it never does is reach past the facade to work the rules.) It is the module the interface is most tempted to let leak: it is where a Hungarian sentence or a `localStorage` call would feel natural. It returns the phase, the pending capture and the legal points as data instead.
+`src/session` — the game session facade, the only thing `src/ui` plays the game through — sits on the engine's side of that boundary and under the same lint rule. (`src/ui` still reads the board itself, for the points and lines it draws; what it never does is reach past the facade to work the rules.) It is the module the interface is most tempted to let leak: it is where a Hungarian sentence or a `localStorage` call would feel natural. It returns the phase, the pending capture and the legal points as data instead. The draw conditions live there rather than in `src/engine` for a different reason: neither repetition nor the fifty-move count is a question a single position can answer, so both belong to the module that watches a game go by.
 
 ## Consequences
 

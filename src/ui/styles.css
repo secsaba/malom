@@ -188,7 +188,12 @@ body {
   color: var(--result-ink);
 }
 
-.status__ending {
+.status__result--drawn {
+  color: var(--page-ink-dim);
+}
+
+.status__ending,
+.status__drawn {
   margin: 0.25rem 0 0;
   color: var(--page-ink-dim);
 }

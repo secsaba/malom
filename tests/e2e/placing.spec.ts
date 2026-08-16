@@ -1,13 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
-import type { PointId } from "../../src/engine/board";
 import { strings } from "../../src/strings";
-
-const tap = async (page: Page, ...points: readonly PointId[]) => {
-  for (const point of points) await page.locator(`[data-target="${point}"]`).click();
-};
-
-const pointAt = (page: Page, point: PointId) => page.locator(`[data-point="${point}"]`);
+import { pointAt, tap } from "./taps";
 
 const inHand = (page: Page, side: "light" | "dark") =>
   page.locator(`[data-testid="in-hand"][data-side="${side}"]`);

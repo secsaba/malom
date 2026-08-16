@@ -7,21 +7,31 @@ type StatusProps = {
   readonly game: GameState;
 };
 
-/** Who won, and the sentence about the side that lost which says why. */
-const Ended = ({ result }: { readonly result: Result }) => {
-  const loser = opponentOf(result.winner);
-
-  return (
+/**
+ * How the game ended, in two lines: who won and the sentence about the side that
+ * lost which says why, or — a draw having neither a winner nor an ending, which
+ * is a thing only a loser is left in — that it was drawn and what drew it.
+ */
+const Ended = ({ result }: { readonly result: Result }) =>
+  "draw" in result ? (
+    <>
+      <p className="status__result status__result--drawn" data-testid="result">
+        {strings.game.result.draw}
+      </p>
+      <p className="status__drawn" data-testid="drawn">
+        {strings.game.result.drawnBy[result.draw]}
+      </p>
+    </>
+  ) : (
     <>
       <p className="status__result" data-testid="result">
         {strings.game.result.winner[result.winner]}
       </p>
       <p className="status__ending" data-testid="ending">
-        {strings.game.result.ending[result.ending][loser]}
+        {strings.game.result.ending[result.ending][opponentOf(result.winner)]}
       </p>
     </>
   );
-};
 
 /**
  * What the players need to know at a glance: the phase, whose turn it is, how

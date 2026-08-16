@@ -1,14 +1,8 @@
-import { type Page, expect, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-import type { PointId } from "../../src/engine/board";
 import { strings } from "../../src/strings";
-import { DARK_PICKINGS, MILL_FREE_PLACING, WALLED_IN } from "../fixtures/placements";
-
-const tap = async (page: Page, ...points: readonly PointId[]) => {
-  for (const point of points) await page.locator(`[data-target="${point}"]`).click();
-};
-
-const pointAt = (page: Page, point: PointId) => page.locator(`[data-point="${point}"]`);
+import { DARK_PICKINGS, MILL_FREE_PLACING, WALLED_IN } from "../fixtures/games";
+import { pointAt, tap } from "./taps";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("./");
