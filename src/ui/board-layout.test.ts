@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { FILES, LINES, POINTS, RANKS, fileOf, rankOf } from "../engine/board";
-import {
-  BOARD_SIZE,
-  FILE_LABELS,
-  LINE_SEGMENTS,
-  RANK_LABELS,
-  positionOf,
-} from "./board-layout";
+import { BOARD_SIZE, COORDINATE_LABELS, LINE_SEGMENTS, positionOf } from "./board-layout";
 
 describe("point positions", () => {
   it("puts the corners of the outer square at the corners of the board", () => {
@@ -56,36 +50,36 @@ describe("line segments", () => {
   });
 
   it("spans each line from its first point to its last", () => {
-    for (const segment of LINE_SEGMENTS) {
-      const [first, , last] = segment.line;
-      expect({ x: segment.x1, y: segment.y1 }).toEqual(positionOf(first));
-      expect({ x: segment.x2, y: segment.y2 }).toEqual(positionOf(last));
+    for (const { line, from, to } of LINE_SEGMENTS) {
+      expect(from).toEqual(positionOf(line[0]));
+      expect(to).toEqual(positionOf(line[2]));
     }
   });
 
   it("passes through the middle point of every line", () => {
-    for (const segment of LINE_SEGMENTS) {
-      const middle = positionOf(segment.line[1]);
-      expect(middle.x).toBe((segment.x1 + segment.x2) / 2);
-      expect(middle.y).toBe((segment.y1 + segment.y2) / 2);
+    for (const { line, from, to } of LINE_SEGMENTS) {
+      const middle = positionOf(line[1]);
+      expect(middle.x).toBe((from.x + to.x) / 2);
+      expect(middle.y).toBe((from.y + to.y) / 2);
     }
   });
 });
 
 describe("coordinate labels", () => {
-  it("labels all seven files and all seven ranks", () => {
-    expect(FILE_LABELS.map((label) => label.file)).toEqual([...FILES]);
-    expect(RANK_LABELS.map((label) => label.rank)).toEqual([...RANKS]);
+  const labelled = (text: string) => COORDINATE_LABELS.filter((label) => label.text === text);
+
+  it("labels all seven files and all seven ranks, once each", () => {
+    expect(COORDINATE_LABELS).toHaveLength(FILES.length + RANKS.length);
+    for (const file of FILES) expect(labelled(file)).toHaveLength(1);
+    for (const rank of RANKS) expect(labelled(String(rank))).toHaveLength(1);
   });
 
   it("lines each file label up under its file, and each rank label up with its rank", () => {
-    for (const label of FILE_LABELS) {
-      const onFile = POINTS.filter((point) => fileOf(point) === label.file);
-      for (const point of onFile) expect(label.x).toBe(positionOf(point).x);
-    }
-    for (const label of RANK_LABELS) {
-      const onRank = POINTS.filter((point) => rankOf(point) === label.rank);
-      for (const point of onRank) expect(label.y).toBe(positionOf(point).y);
+    for (const point of POINTS) {
+      const [file] = labelled(fileOf(point));
+      const [rank] = labelled(String(rankOf(point)));
+      expect(file?.x).toBe(positionOf(point).x);
+      expect(rank?.y).toBe(positionOf(point).y);
     }
   });
 
@@ -94,13 +88,15 @@ describe("coordinate labels", () => {
     const bottom = Math.max(...points.map((position) => position.y));
     const left = Math.min(...points.map((position) => position.x));
 
-    for (const label of FILE_LABELS) {
-      expect(label.y).toBeGreaterThan(bottom);
-      expect(label.y).toBeLessThan(BOARD_SIZE);
+    for (const file of FILES) {
+      const [label] = labelled(file);
+      expect(label?.y).toBeGreaterThan(bottom);
+      expect(label?.y).toBeLessThan(BOARD_SIZE);
     }
-    for (const label of RANK_LABELS) {
-      expect(label.x).toBeLessThan(left);
-      expect(label.x).toBeGreaterThan(0);
+    for (const rank of RANKS) {
+      const [label] = labelled(String(rank));
+      expect(label?.x).toBeLessThan(left);
+      expect(label?.x).toBeGreaterThan(0);
     }
   });
 });

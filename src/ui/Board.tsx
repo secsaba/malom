@@ -2,9 +2,9 @@ import { POINTS } from "../engine/board";
 import { strings } from "../strings";
 import {
   BOARD_SIZE,
-  FILE_LABELS,
+  COORDINATE_LABELS,
   LINE_SEGMENTS,
-  RANK_LABELS,
+  POINT_RADIUS,
   positionOf,
 } from "./board-layout";
 
@@ -23,15 +23,15 @@ export const Board = ({ showCoordinates }: BoardProps) => (
     aria-label={strings.board.label}
   >
     <g className="board__lines">
-      {LINE_SEGMENTS.map((segment) => (
+      {LINE_SEGMENTS.map(({ line, from, to }) => (
         <line
-          key={segment.line.join("-")}
+          key={line.join("-")}
           data-testid="line"
-          data-line={segment.line.join("-")}
-          x1={segment.x1}
-          y1={segment.y1}
-          x2={segment.x2}
-          y2={segment.y2}
+          data-line={line.join("-")}
+          x1={from.x}
+          y1={from.y}
+          x2={to.x}
+          y2={to.y}
         />
       ))}
     </g>
@@ -39,20 +39,17 @@ export const Board = ({ showCoordinates }: BoardProps) => (
     <g className="board__points">
       {POINTS.map((point) => {
         const { x, y } = positionOf(point);
-        return <circle key={point} data-testid="point" data-point={point} cx={x} cy={y} r={18} />;
+        return (
+          <circle key={point} data-testid="point" data-point={point} cx={x} cy={y} r={POINT_RADIUS} />
+        );
       })}
     </g>
 
     {showCoordinates && (
       <g className="board__coordinates" data-testid="coordinates">
-        {FILE_LABELS.map((label) => (
-          <text key={label.file} x={label.x} y={label.y}>
-            {label.file}
-          </text>
-        ))}
-        {RANK_LABELS.map((label) => (
-          <text key={label.rank} x={label.x} y={label.y}>
-            {label.rank}
+        {COORDINATE_LABELS.map((label) => (
+          <text key={label.text} x={label.x} y={label.y}>
+            {label.text}
           </text>
         ))}
       </g>

@@ -8,10 +8,20 @@ Hungarian forms are taken from published Hungarian rule texts where one exists. 
 
 ## Rules and board
 
+**Board**:
+The surface the game is played on: 24 points joined by 16 lines, drawn as three nested squares with a spoke joining the middle of each of their sides.
+_Hungarian_: malomtábla
+_Avoid_: grid, table
+
 **Point**:
 One of the 24 positions on the board where a piece can stand.
 _Hungarian_: csomópont
 _Avoid_: node, square, cell, spot
+
+**Coordinate**:
+A point's name: a **file** letter a–g and a **rank** digit 1–7, read off the 7×7 grid the board is drawn on. Files run left to right, ranks bottom to top, so the outer square's corners are a1, g1, a7 and g7 and the empty middle is d4. Coordinates are notation rather than language — they read the same in Hungarian and in English — so they are the one piece of visible text that does not come from the strings module.
+_Hungarian_: koordináta (there is no Hungarian surface form for _file_ and _rank_: nothing shows those words, only the letters and digits themselves)
+_Avoid_: address, square name — and for _file_, the Hungarian **vonal**, which is already taken by Line
 
 **Line**:
 A set of three points that lie in a straight row on the board — the only shape a mill can occupy. There are 16 of them.

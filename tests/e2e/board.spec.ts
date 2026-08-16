@@ -37,7 +37,8 @@ test("shows the coordinates only once they are asked for", async ({ page }) => {
   await expect(coordinates).toHaveCount(0);
 });
 
-test("speaks Hungarian", async ({ page }) => {
+test("speaks Hungarian, down to the browser tab", async ({ page }) => {
   await expect(page.locator("html")).toHaveAttribute("lang", "hu");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(strings.app.title);
+  await expect(page).toHaveTitle(strings.app.title);
 });

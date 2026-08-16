@@ -56,11 +56,6 @@ const byFileThenRank = (a: PointId, b: PointId) =>
 /** All 24 points, ordered by file and then by rank. */
 export const POINTS: readonly PointId[] = [...new Set(LINES.flat())].sort(byFileThenRank);
 
-const POINT_IDS: ReadonlySet<string> = new Set(POINTS);
-
-/** Whether an arbitrary string names a point of the board. */
-export const isPointId = (value: string): value is PointId => POINT_IDS.has(value);
-
 // Two points are adjacent when they sit next to each other on a line: a piece
 // slides along the lines it could form a mill on, and nowhere else.
 const NEIGHBOURS: ReadonlyMap<PointId, readonly PointId[]> = (() => {

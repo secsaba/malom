@@ -6,7 +6,6 @@
 export const hu = {
   app: {
     title: "Malom",
-    tagline: "Malom játék, ami tanít is",
   },
   board: {
     label: "Malomtábla",

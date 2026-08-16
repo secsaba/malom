@@ -10,7 +10,6 @@ export const App = () => {
     <main className="app">
       <header className="app__header">
         <h1>{strings.app.title}</h1>
-        <p>{strings.app.tagline}</p>
       </header>
 
       <Board showCoordinates={showCoordinates} />

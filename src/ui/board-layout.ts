@@ -7,7 +7,17 @@
  * pixels — the board is scaled to whatever room the page gives it.
  */
 
-import { FILES, type File, LINES, type Line, type PointId, RANKS, type Rank, fileOf, rankOf } from "../engine/board";
+import {
+  FILES,
+  type File,
+  LINES,
+  type Line,
+  type PointId,
+  RANKS,
+  type Rank,
+  fileOf,
+  rankOf,
+} from "../engine/board";
 
 /** The side of the square viewBox, in SVG user units. */
 export const BOARD_SIZE = 720;
@@ -16,17 +26,20 @@ export const BOARD_SIZE = 720;
 const STEP = 100;
 
 /** Room left around the board for the coordinate labels. */
-const MARGIN = (BOARD_SIZE - 6 * STEP) / 2;
+const MARGIN = (BOARD_SIZE - (FILES.length - 1) * STEP) / 2;
 
 /** How far outside the board the coordinate labels sit. */
 const LABEL_OFFSET = 40;
+
+/** How big a point is drawn. */
+export const POINT_RADIUS = 18;
 
 export type Position = { readonly x: number; readonly y: number };
 
 const xOf = (file: File) => MARGIN + FILES.indexOf(file) * STEP;
 
 // Rank 1 is the bottom of the board, but SVG's y axis grows downwards.
-const yOf = (rank: Rank) => MARGIN + (7 - rank) * STEP;
+const yOf = (rank: Rank) => MARGIN + (RANKS.length - rank) * STEP;
 
 /** Where a point sits in the viewBox. */
 export const positionOf = (point: PointId): Position => ({
@@ -36,10 +49,8 @@ export const positionOf = (point: PointId): Position => ({
 
 export type LineSegment = {
   readonly line: Line;
-  readonly x1: number;
-  readonly y1: number;
-  readonly x2: number;
-  readonly y2: number;
+  readonly from: Position;
+  readonly to: Position;
 };
 
 /**
@@ -48,25 +59,23 @@ export type LineSegment = {
  * segments are exactly the board's three squares and the four spokes joining
  * them — there is no separate list of decorative strokes to keep in step.
  */
-export const LINE_SEGMENTS: readonly LineSegment[] = LINES.map((line) => {
-  const from = positionOf(line[0]);
-  const to = positionOf(line[2]);
-  return { line, x1: from.x, y1: from.y, x2: to.x, y2: to.y };
-});
-
-export type FileLabel = { readonly file: File; readonly x: number; readonly y: number };
-export type RankLabel = { readonly rank: Rank; readonly x: number; readonly y: number };
-
-/** The file letters, below the board. */
-export const FILE_LABELS: readonly FileLabel[] = FILES.map((file) => ({
-  file,
-  x: xOf(file),
-  y: yOf(1) + LABEL_OFFSET,
+export const LINE_SEGMENTS: readonly LineSegment[] = LINES.map((line) => ({
+  line,
+  from: positionOf(line[0]),
+  to: positionOf(line[2]),
 }));
 
-/** The rank digits, to the left of the board. */
-export const RANK_LABELS: readonly RankLabel[] = RANKS.map((rank) => ({
-  rank,
-  x: xOf("a") - LABEL_OFFSET,
-  y: yOf(rank),
-}));
+/**
+ * A file letter or a rank digit, placed just outside the board.
+ *
+ * These are notation rather than language — `a` and `7` read the same in
+ * Hungarian and in English — so they come from the board itself and not from
+ * the strings module.
+ */
+export type CoordinateLabel = Position & { readonly text: string };
+
+/** The file letters below the board, then the rank digits to its left. */
+export const COORDINATE_LABELS: readonly CoordinateLabel[] = [
+  ...FILES.map((file) => ({ text: file, x: xOf(file), y: yOf(RANKS[0]) + LABEL_OFFSET })),
+  ...RANKS.map((rank) => ({ text: String(rank), x: xOf(FILES[0]) - LABEL_OFFSET, y: yOf(rank) })),
+];

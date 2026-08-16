@@ -7,7 +7,6 @@ import {
   type PointId,
   RANKS,
   fileOf,
-  isPointId,
   neighboursOf,
   rankOf,
 } from "./board";
@@ -33,13 +32,11 @@ describe("points", () => {
     }
   });
 
-  it("recognises its own point ids and nothing else", () => {
-    expect(isPointId("a1")).toBe(true);
-    expect(isPointId("d2")).toBe(true);
-    expect(isPointId("d4")).toBe(false); // the hole in the middle of the board
-    expect(isPointId("a2")).toBe(false);
-    expect(isPointId("h1")).toBe(false);
-    expect(isPointId("")).toBe(false);
+  it("leaves the middle of the 7x7 grid, and the gaps around it, empty", () => {
+    const named: readonly string[] = POINTS;
+    expect(named).not.toContain("d4"); // the hole in the middle of the board
+    expect(named).not.toContain("a2");
+    expect(named).not.toContain("b1");
   });
 });
 
