@@ -1,20 +1,36 @@
-import { POINTS } from "../engine/board";
+import { POINTS, type PointId } from "../engine/board";
+import type { Position } from "../engine/position";
 import { strings } from "../strings";
 import {
   BOARD_SIZE,
   COORDINATE_LABELS,
   LINE_SEGMENTS,
+  PIECE_RADIUS,
   POINT_RADIUS,
+  TARGET_RADIUS,
   positionOf,
 } from "./board-layout";
 
 type BoardProps = {
+  /** The pieces standing on the board. */
+  readonly position: Position;
+  /** The points the side to move may act on — everything else ignores a tap. */
+  readonly legalPoints: readonly PointId[];
   /** Whether the file letters and rank digits are shown around the board. */
   readonly showCoordinates: boolean;
+  /** What the player tapped. What that means is the game session's business. */
+  readonly onSelect: (point: PointId) => void;
 };
 
-/** The board itself: its 16 lines and 24 points, with no pieces on it yet. */
-export const Board = ({ showCoordinates }: BoardProps) => (
+/**
+ * The board: its 16 lines, its 24 points, and the pieces on them.
+ *
+ * A point and the piece standing on it are one circle, so a piece can never
+ * drift off its point. Over each sits an invisible, much larger circle that
+ * takes the tap — a point is a fingertip wide on a phone, and the target has to
+ * be too.
+ */
+export const Board = ({ position, legalPoints, showCoordinates, onSelect }: BoardProps) => (
   <svg
     className="board"
     data-testid="board"
@@ -39,8 +55,19 @@ export const Board = ({ showCoordinates }: BoardProps) => (
     <g className="board__points">
       {POINTS.map((point) => {
         const { x, y } = positionOf(point);
+        const occupant = position.get(point);
+
         return (
-          <circle key={point} data-testid="point" data-point={point} cx={x} cy={y} r={POINT_RADIUS} />
+          <circle
+            key={point}
+            data-testid="point"
+            data-point={point}
+            data-occupant={occupant}
+            data-legal={legalPoints.includes(point) ? "" : undefined}
+            cx={x}
+            cy={y}
+            r={occupant ? PIECE_RADIUS : POINT_RADIUS}
+          />
         );
       })}
     </g>
@@ -54,5 +81,21 @@ export const Board = ({ showCoordinates }: BoardProps) => (
         ))}
       </g>
     )}
+
+    <g className="board__targets">
+      {POINTS.map((point) => {
+        const { x, y } = positionOf(point);
+        return (
+          <circle
+            key={point}
+            data-target={point}
+            cx={x}
+            cy={y}
+            r={TARGET_RADIUS}
+            onClick={() => onSelect(point)}
+          />
+        );
+      })}
+    </g>
   </svg>
 );

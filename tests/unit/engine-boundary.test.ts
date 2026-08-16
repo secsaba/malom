@@ -1,6 +1,6 @@
 /**
- * ADR-0002 says a lint rule fails the build when the engine or the search
- * reaches for the interface. This checks the rule is really configured to do
+ * ADR-0002 says a lint rule fails the build when the engine, the search or the
+ * game session facade reaches for the interface. This checks the rule is really configured to do
  * that, by linting code that has never been written into the repo — so the
  * boundary is proved from the outside rather than by the absence of a violation.
  *
@@ -31,6 +31,7 @@ const forbidden = [
 describe.each([
   { module: "the engine", path: "src/engine/fixture.ts" },
   { module: "the search", path: "src/ai/fixture.ts" },
+  { module: "the game session", path: "src/session/fixture.ts" },
 ])("$module", ({ path }) => {
   it.each(forbidden)("cannot reach for $what", async ({ code }) => {
     const messages = await messagesFor(path, code);

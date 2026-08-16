@@ -31,8 +31,14 @@ const MARGIN = (BOARD_SIZE - (FILES.length - 1) * STEP) / 2;
 /** How far outside the board the coordinate labels sit. */
 const LABEL_OFFSET = 40;
 
-/** How big a point is drawn. */
+/** How big an empty point is drawn. */
 export const POINT_RADIUS = 18;
+
+/** How big a piece standing on a point is drawn. */
+export const PIECE_RADIUS = 34;
+
+/** How much of the board around a point takes a tap meant for it. */
+export const TARGET_RADIUS = STEP / 2;
 
 export type Position = { readonly x: number; readonly y: number };
 

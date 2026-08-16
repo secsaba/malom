@@ -3,17 +3,18 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 /**
- * The boundary ADR-0002 draws: `src/engine` (rules) and `src/ai` (search) are
- * pure TypeScript over plain data. They import nothing from React, nothing from
- * the DOM, and nothing from the strings module — the last of those because the
- * engine returns patterns as data and the interface turns them into sentences.
+ * The boundary ADR-0002 draws: `src/engine` (rules), `src/ai` (search) and
+ * `src/session` (the facade the interface talks to) are pure TypeScript over
+ * plain data. They import nothing from React, nothing from the DOM, and nothing
+ * from the strings module — the last of those because they return patterns and
+ * phases as data and the interface turns those into sentences.
  *
  * This is the load-bearing part of the decision. Without it the boundary erodes
  * on the first convenient import, and the Web Worker and the unit tests both
  * quietly break.
  */
 const engineBoundary = {
-  files: ["src/engine/**/*.{ts,tsx}", "src/ai/**/*.{ts,tsx}"],
+  files: ["src/engine/**/*.{ts,tsx}", "src/ai/**/*.{ts,tsx}", "src/session/**/*.{ts,tsx}"],
   rules: {
     "no-restricted-imports": [
       "error",
@@ -22,16 +23,16 @@ const engineBoundary = {
           {
             group: ["react", "react/*", "react-dom", "react-dom/*"],
             message:
-              "ADR-0002: the engine and the search have no UI dependencies. Keep React in src/ui.",
+              "ADR-0002: the engine, the search and the session have no UI dependencies. Keep React in src/ui.",
           },
           {
             group: ["**/strings", "**/strings/*"],
             message:
-              "ADR-0002: the engine cannot produce user-facing text. Return a pattern as data and let src/ui word it.",
+              "ADR-0002: the engine cannot produce user-facing text. Return it as data and let src/ui word it.",
           },
           {
             group: ["**/ui", "**/ui/*", "**/ui/**"],
-            message: "ADR-0002: src/ui depends on the engine; the engine never depends on src/ui.",
+            message: "ADR-0002: src/ui depends on these modules; they never depend on src/ui.",
           },
         ],
       },
@@ -42,7 +43,7 @@ const engineBoundary = {
         (name) => ({
           name,
           message:
-            "ADR-0002: the engine and the search touch no DOM, so they can run inside a Web Worker.",
+            "ADR-0002: the engine, the search and the session touch no DOM, so they can run inside a Web Worker.",
         }),
       ),
     ],
