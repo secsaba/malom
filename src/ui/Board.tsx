@@ -16,6 +16,8 @@ type BoardProps = {
   readonly position: Position;
   /** The points the side to move may act on — everything else ignores a tap. */
   readonly legalPoints: readonly PointId[];
+  /** The piece the side to move has picked up, if it has picked one up. */
+  readonly selection: PointId | undefined;
   /** Whether the file letters and rank digits are shown around the board. */
   readonly showCoordinates: boolean;
   /** What the player tapped. What that means is the game session's business. */
@@ -30,10 +32,17 @@ type BoardProps = {
  * takes the tap — a point is a fingertip wide on a phone, and the target has to
  * be too.
  */
-export const Board = ({ position, legalPoints, showCoordinates, onSelect }: BoardProps) => (
+export const Board = ({
+  position,
+  legalPoints,
+  selection,
+  showCoordinates,
+  onSelect,
+}: BoardProps) => (
   <svg
     className="board"
     data-testid="board"
+    data-selection={selection}
     viewBox={`0 0 ${BOARD_SIZE} ${BOARD_SIZE}`}
     role="img"
     aria-label={strings.board.label}
@@ -64,6 +73,7 @@ export const Board = ({ position, legalPoints, showCoordinates, onSelect }: Boar
             data-point={point}
             data-occupant={occupant}
             data-legal={legalPoints.includes(point) ? "" : undefined}
+            data-selected={point === selection ? "" : undefined}
             cx={x}
             cy={y}
             r={occupant ? PIECE_RADIUS : POINT_RADIUS}

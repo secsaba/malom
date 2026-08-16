@@ -7,7 +7,7 @@
  * interface can render without copying defensively.
  */
 
-import { LINES, type Line, type PointId, POINTS } from "./board";
+import { LINES, type Line, type PointId, POINTS, neighboursOf } from "./board";
 
 /** The two players. Light places first. */
 export const SIDES = ["light", "dark"] as const;
@@ -36,6 +36,10 @@ export const withoutPiece = (position: Position, point: PointId): Position => {
 /** The points no piece stands on. */
 export const emptyPoints = (position: Position): readonly PointId[] =>
   POINTS.filter((point) => !position.has(point));
+
+/** The empty points a piece on this point can slide to, ordered by file and then by rank. */
+export const slidesFrom = (position: Position, point: PointId): readonly PointId[] =>
+  neighboursOf(point).filter((neighbour) => !position.has(neighbour));
 
 /** The points one side's pieces stand on, ordered by file and then by rank. */
 export const pointsHeldBy = (position: Position, side: Side): readonly PointId[] =>

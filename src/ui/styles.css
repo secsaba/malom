@@ -8,7 +8,10 @@
   --piece-light: #fffdf7;
   --piece-dark: #3d2a16;
   --point-legal-ink: #a8341f;
+  --point-legal-fill: #e9c9a8;
+  --point-selected-ink: #1f5d7a;
   --capture-ink: #e8875f;
+  --result-ink: #f2e3c8;
 }
 
 * {
@@ -86,13 +89,29 @@ body {
 }
 
 /*
- * A piece the side to move may act on — during the placing phase, one it may
- * capture. Empty points are left plain: while pieces are being placed every
- * empty point is legal, so marking them all would say nothing.
+ * A piece the side to move may act on: one it may capture, or one it may pick
+ * up and move.
  */
 .board__points circle[data-occupant][data-legal] {
   stroke: var(--point-legal-ink);
   stroke-dasharray: 10 8;
+}
+
+/*
+ * Where the piece that has been picked up may go. Empty points are marked only
+ * while one is: during the placing phase every empty point is legal, so marking
+ * them all would say nothing.
+ */
+.board[data-selection] .board__points circle[data-legal]:not([data-occupant]) {
+  fill: var(--point-legal-fill);
+  stroke: var(--point-legal-ink);
+}
+
+/* The piece that has been picked up: a solid ring, thicker than any other. */
+.board__points circle[data-selected] {
+  stroke: var(--point-selected-ink);
+  stroke-dasharray: none;
+  stroke-width: 12;
 }
 
 .board__targets circle {
@@ -160,4 +179,16 @@ body {
 .status__capture {
   margin: 0.75rem 0 0;
   color: var(--capture-ink);
+}
+
+.status__result {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--result-ink);
+}
+
+.status__ending {
+  margin: 0.25rem 0 0;
+  color: var(--page-ink-dim);
 }

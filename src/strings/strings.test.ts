@@ -27,6 +27,7 @@ describe("the strings module", () => {
     expect(hu.board.label).toBe("Malomtábla");
     expect(hu.game.phase.placing).toBe("Lerakás");
     expect(hu.game.phase.moving).toBe("Lépegetés");
+    expect(hu.game.phase.flying).toBe("Ugrálás");
     expect(hu.game.piecesInHand).toBe("Le nem rakott bábuk");
   });
 

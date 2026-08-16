@@ -1,4 +1,4 @@
-import { SIDES } from "../engine/position";
+import { SIDES, opponentOf } from "../engine/position";
 import type { GameState } from "../session/game-session";
 import { strings } from "../strings";
 
@@ -9,10 +9,12 @@ type StatusProps = {
 
 /**
  * What the players need to know at a glance: the phase, whose turn it is, how
- * many pieces are still in hand, and whether a capture is owed.
+ * many pieces are still in hand, and whether a capture is owed. Once the game is
+ * over, who won and what ended it stand where the turn used to — a finished game
+ * has nobody to move.
  *
  * Every word of it is the strings module's; the game session hands over the
- * phase and the side as values (ADR-0002).
+ * phase, the side and the result as values (ADR-0002).
  */
 export const Status = ({ game }: StatusProps) => (
   <section className="status" data-testid="status">
@@ -20,9 +22,20 @@ export const Status = ({ game }: StatusProps) => (
       {strings.game.phase[game.phase]}
     </p>
 
-    <p className="status__side-to-move" data-testid="side-to-move">
-      {strings.game.toMove[game.sideToMove]}
-    </p>
+    {game.result ? (
+      <>
+        <p className="status__result" data-testid="result">
+          {strings.game.result.winner[game.result.winner]}
+        </p>
+        <p className="status__ending" data-testid="ending">
+          {strings.game.result.ending[game.result.ending][opponentOf(game.result.winner)]}
+        </p>
+      </>
+    ) : (
+      <p className="status__side-to-move" data-testid="side-to-move">
+        {strings.game.toMove[game.sideToMove]}
+      </p>
+    )}
 
     <h2 className="status__heading">{strings.game.piecesInHand}</h2>
     <dl className="status__hands">

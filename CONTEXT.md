@@ -93,6 +93,11 @@ One player's complete turn, including the capture it may earn.
 _Hungarian_: lépés
 _Avoid_: turn, ply, action
 
+**Result**:
+How a game ended: which player won, and which of the two endings ended it — the loser reduced to two pieces, or blocked. Both endings are named after the state the loser was left in rather than after the winning move. A game still being played has no result.
+_Hungarian_: eredmény
+_Avoid_: outcome, verdict, score — and _reason_ for the ending, a word this glossary keeps for the sentence behind a grade
+
 ## Playing the computer
 
 **Engine**:

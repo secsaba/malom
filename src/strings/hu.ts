@@ -16,6 +16,7 @@ export const hu = {
     phase: {
       placing: "Lerakás",
       moving: "Lépegetés",
+      flying: "Ugrálás",
     },
     /** The sides, keyed the same way. */
     side: {
@@ -29,5 +30,23 @@ export const hu = {
     },
     piecesInHand: "Le nem rakott bábuk",
     capture: "Malom! Vegye le az ellenfél egyik bábuját.",
+    /** How the game ended: who won, and what left the other side unable to go on. */
+    result: {
+      winner: {
+        light: "Világos nyert",
+        dark: "Sötét nyert",
+      },
+      /** Keyed by the side that lost, since that is the side each sentence is about. */
+      ending: {
+        reduced: {
+          light: "Világosnak csak két bábuja maradt.",
+          dark: "Sötétnek csak két bábuja maradt.",
+        },
+        blocked: {
+          light: "Világos beszorult: nincs szabályos lépése.",
+          dark: "Sötét beszorult: nincs szabályos lépése.",
+        },
+      },
+    },
   },
 } as const;
