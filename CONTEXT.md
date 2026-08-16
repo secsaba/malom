@@ -1,0 +1,141 @@
+# Malom
+
+A web implementation of Nine Men's Morris built to turn a novice into a strong player: two people can play on one device, or one person can play the computer with a teaching mode that suggests moves and grades the ones already played.
+
+The canonical language below is **English** — it is the language of the code and of these docs. The default user interface language is **Hungarian**, so each term also records the Hungarian surface form used in the strings module. Those two must not drift: if a concept is renamed here, its Hungarian string is renamed with it.
+
+Hungarian forms are taken from published Hungarian rule texts where one exists. The few marked _(coined)_ have no established Hungarian term and were invented for this project.
+
+## Rules and board
+
+**Point**:
+One of the 24 positions on the board where a piece can stand.
+_Hungarian_: csomópont
+_Avoid_: node, square, cell, spot
+
+**Line**:
+A set of three points that lie in a straight row on the board — the only shape a mill can occupy. There are 16 of them.
+_Hungarian_: vonal
+_Avoid_: row, triple
+
+**Intersection**:
+A point with four neighbours. The four of them are the most valuable points on the board.
+_Hungarian_: kereszteződés
+_Avoid_: junction, crossroads
+
+**Piece**:
+One of a player's nine playing tokens.
+_Hungarian_: bábu
+_Avoid_: bean, man, stone, counter, token — and in Hungarian, korong and figura, both of which appear in rule texts but are less general than bábu
+
+**Piece in hand**:
+A piece a player has not yet placed. A player leaves the placing phase when they have none left.
+_Hungarian_: le nem rakott bábu _(coined)_
+_Avoid_: reserve, pool, unplaced piece
+
+**Mill**:
+Three pieces of one colour occupying a line. Closing one entitles the player to a capture.
+_Hungarian_: malom
+_Avoid_: row, three-in-a-row
+
+**Potential mill**:
+A line holding two pieces of one colour with its third point empty — one move away from a mill.
+_Hungarian_: nyitott malom _(coined)_
+_Avoid_: half mill, open mill, mill threat
+
+**Fork**:
+Two potential mills sharing a piece, so the opponent can only block one of them.
+_Hungarian_: kettős fenyegetés
+_Avoid_: double mill, double threat — and in Hungarian, **kettős malom**, which in common usage means closing two mills with one move, a different thing entirely
+
+**Running mill**:
+A mill positioned so that one piece can step out and back again, closing the mill on every second move.
+_Hungarian_: csikicsuki
+_Avoid_: double mill, swinging mill, open-and-shut mill — and in Hungarian, csukogatás and the hyphenated csiki-csuki, both attested but not the form this project uses
+
+**Capture**:
+Removing one opponent piece, earned by closing a mill. A piece inside a mill may only be captured when every opponent piece is inside a mill.
+_Hungarian_: levétel (verb: levesz)
+_Avoid_: take, remove, kill, eat — and in Hungarian, ütés, which belongs to chess and draughts, not to malom
+
+**Blocked**:
+Describes a piece with no adjacent empty point, or a player with no legal move at all — the latter loses the game.
+_Hungarian_: beszorult
+_Avoid_: stuck, trapped, immobilised
+
+**Placing phase**:
+The opening stage, in which players alternately put their nine pieces onto empty points.
+_Hungarian_: lerakás
+_Avoid_: phase one, opening, drop phase
+
+**Moving phase**:
+The stage after both players have placed all nine pieces, in which a piece slides to an adjacent empty point.
+_Hungarian_: lépegetés
+_Avoid_: phase two, midgame, sliding phase
+
+**Flying phase**:
+The state a player enters on being reduced to three pieces, in which their pieces may jump to any empty point. Reaching two pieces loses the game.
+_Hungarian_: ugrálás
+_Avoid_: phase three, endgame, jumping phase
+
+**Move**:
+One player's complete turn, including the capture it may earn.
+_Hungarian_: lépés
+_Avoid_: turn, ply, action
+
+## Playing the computer
+
+**Engine**:
+The component that searches positions and evaluates them. The same one plays the computer's moves, produces hints, and grades human moves.
+_Avoid_: AI, bot, solver
+
+**Opponent**:
+The computer as a player, configured at one of four difficulties.
+_Hungarian_: gép
+_Avoid_: computer player, CPU, bot
+
+**Difficulty**:
+How strongly the opponent plays — a combination of how deeply it searches and how often it deliberately picks a weaker move.
+_Hungarian_: nehézség (Kezdő, Haladó, Erős, Mester)
+_Avoid_: level, strength, skill
+
+## Teaching
+
+**Teaching mode**:
+The setting that switches on hints, grading, and takebacks. It is independent of who the players are, so two humans can also play with it on.
+_Hungarian_: tanulómód
+_Avoid_: tutorial, coach mode, practice mode
+
+**Hint**:
+The engine's preferred move, shown on the board because the player asked for it.
+_Hungarian_: tipp
+_Avoid_: suggestion, tip, advice
+
+**Grade**:
+The verdict attached to a move once played, on a five-step scale from Best to Blunder.
+_Hungarian_: értékelés (Legjobb, Jó, Pontatlan, Hiba, Súlyos hiba)
+_Avoid_: score, rating, mark
+
+**Eval loss**:
+How much worse the played move is than the engine's preferred move. The grade is derived from it.
+_Avoid_: delta, centipawn loss, error margin
+
+**Pattern**:
+A named tactical feature the engine can positively detect — a fork created, a mill let through, a piece left blocked. Patterns are the only permitted source of a reason.
+_Hungarian_: mintázat
+_Avoid_: motif, insight, concept
+
+**Reason**:
+The plain-language sentence explaining a grade, generated from the patterns that fired. Where no pattern fires, the reason says only what the evaluation supports.
+_Hungarian_: indoklás
+_Avoid_: explanation, commentary, analysis
+
+**Blunder warning**:
+The optional, off-by-default intervention that asks for confirmation before a player commits a move graded as a blunder.
+_Hungarian_: figyelmeztetés hiba előtt
+_Avoid_: alert, nag, safety net
+
+**Takeback**:
+Returning the game to the player's previous decision point so they can try a different move.
+_Hungarian_: visszalépés
+_Avoid_: undo, rewind, retry
