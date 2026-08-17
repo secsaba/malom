@@ -33,6 +33,8 @@ describe("the strings module", () => {
     expect(hu.game.result.draw).toBe("Döntetlen");
     expect(hu.setup.against.computer).toBe("Gép");
     expect(hu.difficulty.legend).toBe("Nehézség");
+    expect(hu.teaching.toggle).toBe("Tanulómód");
+    expect(hu.teaching.hint).toContain("Tipp");
   });
 
   it("names the four difficulties as the glossary names them", () => {

@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { FILES, LINES, POINTS, RANKS, fileOf, rankOf } from "../engine/board";
-import { BOARD_SIZE, COORDINATE_LABELS, LINE_SEGMENTS, centreOf } from "./board-layout";
+import {
+  BOARD_SIZE,
+  COORDINATE_LABELS,
+  HINT_RADIUS,
+  LINE_SEGMENTS,
+  PIECE_RADIUS,
+  centreOf,
+} from "./board-layout";
 
 describe("point positions", () => {
   it("puts the corners of the outer square at the corners of the board", () => {
@@ -62,6 +69,27 @@ describe("line segments", () => {
       expect(middle.x).toBe((from.x + to.x) / 2);
       expect(middle.y).toBe((from.y + to.y) / 2);
     }
+  });
+});
+
+describe("the ring a hint is marked with", () => {
+  /** How close together the two nearest points on the board are. */
+  const closestPoints = Math.min(
+    ...POINTS.flatMap((point) =>
+      POINTS.filter((other) => other !== point).map((other) => {
+        const here = centreOf(point);
+        const there = centreOf(other);
+        return Math.hypot(here.x - there.x, here.y - there.y);
+      }),
+    ),
+  );
+
+  it("goes round the outside of whatever stands on the point", () => {
+    expect(HINT_RADIUS).toBeGreaterThan(PIECE_RADIUS);
+  });
+
+  it("stays clear of the point next door, so two hinted points read as two", () => {
+    expect(HINT_RADIUS * 2).toBeLessThan(closestPoints);
   });
 });
 

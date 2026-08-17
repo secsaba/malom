@@ -12,6 +12,7 @@ import {
 import { DEFAULT_DIFFICULTY } from "../opponent/difficulty";
 import { createOpponent, searchInProcess } from "../opponent/opponent";
 import {
+  type ChooseHint,
   type ChooseMove,
   type Difficulty,
   type GameSession,
@@ -70,6 +71,34 @@ const askedOpponent = () => {
     askedAt,
     chooseMove,
     /** Hand back the move the opponent settled on, and let the session act on it. */
+    reply: async (move: Move | undefined) => {
+      answer?.(move);
+      answer = undefined;
+      await settled();
+    },
+  };
+};
+
+/**
+ * A stand-in for the engine asked for a hint: it writes down the game it was
+ * asked about and answers only when the test says so, which is what a
+ * full-strength search running off the thread looks like from here.
+ */
+const askedEngine = () => {
+  const asked: Game[] = [];
+  let answer: ((move: Move | undefined) => void) | undefined;
+
+  const chooseHint: ChooseHint = (game) => {
+    asked.push(game);
+    return new Promise((resolve) => {
+      answer = resolve;
+    });
+  };
+
+  return {
+    asked,
+    chooseHint,
+    /** Hand back the move the engine prefers, and let the session act on it. */
     reply: async (move: Move | undefined) => {
       answer?.(move);
       answer = undefined;
@@ -925,6 +954,238 @@ describe("the game a difficulty actually produces", () => {
     for (let again = 0; again < 40; again += 1) opened.add(await openedBy("beginner"));
 
     expect(opened.size).toBeGreaterThan(1);
+  });
+});
+
+/**
+ * Teaching is a setting rather than a mode, so it is on offer whoever is playing.
+ * Where the player has not said either way, who is playing decides it: somebody
+ * who has sat down against the computer is learning, and two people sharing a
+ * device have not asked to be taught.
+ */
+describe("teaching", () => {
+  it("is off in a game two people are sharing a device for", () => {
+    expect(createGameSession().state.teaching).toBe(false);
+  });
+
+  it("is on in a game against the computer", () => {
+    const session = createGameSession({
+      chooseMove: askedOpponent().chooseMove,
+      players: { opponentSide: "dark" },
+    });
+
+    expect(session.state.teaching).toBe(true);
+  });
+
+  it("switches on where two people ask to be taught, and the interface hears about it", () => {
+    const session = createGameSession();
+    let told = 0;
+    session.subscribe(() => {
+      told += 1;
+    });
+
+    session.teach(true);
+
+    expect(session.state.teaching).toBe(true);
+    expect(told).toBe(1);
+  });
+
+  it("leaves everything as it was when the player asks for what is already on", () => {
+    const session = createGameSession();
+    const before = session.state;
+
+    session.teach(false);
+
+    expect(session.state).toBe(before);
+  });
+
+  /** A setting, like difficulty: a choice the player made outlives the game they made it in. */
+  it("stays where the player put it when another game is started", () => {
+    const session = createGameSession();
+
+    session.teach(true);
+    session.start({});
+
+    expect(session.state.teaching).toBe(true);
+  });
+
+  it("follows who is playing until the player has said, and their word after that", () => {
+    const session = createGameSession();
+
+    session.start({ opponentSide: "dark" });
+    expect(session.state.teaching).toBe(true);
+
+    session.start({});
+    expect(session.state.teaching).toBe(false);
+
+    session.teach(true);
+    session.start({});
+
+    expect(session.state.teaching).toBe(true);
+  });
+});
+
+describe("asking for a hint", () => {
+  /** A game two people are playing, with teaching switched on. */
+  const beingTaught = () => {
+    const engine = askedEngine();
+    const session = createGameSession({ chooseHint: engine.chooseHint });
+    session.teach(true);
+
+    return { engine, session };
+  };
+
+  it("asks the engine about the game as it stands, and shows what it comes back with", async () => {
+    const { engine, session } = beingTaught();
+    place(session, "a1");
+
+    session.askForHint();
+
+    expect(engine.asked).toHaveLength(1);
+    expect(engine.asked[0]?.position.get("a1")).toBe("light");
+    expect(session.state.hinting).toBe(true);
+    expect(session.state.hint).toBeUndefined();
+
+    await engine.reply({ to: "d2" });
+
+    expect(session.state.hint).toEqual({ to: "d2" });
+    expect(session.state.hinting).toBe(false);
+  });
+
+  it("shows the whole move it prefers, the capture it earns included", async () => {
+    const { engine, session } = beingTaught();
+    place(session, "a1", "a7", "d1", "d7");
+
+    session.askForHint();
+    await engine.reply({ to: "g1", capture: "a7" });
+
+    expect(session.state.hint).toEqual({ to: "g1", capture: "a7" });
+  });
+
+  it("asks once while the engine is working one out", () => {
+    const { engine, session } = beingTaught();
+
+    session.askForHint();
+    session.askForHint();
+
+    expect(engine.asked).toHaveLength(1);
+  });
+
+  it("shows nothing where the engine came back with no move", async () => {
+    const { engine, session } = beingTaught();
+
+    session.askForHint();
+    await engine.reply(undefined);
+
+    expect(session.state.hint).toBeUndefined();
+    expect(session.state.hinting).toBe(false);
+  });
+
+  /** Advice about one position, and only about that one. */
+  it("goes off the board as soon as a move is played", async () => {
+    const { engine, session } = beingTaught();
+    session.askForHint();
+    await engine.reply({ to: "d2" });
+
+    place(session, "d2");
+
+    expect(session.state.hint).toBeUndefined();
+  });
+
+  it("stays while the player picks up the piece it named", async () => {
+    const engine = askedEngine();
+    const session = createGameSession({ chooseHint: engine.chooseHint });
+    session.teach(true);
+    place(session, ...MILL_FREE_PLACING);
+
+    session.askForHint();
+    await engine.reply({ from: "b2", to: "b4" });
+    select(session, "b2");
+
+    expect(session.state.selection).toBe("b2");
+    expect(session.state.hint).toEqual({ from: "b2", to: "b4" });
+  });
+
+  it("goes off the board when teaching does, and does not come back with it", async () => {
+    const { engine, session } = beingTaught();
+    session.askForHint();
+    await engine.reply({ to: "d2" });
+
+    session.teach(false);
+
+    expect(session.state.hint).toBeUndefined();
+
+    session.teach(true);
+
+    expect(session.state.hint).toBeUndefined();
+  });
+
+  it("is neither offered nor asked for while teaching is off", () => {
+    const engine = askedEngine();
+    const session = createGameSession({ chooseHint: engine.chooseHint });
+
+    expect(session.state.hintOffered).toBe(false);
+
+    session.askForHint();
+
+    expect(engine.asked).toEqual([]);
+    expect(session.state.hinting).toBe(false);
+  });
+
+  it("is not offered by a session with no engine to ask", () => {
+    const session = createGameSession();
+    session.teach(true);
+
+    expect(session.state.hintOffered).toBe(false);
+  });
+
+  /** The acceptance criterion: a hint is about the move the player is looking at. */
+  it("is neither offered nor asked for while the computer is to move", () => {
+    const engine = askedEngine();
+    const session = createGameSession({
+      chooseMove: askedOpponent().chooseMove,
+      chooseHint: engine.chooseHint,
+      players: { opponentSide: "light" },
+    });
+
+    expect(session.state.teaching).toBe(true);
+    expect(session.state.thinking).toBe(true);
+    expect(session.state.hintOffered).toBe(false);
+
+    session.askForHint();
+
+    expect(engine.asked).toEqual([]);
+  });
+
+  it("is not offered with a capture owed — half a move is not a move to prefer", () => {
+    const { session } = beingTaught();
+
+    place(session, "a1", "a7", "d1", "d7", "g1"); // light closes a1-d1-g1
+
+    expect(session.state.pendingCapture).toBe(true);
+    expect(session.state.hintOffered).toBe(false);
+  });
+
+  it("is not offered in a game that is over", () => {
+    const engine = askedEngine();
+    const session = createGameSession({ chooseHint: engine.chooseHint });
+    session.teach(true);
+
+    place(session, ...WALLED_IN);
+
+    expect(session.state.result).toBeDefined();
+    expect(session.state.hintOffered).toBe(false);
+  });
+
+  it("discards the answer to a game that has been thrown away", async () => {
+    const { engine, session } = beingTaught();
+    session.askForHint();
+
+    session.start({});
+    await engine.reply({ to: "d2" });
+
+    expect(session.state.hint).toBeUndefined();
+    expect(session.state.hinting).toBe(false);
   });
 });
 

@@ -15,6 +15,12 @@
   --page-ink-dim: #b9a88a;
   --point-legal-ink: #a8341f;
   --point-selected-ink: #1f5d7a;
+  /*
+   * The hint's own ink, which is neither of the two above and is not a green
+   * beside that red either: the marks a board carries have to be told apart by
+   * whoever is reading it, colour vision included.
+   */
+  --point-hint-ink: #6b3fa0;
   --capture-ink: #e8875f;
   --result-ink: #f2e3c8;
 }
@@ -120,6 +126,7 @@ body {
  * the very thing the greys above exist to stop. Empty points are marked only
  * while a piece is picked up: during the placing phase every empty point is
  * legal, so marking them all would say nothing.
+ *
  */
 .board[data-selection] .board__points circle[data-legal]:not([data-occupant]) {
   fill: var(--point-legal-ink);
@@ -161,6 +168,24 @@ body {
   transform-box: fill-box;
   transform-origin: center;
   animation: piece-placed 240ms ease-out;
+}
+
+/*
+ * The move the engine would play, asked for and answered: a ring in the hint's
+ * own ink around each point the move touches — the piece to play, where to play
+ * it, and the piece the mill it closes would take.
+ *
+ * It goes round the outside rather than onto the point, at a radius nothing else
+ * on the board uses, so no mark of the game's own has to give way to it and none
+ * of them can be mistaken for it: the shape says advice as plainly as the colour
+ * does. The rings take no taps — the targets below do that — so a hint never
+ * stands between a player and the board.
+ */
+.board__hints circle {
+  fill: none;
+  stroke: var(--point-hint-ink);
+  stroke-width: 5;
+  pointer-events: none;
 }
 
 .board__targets circle {
@@ -260,6 +285,47 @@ body {
   color: var(--page-ink-dim);
 }
 
+
+.teaching {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem 1.5rem;
+}
+
+.teaching__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+/*
+ * Bordered like the other buttons rather than in the hint's own ink, which is
+ * chosen to carry on a cream board and is too dark to outline a control on this
+ * one. What ties the two together is the ring the button produces.
+ */
+.teaching__hint {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--page-ink);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--page-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.teaching__hint:hover:enabled {
+  background: var(--point-hint-ink);
+}
+
+/* Nothing to ask about: it is the computer's turn, or the game is over. */
+.teaching__hint:disabled {
+  border-color: var(--page-ink-dim);
+  color: var(--page-ink-dim);
+  cursor: default;
+}
 
 .difficulty {
   display: flex;

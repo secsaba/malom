@@ -4,13 +4,20 @@
  *
  * The session is the store; React only subscribes to it. Nothing about the
  * rules lives here — and nothing about the search either: the session is handed
- * an opponent that thinks in a Web Worker, and what it does with it is its own
- * business.
+ * an opponent and an engine to ask for hints, both of which think in a Web
+ * Worker, and what it does with them is its own business.
+ *
+ * This is where the two are put together, because this is where the app is: one
+ * thread, thought in by both. The computer's move and the player's hint are the
+ * same search asked a different question — the opponent's weakened by the
+ * difficulty being played at, the hint's never (ADR-0001) — so a second worker
+ * would be a second copy of the engine and nothing more.
  */
 
 import { useState, useSyncExternalStore } from "react";
 
-import { createWorkerOpponent } from "../opponent/worker-opponent";
+import { createOpponent } from "../opponent/opponent";
+import { createSearchThread } from "../opponent/search-thread";
 import {
   type Difficulty,
   type GameState,
@@ -18,6 +25,7 @@ import {
   type Players,
   createGameSession,
 } from "../session/game-session";
+import { createHint } from "../teaching/hint";
 
 export type UseGameSession = {
   readonly state: GameState;
@@ -26,11 +34,29 @@ export type UseGameSession = {
   readonly start: (players: Players) => void;
   /** Change how strongly the computer plays, without disturbing the game in progress. */
   readonly playAt: (difficulty: Difficulty) => void;
+  /** Switch teaching on or off, for this game and for the ones after it. */
+  readonly teach: (on: boolean) => void;
+  /** Ask the engine what it would play here. */
+  readonly askForHint: () => void;
 };
 
 export const useGameSession = (): UseGameSession => {
-  const [session] = useState(() => createGameSession({ chooseMove: createWorkerOpponent() }));
+  const [session] = useState(() => {
+    const runSearch = createSearchThread();
+
+    return createGameSession({
+      chooseMove: createOpponent(runSearch),
+      chooseHint: createHint(runSearch),
+    });
+  });
   const state = useSyncExternalStore(session.subscribe, () => session.state);
 
-  return { state, apply: session.apply, start: session.start, playAt: session.playAt };
+  return {
+    state,
+    apply: session.apply,
+    start: session.start,
+    playAt: session.playAt,
+    teach: session.teach,
+    askForHint: session.askForHint,
+  };
 };

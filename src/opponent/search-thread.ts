@@ -1,22 +1,20 @@
 /**
- * The opponent as the browser plays it: the same one, with its search running in
- * a Web Worker rather than in the interface's thread.
+ * The thread the engine thinks in: the same search, running in a Web Worker
+ * rather than in the interface's.
  *
  * This is the adapter and the only thing on either side of the boundary that
  * knows a worker exists. It posts a question, waits for the answer with the
- * matching id, and hands it to {@link createOpponent}, which is what everything
- * else is tested against.
+ * matching id, and hands it back — so what it offers is a {@link RunSearch} like
+ * any other, and the opponent (#7) and the hint (#10) are both built on it
+ * without either of them being told where it runs.
+ *
+ * One thread answers both, because both are the same search asked a different
+ * question. A second worker would be a second copy of the engine, started to
+ * duplicate work the first one is already set up to do.
  */
 
 import type { SearchResult } from "../ai/search";
-import type { ChooseMove } from "../session/game-session";
-import {
-  type OpponentOptions,
-  type RunSearch,
-  type WorkerReply,
-  type WorkerRequest,
-  createOpponent,
-} from "./opponent";
+import type { RunSearch, WorkerReply, WorkerRequest } from "./opponent";
 
 /** A question the worker has not answered yet. */
 type Pending = {
@@ -24,13 +22,15 @@ type Pending = {
   readonly fail: (reason: Error) => void;
 };
 
-export const createWorkerOpponent = (options?: OpponentOptions): ChooseMove => {
+/** A search that runs off the interface's thread, started on the first question asked of it. */
+export const createSearchThread = (): RunSearch => {
   const pending = new Map<number, Pending>();
   let worker: Worker | undefined;
   let asked = 0;
 
   // Started on the first question rather than up front, so that two people
-  // sharing a device never pay for a thread nobody is thinking in.
+  // sharing a device with teaching off never pay for a thread nobody is
+  // thinking in.
   const thinkingThread = () => {
     if (worker) return worker;
 
@@ -59,7 +59,7 @@ export const createWorkerOpponent = (options?: OpponentOptions): ChooseMove => {
     return started;
   };
 
-  const runSearch: RunSearch = (request) =>
+  return (request) =>
     new Promise((settle, fail) => {
       asked += 1;
       const id = asked;
@@ -67,6 +67,4 @@ export const createWorkerOpponent = (options?: OpponentOptions): ChooseMove => {
       pending.set(id, { settle, fail });
       thinkingThread().postMessage({ ...request, id } satisfies WorkerRequest);
     });
-
-  return createOpponent(runSearch, options);
 };

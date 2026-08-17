@@ -68,6 +68,15 @@ export const depthAt = (difficulty: Difficulty, game: Game): number =>
   DIFFICULTY_SETTINGS[difficulty].depth[phaseOf(game)];
 
 /**
+ * How strongly the engine plays when nothing is holding it back: the strongest of
+ * the four, which is what makes Mester the thing a learner measures themselves
+ * against. Hints and grades run here whatever difficulty the computer is playing
+ * at (ADR-0001), and they read the depths off this table rather than keeping a
+ * second copy that could quietly fall behind it.
+ */
+export const FULL_STRENGTH: Difficulty = "master";
+
+/**
  * Where a player who has not chosen starts. The weakest of the four: this is a
  * game for somebody learning it, and a first game they can win is worth more
  * than a first game that shows them how far they have to go.

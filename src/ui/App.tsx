@@ -8,6 +8,7 @@ import { Board } from "./Board";
 import { DifficultyChoice } from "./DifficultyChoice";
 import { FIRST_GAME, type NextGame, Setup } from "./Setup";
 import { Status } from "./Status";
+import { Teaching } from "./Teaching";
 import { useGameSession } from "./useGameSession";
 
 /**
@@ -38,7 +39,7 @@ const playersOf = ({ against, humanSide }: NextGame): Players =>
 export const App = () => {
   const [showCoordinates, setShowCoordinates] = useState(false);
   const [next, setNext] = useState<NextGame>(FIRST_GAME);
-  const { state, apply, start, playAt } = useGameSession();
+  const { state, apply, start, playAt, teach, askForHint } = useGameSession();
 
   const select = (point: PointId) => apply(intentFor(state, point));
 
@@ -63,11 +64,20 @@ export const App = () => {
         legalPoints={state.legalPoints}
         selection={state.selection}
         arrival={state.lastArrival}
+        hint={state.hint}
         showCoordinates={showCoordinates}
         onSelect={select}
       />
 
       <Status game={state} />
+
+      <Teaching
+        teaching={state.teaching}
+        hintOffered={state.hintOffered}
+        hinting={state.hinting}
+        onTeach={teach}
+        onAskForHint={askForHint}
+      />
 
       {rematchSide && (
         <button

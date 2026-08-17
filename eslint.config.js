@@ -17,17 +17,18 @@ const noDomGlobals = (names) => [
   ...names.map((name) => ({
     name,
     message:
-      "ADR-0002: the engine, the search, the session and the opponent touch no DOM, so they can run inside a Web Worker.",
+      "ADR-0002: the engine, the search, the session, the opponent and teaching touch no DOM, so they can run inside a Web Worker.",
   })),
 ];
 
 /**
  * The boundary ADR-0002 draws: `src/engine` (rules), `src/ai` (search),
- * `src/session` (the facade the interface talks to) and `src/opponent` (the
- * computer as a player) are pure TypeScript over plain data. They import
- * nothing from React, nothing from the DOM, and nothing from the strings module
- * — the last of those because they return patterns and phases as data and the
- * interface turns those into sentences.
+ * `src/session` (the facade the interface talks to), `src/opponent` (the
+ * computer as a player) and `src/teaching` (what the engine has to say about a
+ * player's move) are pure TypeScript over plain data. They import nothing from
+ * React, nothing from the DOM, and nothing from the strings module — the last of
+ * those because they return patterns and phases as data and the interface turns
+ * those into sentences.
  *
  * Starting the thread is the one browser-facing thing behind the boundary, and
  * it is confined to the single adapter below rather than allowed everywhere:
@@ -43,6 +44,7 @@ const engineBoundary = {
     "src/ai/**/*.{ts,tsx}",
     "src/session/**/*.{ts,tsx}",
     "src/opponent/**/*.{ts,tsx}",
+    "src/teaching/**/*.{ts,tsx}",
   ],
   rules: {
     "no-restricted-imports": [
@@ -72,11 +74,11 @@ const engineBoundary = {
 
 /**
  * The one exception, and the whole of it: the adapter that starts the thread the
- * opponent thinks in. Nothing else behind the boundary may, and this may nothing
+ * engine thinks in. Nothing else behind the boundary may, and this may nothing
  * else — every other browser global stays out of its reach too.
  */
 const workerAdapter = {
-  files: ["src/opponent/worker-opponent.ts"],
+  files: ["src/opponent/search-thread.ts"],
   rules: {
     "no-restricted-globals": noDomGlobals(DOM_GLOBALS),
   },

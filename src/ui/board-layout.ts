@@ -37,6 +37,14 @@ export const POINT_RADIUS = 18;
 /** How big a piece standing on a point is drawn. */
 export const PIECE_RADIUS = 34;
 
+/**
+ * How far out the ring marking a hint sits: outside the piece standing on the
+ * point, and clear of the point next door. Going round the outside is what makes
+ * a hint impossible to mistake for a state of the game — the point underneath
+ * keeps every mark it had, and the advice about it is drawn around it.
+ */
+export const HINT_RADIUS = 46;
+
 /** How much of the board around a point takes a tap meant for it. */
 export const TARGET_RADIUS = STEP / 2;
 

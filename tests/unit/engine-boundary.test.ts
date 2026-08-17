@@ -34,6 +34,7 @@ describe.each([
   { module: "the search", path: "src/ai/fixture.ts" },
   { module: "the game session", path: "src/session/fixture.ts" },
   { module: "the opponent", path: "src/opponent/fixture.ts" },
+  { module: "teaching", path: "src/teaching/fixture.ts" },
 ])("$module", ({ path }) => {
   it.each(forbidden)("cannot reach for $what", async ({ code }) => {
     const messages = await messagesFor(path, code);
@@ -49,8 +50,8 @@ describe.each([
   });
 });
 
-describe("the adapter the opponent thinks through", () => {
-  const path = "src/opponent/worker-opponent.ts";
+describe("the adapter the engine thinks through", () => {
+  const path = "src/opponent/search-thread.ts";
 
   it("is the one place behind the boundary that may start a thread", async () => {
     const messages = await messagesFor(path, `export const x = () => new Worker("");`);

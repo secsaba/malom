@@ -64,6 +64,17 @@ export { DIFFICULTIES };
  */
 export type ChooseMove = (game: Game, difficulty: Difficulty) => Promise<Move | undefined>;
 
+/**
+ * What the engine is asked when the player wants a hint: the game as it stands,
+ * for the move it prefers in it. No difficulty is passed, and that is the point
+ * of it — a hint runs the engine at full strength however weakly the computer
+ * has been asked to play (ADR-0001).
+ *
+ * Like the computer's move it answers later rather than at once, because the
+ * search behind it is the same search.
+ */
+export type ChooseHint = (game: Game) => Promise<Move | undefined>;
+
 /** Who is playing: the side the computer takes, or nobody, for two people sharing a device. */
 export type Players = {
   readonly opponentSide?: Side | undefined;
@@ -72,6 +83,8 @@ export type Players = {
 export type GameSessionOptions = {
   /** Asked for the computer's move. Without it, both sides are played by hand. */
   readonly chooseMove?: ChooseMove | undefined;
+  /** Asked for the move a hint shows. Without it, no hint is ever on offer. */
+  readonly chooseHint?: ChooseHint | undefined;
   readonly players?: Players | undefined;
   /** How strongly the computer plays to begin with. */
   readonly difficulty?: Difficulty | undefined;
@@ -113,6 +126,24 @@ type Playing = {
   readonly difficulty: Difficulty;
 };
 
+/** A hint the player asked for: the move the engine prefers, and the game it was asked about. */
+type Hint = {
+  readonly about: Game;
+  readonly move: Move;
+};
+
+/** What teaching makes of the game, as against how the game stands. */
+type Teaching = {
+  /** Whether teaching is on. */
+  readonly on: boolean;
+  /** Whether there is an engine to ask for a hint: a session given none offers none. */
+  readonly engine: boolean;
+  /** The hint the engine has answered with, for as long as it is about this position. */
+  readonly hint: Hint | undefined;
+  /** Whether the engine is working one out. */
+  readonly hinting: boolean;
+};
+
 /** Everything a player can see about the game: what is recorded, and what follows from it. */
 export type GameState = {
   readonly position: Position;
@@ -136,6 +167,23 @@ export type GameState = {
   readonly thinking: boolean;
   /** How strongly the computer is playing, whether or not it is playing at all. */
   readonly difficulty: Difficulty;
+  /** Whether the game is being played with teaching on. */
+  readonly teaching: boolean;
+  /**
+   * The move the engine prefers, once the player has asked for it — the whole
+   * move, the capture it earns included, because that is what the engine
+   * preferred. Nothing, until they ask, and nothing once the position it was
+   * about has been left behind.
+   */
+  readonly hint: Move | undefined;
+  /** Whether the engine is working a hint out. */
+  readonly hinting: boolean;
+  /**
+   * Whether a hint is the player's to ask for. Teaching being on is not enough:
+   * a hint is about the move somebody is looking at, and on the computer's turn
+   * or in a finished game there is no such move.
+   */
+  readonly hintOffered: boolean;
   /**
    * Where the last piece to move came to rest — the capture it may have earned
    * is not part of it — so the interface can bring it in from where it came
@@ -156,10 +204,42 @@ const legalPointsOf = ({ game, selection, arrival }: Recorded): readonly PointId
   return movablePointsOf(game.position, game.sideToMove);
 };
 
+/**
+ * The hint as the player sees it: the move the engine came back with, for as
+ * long as the game it was asked about is the game standing. A hint is advice
+ * about one position, so anything played after it — the player's own move, the
+ * computer's answer, the half move a capture is owed on — takes it off the board
+ * rather than leaving advice up about a position nobody is looking at.
+ */
+const hintShown = ({ game, arrival }: Recorded, { on, hint }: Teaching): Move | undefined =>
+  on && hint?.about === game && arrival === undefined ? hint.move : undefined;
+
+/**
+ * Whether a hint is the player's to ask for: teaching is on, there is an engine
+ * to ask, and the move being looked at is the player's own. None is offered on
+ * the computer's turn or in a game that is over, and none with a capture owed —
+ * that is half a move, and the engine answers with whole ones.
+ */
+const hintIsOffered = (
+  { game, arrival }: Recorded,
+  { opponentSide }: Playing,
+  { on, engine }: Teaching,
+): boolean =>
+  on &&
+  engine &&
+  arrival === undefined &&
+  game.result === undefined &&
+  !isOpponentToMove(game, opponentSide);
+
 // What the players see is spelled out rather than spread from what is recorded,
 // so that a state built from an earlier one cannot smuggle a stale set of legal
 // points through with it.
-const stateOf = (recorded: Recorded, { opponentSide, thinking, difficulty }: Playing): GameState => {
+const stateOf = (
+  recorded: Recorded,
+  playing: Playing,
+  teaching: Teaching,
+): GameState => {
+  const { opponentSide, thinking, difficulty } = playing;
   const { game, selection, arrival, lastArrival } = recorded;
   // A piece that has arrived is on the board and out of its hand from the moment
   // it lands, so what the players see mid-move is the arrival, not the game the
@@ -180,9 +260,22 @@ const stateOf = (recorded: Recorded, { opponentSide, thinking, difficulty }: Pla
     opponentSide,
     thinking,
     difficulty,
+    teaching: teaching.on,
+    hint: hintShown(recorded, teaching),
+    hinting: teaching.hinting,
+    hintOffered: hintIsOffered(recorded, playing, teaching),
     lastArrival,
   };
 };
+
+/**
+ * Whether a game is played with teaching on: what the player asked for, or —
+ * where they have asked for nothing — who is playing. A player who has sat down
+ * against the computer is learning; two people sharing a device have not asked
+ * to be taught.
+ */
+const taughtIn = (opponentSide: Side | undefined, taught: boolean | undefined): boolean =>
+  taught ?? opponentSide !== undefined;
 
 const NEW_SESSION: Recorded = {
   game: NEW_GAME,
@@ -299,17 +392,41 @@ export type GameSession = {
    * about was asked for at the old difficulty and arrives at it.
    */
   readonly playAt: (difficulty: Difficulty) => void;
+  /**
+   * Switch teaching on or off. Like difficulty it takes effect at once and
+   * outlives the game it was asked for: a player who has said either way is
+   * taken at their word in every game after this one.
+   */
+  readonly teach: (on: boolean) => void;
+  /**
+   * Ask the engine what it would play here. The answer comes back later and
+   * lands on the state as the hint; asking again while it is being worked out
+   * changes nothing, and asking when no hint is on offer does nothing at all.
+   */
+  readonly askForHint: () => void;
 };
 
 /** Start a game. */
 export const createGameSession = ({
   chooseMove,
+  chooseHint,
   players = {},
   difficulty = DEFAULT_DIFFICULTY,
 }: GameSessionOptions = {}): GameSession => {
   let recorded = NEW_SESSION;
+  // Whether the player has said either way about teaching. Until they have, who
+  // is playing answers for them, which is why this is not simply a boolean: a
+  // player who switched it on in a hotseat game means it, and a player who has
+  // never touched it means nothing at all.
+  let chosenTeaching: boolean | undefined;
   let playing: Playing = { opponentSide: players.opponentSide, thinking: false, difficulty };
-  let state = stateOf(recorded, playing);
+  let teaching: Teaching = {
+    on: taughtIn(players.opponentSide, chosenTeaching),
+    engine: chooseHint !== undefined,
+    hint: undefined,
+    hinting: false,
+  };
+  let state = stateOf(recorded, playing, teaching);
   const listeners = new Set<() => void>();
 
   // How many games have been started here. A game thrown away while the computer
@@ -318,7 +435,7 @@ export const createGameSession = ({
   let gamesStarted = 0;
 
   const publish = () => {
-    state = stateOf(recorded, playing);
+    state = stateOf(recorded, playing, teaching);
     for (const listener of listeners) listener();
   };
 
@@ -376,7 +493,19 @@ export const createGameSession = ({
     start: (next) => {
       gamesStarted += 1;
       recorded = NEW_SESSION;
-      playing = { opponentSide: next.opponentSide, thinking: false, difficulty: playing.difficulty };
+      playing = {
+        opponentSide: next.opponentSide,
+        thinking: false,
+        difficulty: playing.difficulty,
+      };
+      // A hint asked for in the game just thrown away is not advice about this
+      // one, and the answer to it — which may still be on its way — is not either.
+      teaching = {
+        ...teaching,
+        on: taughtIn(next.opponentSide, chosenTeaching),
+        hint: undefined,
+        hinting: false,
+      };
       think();
       publish();
     },
@@ -385,6 +514,40 @@ export const createGameSession = ({
       if (chosen === playing.difficulty) return;
 
       playing = { ...playing, difficulty: chosen };
+      publish();
+    },
+
+    teach: (on) => {
+      // Said either way, and so said for every game after this one — even where
+      // the answer is the one who is playing would have given anyway.
+      chosenTeaching = on;
+      if (on === teaching.on) return;
+
+      // Teaching switched off takes its hint off the board with it, so switching
+      // it back on is a clean slate rather than the advice they turned away from.
+      teaching = { ...teaching, on, hint: on ? teaching.hint : undefined };
+      publish();
+    },
+
+    askForHint: () => {
+      if (chooseHint === undefined) return;
+      if (teaching.hinting || !hintIsOffered(recorded, playing, teaching)) return;
+
+      const asked = gamesStarted;
+      const about = recorded.game;
+      teaching = { ...teaching, hinting: true };
+
+      const shown = (move: Move | undefined) => {
+        if (asked !== gamesStarted) return; // another game is being played now
+
+        // A search that fails, and a position with no move in it, both come to
+        // the same thing: there is nothing to show, and the player is left with
+        // an engine that has stopped working one out.
+        teaching = { ...teaching, hinting: false, hint: move && { about, move } };
+        publish();
+      };
+
+      void chooseHint(about).then(shown, () => shown(undefined));
       publish();
     },
   };

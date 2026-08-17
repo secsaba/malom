@@ -1,12 +1,13 @@
 import type { CSSProperties } from "react";
 
 import { POINTS, type PointId } from "../engine/board";
-import type { Arrival } from "../engine/game";
+import type { Arrival, Move } from "../engine/game";
 import type { Position } from "../engine/position";
 import { strings } from "../strings";
 import {
   BOARD_SIZE,
   COORDINATE_LABELS,
+  HINT_RADIUS,
   LINE_SEGMENTS,
   PIECE_RADIUS,
   POINT_RADIUS,
@@ -23,6 +24,8 @@ type BoardProps = {
   readonly selection: PointId | undefined;
   /** Where the last piece to move came to rest, so that it can arrive rather than appear. */
   readonly arrival: Arrival | undefined;
+  /** The move the engine prefers, where the player has asked to see it. */
+  readonly hint: Move | undefined;
   /** Whether the file letters and rank digits are shown around the board. */
   readonly showCoordinates: boolean;
   /** What the player tapped. What that means is the game session's business. */
@@ -44,6 +47,23 @@ const travelledFrom = (from: PointId, to: PointId): CSSProperties => {
   } as CSSProperties;
 };
 
+/** What the hinted move has a point doing. */
+type HintRole = "from" | "to" | "capture";
+
+/**
+ * What a hinted move has this point doing, if anything: the piece to play, where
+ * to play it, or the piece the mill it closes takes. All three are marked,
+ * because all three are what the engine preferred — a hint that showed only
+ * where the piece lands would leave the player to guess the capture it earns.
+ */
+const hintedAt = (hint: Move | undefined, point: PointId): HintRole | undefined => {
+  if (!hint) return undefined;
+  if (point === hint.to) return "to";
+  if (point === hint.from) return "from";
+
+  return point === hint.capture ? "capture" : undefined;
+};
+
 /**
  * The board: its 16 lines, its 24 points, and the pieces on them.
  *
@@ -61,6 +81,7 @@ export const Board = ({
   legalPoints,
   selection,
   arrival,
+  hint,
   showCoordinates,
   onSelect,
 }: BoardProps) => (
@@ -140,6 +161,7 @@ export const Board = ({
             data-occupant={occupant}
             data-legal={legalPoints.includes(point) ? "" : undefined}
             data-selected={point === selection ? "" : undefined}
+            data-hint={hintedAt(hint, point)}
             data-arrived={arrived && (arrived.from ? "moved" : "placed")}
             style={arrived?.from ? travelledFrom(arrived.from, point) : undefined}
             cx={x}
@@ -149,6 +171,27 @@ export const Board = ({
         );
       })}
     </g>
+
+    {/*
+     * The hint, drawn as a ring round each point the engine's move touches
+     * rather than as a mark on the point itself. The point keeps every mark it
+     * had — a piece it may pick up still looks like one, a destination still
+     * looks like one — and the advice sits outside it, which is what stops the
+     * board saying two things at once about the same circle.
+     */}
+    {hint && (
+      <g className="board__hints" data-testid="hints">
+        {POINTS.map((point) => {
+          const role = hintedAt(hint, point);
+          if (!role) return undefined;
+
+          const { x, y } = centreOf(point);
+          return (
+            <circle key={point} data-hint={role} cx={x} cy={y} r={HINT_RADIUS} />
+          );
+        })}
+      </g>
+    )}
 
     {showCoordinates && (
       <g className="board__coordinates" data-testid="coordinates">

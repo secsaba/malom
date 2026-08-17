@@ -40,13 +40,14 @@ Both are worth reading [`docs/tuning/weights.md`](docs/tuning/weights.md) before
 src/
 ├── engine/    rules: the board, legal moves, mills, captures, endings, draws
 ├── ai/        search, evaluation, and the self-play harness the weights were tuned with
-├── opponent/  the computer as a player: its four difficulties, and the worker it thinks in
+├── opponent/  the computer as a player: its four difficulties, and the thread it thinks in
+├── teaching/  what the engine has to say about a move: the hint it would play
 ├── session/   one game, played through intents — what the interface talks to
 ├── strings/   every user-facing string, Hungarian for now
 └── ui/        React components and their geometry
 ```
 
-`src/ui` talks to `src/session`, which turns taps into the whole moves `src/engine` plays; `src/ai` searches those same moves, so the move the computer chooses and the move a player taps out go through one set of rules rather than two. The dependency never runs the other way, and none of `src/engine`, `src/ai` or `src/session` may import React, touch the DOM, or read the strings module — that is [ADR-0002](docs/adr/0002-engine-has-no-ui-dependencies.md), and `pnpm lint` fails the build when it is broken. The rule lives in [`eslint.config.js`](eslint.config.js); [`tests/unit/engine-boundary.test.ts`](tests/unit/engine-boundary.test.ts) lints deliberately-bad fixtures to prove it still bites.
+`src/ui` talks to `src/session`, which turns taps into the whole moves `src/engine` plays; `src/ai` searches those same moves, so the move the computer chooses and the move a player taps out go through one set of rules rather than two. `src/teaching` asks that same search what it would play, at full strength whatever difficulty the computer is playing at, so the hint a player is given and the move the computer makes can never come from two different opinions ([ADR-0001](docs/adr/0001-one-engine-plays-hints-and-grades.md)). The dependency never runs the other way, and none of `src/engine`, `src/ai`, `src/opponent`, `src/teaching` or `src/session` may import React, touch the DOM, or read the strings module — that is [ADR-0002](docs/adr/0002-engine-has-no-ui-dependencies.md), and `pnpm lint` fails the build when it is broken. The rule lives in [`eslint.config.js`](eslint.config.js); [`tests/unit/engine-boundary.test.ts`](tests/unit/engine-boundary.test.ts) lints deliberately-bad fixtures to prove it still bites.
 
 The same lint pass rejects user-facing text written into a component, so the strings module stays the one place text lives and the English translation stays a data change.
 
