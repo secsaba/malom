@@ -21,10 +21,16 @@ pnpm dev         # the site on http://localhost:5173/malom/
 | `pnpm typecheck` | `tsc --noEmit`                                                    |
 | `pnpm test`      | The fast suite (Vitest) — everything that needs no browser        |
 | `pnpm e2e`       | The browser suite (Playwright) against the production build       |
+| `pnpm test:slow` | The slow suite (Vitest) — the engine's strength, played out       |
+| `pnpm tune`      | The weight-tuning gauntlet — minutes of self-play, and a table    |
 | `pnpm build`     | Typecheck, then the production build into `dist/`                 |
 | `pnpm preview`   | Serve `dist/` on http://localhost:4173/malom/                     |
 
-CI runs all of them on every push and pull request, inside this same dev shell. A green run on `main` deploys `dist/` to GitHub Pages.
+CI runs the first four on every push and pull request, inside this same dev shell. A green run on `main` deploys `dist/` to GitHub Pages.
+
+The last two play games, at the depths the opponent really plays at, so both are minutes rather than milliseconds. `pnpm test:slow` asserts that Mester still beats Kezdő by a wide margin and still scores the empty board as level, and runs in CI on `main` rather than on every pull request. `pnpm tune` is not a check at all: it plays candidate weight sets off against each other and prints the tables that decide them, and is run by hand when the evaluation is being changed.
+
+Both are worth reading [`docs/tuning/weights.md`](docs/tuning/weights.md) before touching — it records the run that settled the current weights, and why the solved-game draw the engine cannot hold is documented there rather than asserted here.
 
 `pnpm e2e` needs a browser the first time — see [Playwright browsers](#playwright-browsers).
 
@@ -33,7 +39,7 @@ CI runs all of them on every push and pull request, inside this same dev shell. 
 ```
 src/
 ├── engine/    rules: the board, legal moves, mills, captures, endings, draws
-├── ai/        search and evaluation
+├── ai/        search, evaluation, and the self-play harness the weights were tuned with
 ├── opponent/  the computer as a player: its four difficulties, and the worker it thinks in
 ├── session/   one game, played through intents — what the interface talks to
 ├── strings/   every user-facing string, Hungarian for now

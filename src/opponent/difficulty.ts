@@ -22,7 +22,7 @@
  */
 
 import type { ScoredMove } from "../ai/search";
-import type { Move, Phase } from "../engine/game";
+import { type Game, type Move, type Phase, phaseOf } from "../engine/game";
 
 /** The difficulties, weakest first. In Hungarian: Kezdő, Haladó, Erős, Mester. */
 export const DIFFICULTIES = ["beginner", "intermediate", "strong", "master"] as const;
@@ -57,6 +57,15 @@ export const DIFFICULTY_SETTINGS: Readonly<Record<Difficulty, DifficultySettings
   strong: { depth: { placing: 3, moving: 4, flying: 3 }, blunderRate: 0.1 },
   master: { depth: { placing: 4, moving: 5, flying: 3 }, blunderRate: 0 },
 };
+
+/**
+ * How deep an opponent at this difficulty looks into this game. The phase is the
+ * game's own, so a difficulty answers the question every caller has — the one
+ * playing a move now, and the harness playing a hundred games of them (#9) —
+ * rather than each of them reading the table its own way.
+ */
+export const depthAt = (difficulty: Difficulty, game: Game): number =>
+  DIFFICULTY_SETTINGS[difficulty].depth[phaseOf(game)];
 
 /**
  * Where a player who has not chosen starts. The weakest of the four: this is a

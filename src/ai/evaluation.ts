@@ -7,9 +7,11 @@
  * game: an extra piece is almost nothing while there are still nine to place and
  * very nearly everything once a side is down to flying.
  *
- * **The weights are provisional.** They are the reasoning below written down as
- * numbers, not measurements, and they are meant to be replaced by a set played
- * out by the self-play harness (#9). Nothing here should be read as tuned.
+ * **The weights were measured, not guessed.** They were settled by the self-play
+ * gauntlet (#9), which played candidate sets against each other over hundreds of
+ * games; `docs/tuning/weights.md` records the run. Changing one is therefore a
+ * measurement rather than an opinion: play the change against what ships before
+ * writing it in, or the next person cannot tell your reasoning from the noise.
  */
 
 import { LINES, type Line, type PointId, neighboursOf } from "../engine/board";
@@ -57,15 +59,23 @@ export type Weights = Readonly<Record<Phase, Tally>>;
 export const EVALUATION_LIMIT = 100_000;
 
 /**
- * Provisional weights, in units of roughly a hundredth of a piece in the moving
- * phase. The reasoning, all of it to be checked by #9 rather than trusted:
+ * The weights, in units of roughly a hundredth of a piece in the moving phase.
+ *
+ * Every number below started as a guess and every one of them has now been
+ * played for. The gauntlet (#9) put six candidate sets against the guesses over
+ * 24 games each, ran the survivors again at two further seeds, and the set that
+ * came through — heavier mobility and a heavier penalty for being shut in —
+ * scored 0.660 over 72 games against the set it replaced, above half at every
+ * seed it was tried at. `docs/tuning/weights.md` has the tables, the seeds, and
+ * how to run it again. The reasoning:
  *
  * - **Material** is the smallest thing on the board while placing — both sides
  *   will have nine pieces out and a one-piece deficit is ordinary — and dominant
  *   while flying, where three pieces against four is the whole game. It is not
  *   quite nothing during the placing phase, because a capture there is still a
  *   capture; but a mill is worth several pieces, so the search closes one for
- *   the shape of it rather than for the piece it takes.
+ *   the shape of it rather than for the piece it takes. Moving it in either
+ *   direction was tried and neither held up.
  * - **Mills and potential mills** matter most during the placing phase, where
  *   the shape of the position is being decided and there is nothing else to play
  *   for.
@@ -73,11 +83,19 @@ export const EVALUATION_LIMIT = 100_000;
  *   opponent can only block one of the two.
  * - **Running mills** only exist once pieces move, and a side that has one has
  *   something close to a won game, so they are weighted near a mill of their own.
+ *   Pricing them higher than that lost games rather than winning them.
  * - **Blocked** pieces cost, because a side with none that can move has lost;
- *   **mobility** is the same idea counted the gentler way round. Both are small
- *   while flying, where a side reaches everywhere anyway.
+ *   **mobility** is the same idea counted the gentler way round. These are the
+ *   two the tuning moved, and it moved them up: half of the games the engine
+ *   lost to itself ended with the loser shut in rather than ground down, which
+ *   is a lot of weight to have been resting on the two smallest numbers in the
+ *   table. A side is not shut in by one bad move — it is shut in by a dozen that
+ *   each looked fine to an evaluation pricing a destination at three points
+ *   against a piece at a hundred. Both stay small while flying, where a side
+ *   reaches everywhere anyway.
  * - **Degree** prices the intersections above the corners at a level low enough
- *   that it only decides between moves the other terms think alike.
+ *   that it only decides between moves the other terms think alike. Making it
+ *   cheaper still changed nothing that survived a second seed.
  */
 export const DEFAULT_WEIGHTS: Weights = {
   placing: {
@@ -86,8 +104,8 @@ export const DEFAULT_WEIGHTS: Weights = {
     runningMills: 0,
     potentialMills: 14,
     forks: 30,
-    blocked: -10,
-    mobility: 2,
+    blocked: -18,
+    mobility: 5,
     degree: 6,
   },
   moving: {
@@ -96,8 +114,8 @@ export const DEFAULT_WEIGHTS: Weights = {
     runningMills: 40,
     potentialMills: 14,
     forks: 30,
-    blocked: -12,
-    mobility: 3,
+    blocked: -22,
+    mobility: 8,
     degree: 4,
   },
   flying: {

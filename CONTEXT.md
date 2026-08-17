@@ -194,3 +194,35 @@ _Avoid_: alert, nag, safety net
 Returning the game to the player's previous decision point so they can try a different move.
 _Hungarian_: visszalépés
 _Avoid_: undo, rewind, retry
+
+## Tuning the evaluation
+
+Nothing in this section is ever shown to a player, so none of it has a Hungarian surface form. It is the language of the harness that settled the evaluation's numbers and of the tests that keep them honest.
+
+**Weight set**:
+The whole table of what each evaluation term is worth in each phase — eight terms, three phases, one number each. A weight set is the unit that is measured and shipped: single weights are not compared, because the terms are counted against each other and a number only means something beside the rest of its table.
+_Avoid_: parameters, coefficients, config, tuning values
+
+**Self-play**:
+The engine playing the engine, with no person and no interface anywhere near it — the only way a question about how strongly it plays can be answered by games rather than by opinion.
+_Avoid_: simulation, playout, rollout, auto-play
+
+**Player**:
+In self-play, a function from a game to the move it would play, and nothing more. A weight set searching at a given depth is one, and so is a difficulty; the harness cannot tell them apart, which is why the same runner measures both.
+_Avoid_: agent, bot, engine instance — the last of those being the whole component rather than one way of asking it a question
+
+**Opening**:
+The moves a self-play game is started from, drawn at random rather than chosen, because the strongest players are deterministic and two of them left to themselves play one game over and over. It is not the placing phase: an opening is a handful of moves, and the phase runs to eighteen.
+_Avoid_: book, start position, setup
+
+**Match**:
+A run of self-play games between two players, each opening played twice with the sides swapped. The swap is what makes it a measurement of the players rather than of the openings.
+_Avoid_: tournament, series, run, batch
+
+**Scoreline**:
+What a match came to, counted from the challenger's side: wins, draws, losses, and the games that ran on past the harness's move cap without ending. The last of those is reported apart from the rest, because a game nobody finished is not a game nobody won.
+_Avoid_: score, record, results table
+
+**Gauntlet**:
+The tuning run itself: several candidate weight sets each played, over the same openings, against the set that currently ships. The winner is committed as the default and the table is kept, so the next person to change a weight can see what the last change was measured against.
+_Avoid_: sweep, grid search, tournament

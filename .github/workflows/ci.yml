@@ -7,6 +7,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The slow suite is worth asking for by hand on a branch that touches the
+  # evaluation, which is the one thing likeliest to move the engine's strength.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -75,6 +78,40 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist
+
+  strength:
+    name: The engine's strength
+    # Self-play, at the depths Mester really plays at: minutes rather than
+    # seconds, and statistical rather than exact. It runs on main and on demand
+    # rather than on every pull request — a check that takes longer than the
+    # rest of CI put together is a check people learn to start ignoring — and it
+    # does not gate the deploy, because a weakened engine is a thing to find out
+    # about and fix rather than a reason to stop shipping the rest.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(nix develop --command pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: nix develop --command pnpm install --frozen-lockfile
+
+      - name: Slow suite
+        run: nix develop --command pnpm test:slow
 
   deploy:
     name: Deploy to GitHub Pages
