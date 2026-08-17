@@ -34,6 +34,7 @@ CI runs all of them on every push and pull request, inside this same dev shell. 
 src/
 ├── engine/    rules: the board, legal moves, mills, captures, endings, draws
 ├── ai/        search and evaluation
+├── opponent/  the computer as a player: its four difficulties, and the worker it thinks in
 ├── session/   one game, played through intents — what the interface talks to
 ├── strings/   every user-facing string, Hungarian for now
 └── ui/        React components and their geometry

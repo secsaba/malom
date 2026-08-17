@@ -133,7 +133,7 @@ describe("a game neither side can win any more", () => {
     const drawn = afterMove(onTheHundredthMove("light"), { from: "a1", to: "a4" });
 
     expect(drawn.result).toEqual({ draw: "fifty-move" });
-    expect(search(drawn)).toEqual({ move: undefined, evaluation: 0, depth: 0 });
+    expect(search(drawn)).toEqual({ move: undefined, evaluation: 0, depth: 0, candidates: [] });
   });
 
   /**
@@ -161,7 +161,7 @@ describe("a game neither side can win any more", () => {
     }
 
     expect(game.result).toEqual({ draw: "repetition" });
-    expect(search(game)).toEqual({ move: undefined, evaluation: 0, depth: 0 });
+    expect(search(game)).toEqual({ move: undefined, evaluation: 0, depth: 0, candidates: [] });
   });
 
   it("takes a draw it can repeat its way into rather than the game it is losing", () => {
@@ -178,7 +178,7 @@ describe("a game neither side can win any more", () => {
     // Light is four pieces against eight, so every other move leaves it the game
     // it is losing, and nothing it can play is worth more than a draw's nought.
     // The search has to see the repetition to prefer that move, and it does.
-    expect(search(game, { limits: { depth: 1 } })).toEqual({
+    expect(search(game, { limits: { depth: 1 } })).toMatchObject({
       move: drawing,
       evaluation: 0,
       depth: 1,
@@ -197,7 +197,54 @@ describe("a game that is over", () => {
 
     expect(won.result).toEqual({ winner: "light", ending: "reduced" });
     expect(won.sideToMove).toBe("dark");
-    expect(search(won)).toEqual({ move: undefined, evaluation: -WIN_SCORE, depth: 0 });
+    expect(search(won)).toEqual({
+      move: undefined,
+      evaluation: -WIN_SCORE,
+      depth: 0,
+      candidates: [],
+    });
+  });
+});
+
+/**
+ * The whole root, ranked — what an opponent playing below its best chooses among
+ * (#8). The search itself still prefers one move; these are what it had to
+ * prefer it over.
+ */
+describe("the moves the search scored on the way to the one it prefers", () => {
+  it("holds every move the rules offer, and nothing else", () => {
+    const { candidates } = search(NEW_GAME, { limits: SHALLOW });
+    const legal = legalMovesOf(NEW_GAME);
+
+    expect(candidates).toHaveLength(legal.length);
+    for (const { move } of candidates) expect(legal).toContainEqual(move);
+  });
+
+  it("puts the move it prefers first, and ranks the rest behind it", () => {
+    // The mill in front of it again: g1 closes a1-d1-g1 and takes a piece, so it
+    // is worth more than anything else on the board and comes back at the head.
+    const game = gameOf({
+      light: ["a1", "d1"],
+      dark: ["a4", "d2"],
+      sideToMove: "light",
+      piecesInHand: { light: 7, dark: 7 },
+    });
+
+    const { move, evaluation, candidates } = search(game, { limits: SHALLOW });
+    const [best, ...rest] = candidates;
+
+    expect(best).toEqual({ move, score: evaluation });
+    expect(best?.move.to).toBe("g1");
+
+    let behind = best?.score ?? 0;
+    for (const { score } of rest) {
+      expect(score).toBeLessThanOrEqual(behind);
+      behind = score;
+    }
+  });
+
+  it("has more than one of them to rank, so a weaker opponent has something to choose", () => {
+    expect(search(NEW_GAME, { limits: SHALLOW }).candidates.length).toBeGreaterThan(1);
   });
 });
 

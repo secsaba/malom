@@ -261,6 +261,36 @@ body {
 }
 
 
+.difficulty {
+  display: flex;
+  justify-content: center;
+}
+
+.difficulty__choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--page-ink-dim);
+  border-radius: 0.5rem;
+}
+
+.difficulty__choice legend {
+  padding: 0 0.35rem;
+  color: var(--page-ink-dim);
+  font-size: 0.875rem;
+}
+
+.difficulty__option {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
 .setup {
   display: flex;
   flex-wrap: wrap;

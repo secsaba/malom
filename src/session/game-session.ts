@@ -18,6 +18,12 @@
  * that side's turns itself. What the function does with the question — search it
  * here, post it to a Web Worker — is nothing this module knows, which is what
  * keeps the worker an adapter and everything behind it testable in-process.
+ *
+ * How strongly the computer plays is asked alongside the game rather than fixed
+ * when the opponent was made, which is what lets a player change difficulty
+ * without giving up the game in front of them. What a difficulty means is the
+ * opponent's business; here it is a setting that outlives any one game, so
+ * starting another leaves it exactly where the player put it.
  */
 
 import type { PointId } from "../engine/board";
@@ -41,18 +47,19 @@ import {
   emptyPoints,
   movablePointsOf,
 } from "../engine/position";
+import { DEFAULT_DIFFICULTY, type Difficulty } from "../opponent/difficulty";
 
-export type { Draw, Ending, Phase, Result };
+export type { Difficulty, Draw, Ending, Phase, Result };
 
 /**
- * What the computer is asked when its turn comes: the game as it stands, and the
- * whole move it would play. A game it has no move in — one already over — is
- * answered with nothing.
+ * What the computer is asked when its turn comes: the game as it stands and how
+ * strongly to play it, for the whole move it would answer with. A game it has no
+ * move in — one already over — is answered with nothing.
  *
  * It answers later rather than at once, because a search deep enough to be worth
  * playing is too slow to run between two frames.
  */
-export type ChooseMove = (game: Game) => Promise<Move | undefined>;
+export type ChooseMove = (game: Game, difficulty: Difficulty) => Promise<Move | undefined>;
 
 /** Who is playing: the side the computer takes, or nobody, for two people sharing a device. */
 export type Players = {
@@ -63,6 +70,8 @@ export type GameSessionOptions = {
   /** Asked for the computer's move. Without it, both sides are played by hand. */
   readonly chooseMove?: ChooseMove | undefined;
   readonly players?: Players | undefined;
+  /** How strongly the computer plays to begin with. */
+  readonly difficulty?: Difficulty | undefined;
 };
 
 /**
@@ -98,6 +107,7 @@ type Recorded = {
 type Playing = {
   readonly opponentSide: Side | undefined;
   readonly thinking: boolean;
+  readonly difficulty: Difficulty;
 };
 
 /** Everything a player can see about the game: what is recorded, and what follows from it. */
@@ -121,6 +131,8 @@ export type GameState = {
   readonly opponentSide: Side | undefined;
   /** Whether the computer is choosing its move. */
   readonly thinking: boolean;
+  /** How strongly the computer is playing, whether or not it is playing at all. */
+  readonly difficulty: Difficulty;
   /**
    * Where the last piece to move came to rest — the capture it may have earned
    * is not part of it — so the interface can bring it in from where it came
@@ -144,7 +156,7 @@ const legalPointsOf = ({ game, selection, arrival }: Recorded): readonly PointId
 // What the players see is spelled out rather than spread from what is recorded,
 // so that a state built from an earlier one cannot smuggle a stale set of legal
 // points through with it.
-const stateOf = (recorded: Recorded, { opponentSide, thinking }: Playing): GameState => {
+const stateOf = (recorded: Recorded, { opponentSide, thinking, difficulty }: Playing): GameState => {
   const { game, selection, arrival, lastArrival } = recorded;
   // A piece that has arrived is on the board and out of its hand from the moment
   // it lands, so what the players see mid-move is the arrival, not the game the
@@ -164,6 +176,7 @@ const stateOf = (recorded: Recorded, { opponentSide, thinking }: Playing): GameS
     legalPoints: isOpponentToMove(game, opponentSide) ? [] : legalPointsOf(recorded),
     opponentSide,
     thinking,
+    difficulty,
     lastArrival,
   };
 };
@@ -272,18 +285,27 @@ export type GameSession = {
   readonly subscribe: (listener: () => void) => () => void;
   /**
    * Throw the game away and start another one, played by whoever is given —
-   * which is how a rematch swaps the sides over.
+   * which is how a rematch swaps the sides over. The difficulty is a setting
+   * rather than part of a game, and carries over untouched.
    */
   readonly start: (players: Players) => void;
+  /**
+   * Change how strongly the computer plays. The game in progress carries on: a
+   * player who finds the opponent too hard or too easy meets it at another
+   * level from its next move rather than starting again. A move already being
+   * thought about was asked for at the old difficulty and arrives at it.
+   */
+  readonly playAt: (difficulty: Difficulty) => void;
 };
 
 /** Start a game. */
 export const createGameSession = ({
   chooseMove,
   players = {},
+  difficulty = DEFAULT_DIFFICULTY,
 }: GameSessionOptions = {}): GameSession => {
   let recorded = NEW_SESSION;
-  let playing: Playing = { opponentSide: players.opponentSide, thinking: false };
+  let playing: Playing = { opponentSide: players.opponentSide, thinking: false, difficulty };
   let state = stateOf(recorded, playing);
   const listeners = new Set<() => void>();
 
@@ -320,7 +342,7 @@ export const createGameSession = ({
     // A search that fails is a computer with no move to play: the game stays
     // where it stood, with the move still its own. There is nowhere here to say
     // so, and the interface reads a computer that has stopped thinking.
-    void chooseMove(thought).then(played, () => played(undefined));
+    void chooseMove(thought, playing.difficulty).then(played, () => played(undefined));
   };
 
   // A game the computer opens is under way from the moment it is created.
@@ -351,8 +373,15 @@ export const createGameSession = ({
     start: (next) => {
       gamesStarted += 1;
       recorded = NEW_SESSION;
-      playing = { opponentSide: next.opponentSide, thinking: false };
+      playing = { opponentSide: next.opponentSide, thinking: false, difficulty: playing.difficulty };
       think();
+      publish();
+    },
+
+    playAt: (chosen) => {
+      if (chosen === playing.difficulty) return;
+
+      playing = { ...playing, difficulty: chosen };
       publish();
     },
   };

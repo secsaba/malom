@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { DIFFICULTIES } from "../opponent/difficulty";
 import { hu } from "./hu";
 import { strings } from "./index";
 
@@ -31,6 +32,16 @@ describe("the strings module", () => {
     expect(hu.game.piecesInHand).toBe("Le nem rakott bábuk");
     expect(hu.game.result.draw).toBe("Döntetlen");
     expect(hu.setup.against.computer).toBe("Gép");
+    expect(hu.difficulty.legend).toBe("Nehézség");
+  });
+
+  it("names the four difficulties as the glossary names them", () => {
+    expect(DIFFICULTIES.map((difficulty) => hu.difficulty[difficulty])).toEqual([
+      "Kezdő",
+      "Haladó",
+      "Erős",
+      "Mester",
+    ]);
   });
 
   it("never reaches for ütés, which belongs to chess and draughts rather than to malom", () => {

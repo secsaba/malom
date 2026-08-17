@@ -1,22 +1,51 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { gameOf } from "../../tests/fixtures/games";
-import type { SearchResult } from "../ai/search";
-import { NEW_GAME } from "../engine/game";
+import { type SearchResult, search } from "../ai/search";
+import { type Game, type Move, NEW_GAME } from "../engine/game";
+import { DEFAULT_DIFFICULTY, DIFFICULTIES, DIFFICULTY_SETTINGS, NEAR_BEST_MARGIN } from "./difficulty";
 import {
   type RunSearch,
   type SearchRequest,
-  SEARCH_DEPTH,
-  THINKING_TIME,
   createOpponent,
-  limitsOf,
   searchInProcess,
 } from "./opponent";
 
 /** A search that has already made up its mind. */
 const answering = (result: SearchResult): RunSearch => () => Promise.resolve(result);
 
-const A_MOVE: SearchResult = { move: { to: "d2" }, evaluation: 12, depth: 3 };
+const A_MOVE: SearchResult = {
+  move: { to: "d2" },
+  evaluation: 12,
+  depth: 3,
+  candidates: [{ move: { to: "d2" }, score: 12 }],
+};
+
+/**
+ * A position with room in it: light and dark two pieces each and seven still in
+ * hand, so there are twenty points to place on and plenty of them are worth
+ * almost as much as the best. It is what a weakened opponent needs to be weak
+ * in, and what the strongest one has to be shown answering the same way twice.
+ */
+const A_POSITION = gameOf({
+  light: ["a1", "d1"],
+  dark: ["a4", "d2"],
+  sideToMove: "light",
+  piecesInHand: { light: 7, dark: 7 },
+});
+
+const sameMove = (one: Move | undefined, other: Move | undefined) =>
+  one?.to === other?.to && one?.from === other?.from && one?.capture === other?.capture;
+
+/** What the opponent played over a run of turns in the same position. */
+const playedRepeatedly = async (
+  chooseMove: (game: Game) => Promise<Move | undefined>,
+  turns: number,
+) => {
+  const played: (Move | undefined)[] = [];
+  for (let turn = 0; turn < turns; turn += 1) played.push(await chooseMove(A_POSITION));
+  return played;
+};
 
 afterEach(() => {
   vi.useRealTimers();
@@ -26,21 +55,27 @@ describe("the opponent", () => {
   it("plays the move the search came back with", async () => {
     const chooseMove = createOpponent(answering(A_MOVE), { minimumDelay: 0 });
 
-    expect(await chooseMove(NEW_GAME)).toEqual({ to: "d2" });
+    expect(await chooseMove(NEW_GAME, "master")).toEqual({ to: "d2" });
   });
 
-  it("asks about the game in front of it, at the depth and the time it plays at", async () => {
+  it("looks as far ahead as the difficulty it is asked to play at", async () => {
     const asked: SearchRequest[] = [];
-    const chooseMove = createOpponent((request) => {
-      asked.push(request);
-      return Promise.resolve(A_MOVE);
-    }, { minimumDelay: 0 });
+    const chooseMove = createOpponent(
+      (request) => {
+        asked.push(request);
+        return Promise.resolve(A_MOVE);
+      },
+      { minimumDelay: 0 },
+    );
 
-    await chooseMove(NEW_GAME);
+    for (const difficulty of DIFFICULTIES) await chooseMove(NEW_GAME, difficulty);
 
-    expect(asked).toEqual([
-      { game: NEW_GAME, depth: SEARCH_DEPTH, thinkingTime: THINKING_TIME },
-    ]);
+    expect(asked).toEqual(
+      DIFFICULTIES.map((difficulty) => ({
+        game: NEW_GAME,
+        depth: DIFFICULTY_SETTINGS[difficulty].depth,
+      })),
+    );
   });
 
   it("holds a move that took no time at all back, so it never merely flickers", async () => {
@@ -48,7 +83,7 @@ describe("the opponent", () => {
     const chooseMove = createOpponent(answering(A_MOVE), { minimumDelay: 500 });
     let played = false;
 
-    void chooseMove(NEW_GAME).then(() => {
+    void chooseMove(NEW_GAME, "master").then(() => {
       played = true;
     });
 
@@ -67,7 +102,7 @@ describe("the opponent", () => {
     );
     let played = false;
 
-    void chooseMove(NEW_GAME).then(() => {
+    void chooseMove(NEW_GAME, "master").then(() => {
       played = true;
     });
 
@@ -77,23 +112,55 @@ describe("the opponent", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(played).toBe(true);
   });
+
+  it("has nothing to play in a game that is already over", async () => {
+    const overAlready: SearchResult = { move: undefined, evaluation: 0, depth: 0, candidates: [] };
+    const chooseMove = createOpponent(answering(overAlready), { minimumDelay: 0 });
+
+    expect(await chooseMove(NEW_GAME, DEFAULT_DIFFICULTY)).toBeUndefined();
+  });
 });
 
-describe("the time a search is given", () => {
-  it("passes the depth to the search untouched", () => {
-    expect(limitsOf({ game: NEW_GAME, depth: 5, thinkingTime: 400 }).depth).toBe(5);
+/**
+ * The whole opponent, chance and search and all, run against the same position
+ * over and over. This is the difficulty acceptance criterion as a player would
+ * meet it: Mester answers the same way every time, and the tiers below it do not.
+ */
+describe("the same position put to the opponent again and again", () => {
+  const opponent = createOpponent(searchInProcess, { minimumDelay: 0 });
+
+  it("is answered by Mester with the same move every time", async () => {
+    const played = await playedRepeatedly((game) => opponent(game, "master"), 5);
+    const [first] = played;
+
+    expect(first).toBeDefined();
+    for (const move of played) expect(sameMove(move, first)).toBe(true);
   });
 
-  it("is up before a search given none of it has looked at anything", () => {
-    const { shouldStop } = limitsOf({ game: NEW_GAME, depth: 5, thinkingTime: 0 });
+  it("is answered by Kezdő with more than one move over a run of them", async () => {
+    const played = await playedRepeatedly((game) => opponent(game, "beginner"), 40);
+    const distinct = new Set(played.map((move) => JSON.stringify(move)));
 
-    expect(shouldStop?.()).toBe(true);
+    expect(distinct.size).toBeGreaterThan(1);
   });
 
-  it("is not up while there is still some of it left", () => {
-    const { shouldStop } = limitsOf({ game: NEW_GAME, depth: 5, thinkingTime: 10_000 });
+  /**
+   * And the moves it varies between are near-best ones, not legal ones: a weak
+   * opponent plays worse, and never plays a move the search ranked far behind.
+   */
+  it("is answered by Kezdő only with moves the search ranked near the best one", async () => {
+    const played = await playedRepeatedly((game) => opponent(game, "beginner"), 40);
+    const { candidates } = search(A_POSITION, {
+      limits: { depth: DIFFICULTY_SETTINGS.beginner.depth },
+    });
+    const [best] = candidates;
 
-    expect(shouldStop?.()).toBe(false);
+    for (const move of played) {
+      const scored = candidates.find((candidate) => sameMove(candidate.move, move));
+
+      expect(scored, JSON.stringify(move)).toBeDefined();
+      expect((best?.score ?? 0) - (scored?.score ?? 0)).toBeLessThanOrEqual(NEAR_BEST_MARGIN);
+    }
   });
 });
 
@@ -101,14 +168,10 @@ describe("the search the opponent runs in this process", () => {
   it("is the engine itself: it closes the mill in front of it", async () => {
     // Light holds a1 and d1, so g1 makes a mill and earns a capture; dark's a4
     // and d2 kill the other line through each of light's pieces.
-    const game = gameOf({
-      light: ["a1", "d1"],
-      dark: ["a4", "d2"],
-      sideToMove: "light",
-      piecesInHand: { light: 7, dark: 7 },
+    const { move } = await searchInProcess({
+      game: A_POSITION,
+      depth: DIFFICULTY_SETTINGS.master.depth,
     });
-
-    const { move } = await searchInProcess({ game, depth: 3, thinkingTime: THINKING_TIME });
 
     expect(move?.to).toBe("g1");
     expect(move?.capture).toBeDefined();

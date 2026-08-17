@@ -9,7 +9,13 @@ import {
   REPETITION_CYCLE,
   WALLED_IN,
 } from "../../tests/fixtures/games";
-import { type ChooseMove, type GameSession, createGameSession } from "./game-session";
+import { DEFAULT_DIFFICULTY } from "../opponent/difficulty";
+import {
+  type ChooseMove,
+  type Difficulty,
+  type GameSession,
+  createGameSession,
+} from "./game-session";
 
 const place = (session: GameSession, ...points: readonly PointId[]) => {
   for (const point of points) session.apply({ type: "place", point });
@@ -46,10 +52,12 @@ const settled = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
  */
 const askedOpponent = () => {
   const asked: Game[] = [];
+  const askedAt: Difficulty[] = [];
   let answer: ((move: Move | undefined) => void) | undefined;
 
-  const chooseMove: ChooseMove = (game) => {
+  const chooseMove: ChooseMove = (game, difficulty) => {
     asked.push(game);
+    askedAt.push(difficulty);
     return new Promise((resolve) => {
       answer = resolve;
     });
@@ -57,6 +65,8 @@ const askedOpponent = () => {
 
   return {
     asked,
+    /** How strongly it was asked to play, one per question. */
+    askedAt,
     chooseMove,
     /** Hand back the move the opponent settled on, and let the session act on it. */
     reply: async (move: Move | undefined) => {
@@ -785,6 +795,97 @@ describe("playing the computer", () => {
     expect(session.state.result).toEqual({ winner: "dark", ending: "blocked" });
     expect(session.state.thinking).toBe(false);
     expect(opponent.asked).toHaveLength(9);
+  });
+});
+
+describe("how strongly the computer plays", () => {
+  const playingTheComputer = (difficulty?: Difficulty) => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      players: { opponentSide: "dark" },
+      ...(difficulty ? { difficulty } : {}),
+    });
+
+    return { opponent, session };
+  };
+
+  it("starts where a player who has chosen nothing would want it", () => {
+    expect(createGameSession().state.difficulty).toBe(DEFAULT_DIFFICULTY);
+  });
+
+  it("is whatever the game was started at, and is what the computer is asked for", () => {
+    const { opponent, session } = playingTheComputer("strong");
+
+    place(session, "a1");
+
+    expect(session.state.difficulty).toBe("strong");
+    expect(opponent.askedAt).toEqual(["strong"]);
+  });
+
+  it("changes to the one the player picked, and the interface hears about it", () => {
+    const { session } = playingTheComputer("beginner");
+    let told = 0;
+    session.subscribe(() => {
+      told += 1;
+    });
+
+    session.playAt("master");
+
+    expect(session.state.difficulty).toBe("master");
+    expect(told).toBe(1);
+  });
+
+  /** The acceptance criterion: nobody gives up a game by changing difficulty. */
+  it("changes in the middle of a game without disturbing the game", async () => {
+    const { opponent, session } = playingTheComputer("beginner");
+    place(session, "a1");
+    await opponent.reply({ to: "g7" });
+    place(session, "d1");
+    await opponent.reply({ to: "d7" });
+
+    session.playAt("master");
+
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(session.state.position.get("g7")).toBe("dark");
+    expect(session.state.position.size).toBe(4);
+    expect(session.state.sideToMove).toBe("light");
+    expect(session.state.piecesInHand).toEqual({ light: 7, dark: 7 });
+  });
+
+  it("is what the computer is asked for from its next move on", async () => {
+    const { opponent, session } = playingTheComputer("beginner");
+    place(session, "a1");
+    await opponent.reply({ to: "g7" });
+
+    session.playAt("master");
+    place(session, "d1");
+
+    expect(opponent.askedAt).toEqual(["beginner", "master"]);
+  });
+
+  it("is a setting rather than part of a game, so another game is played at it too", () => {
+    const { opponent, session } = playingTheComputer("beginner");
+
+    session.playAt("strong");
+    session.start({ opponentSide: "light" });
+
+    expect(session.state.difficulty).toBe("strong");
+    expect(opponent.askedAt).toEqual(["strong"]);
+  });
+
+  it("leaves everything as it was when the player picks the one already being played", () => {
+    const { session } = playingTheComputer("strong");
+    const before = session.state;
+    let told = 0;
+    session.subscribe(() => {
+      told += 1;
+    });
+
+    session.playAt("strong");
+
+    expect(session.state).toBe(before);
+    expect(told).toBe(0);
   });
 });
 

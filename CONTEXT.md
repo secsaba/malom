@@ -144,6 +144,16 @@ How strongly the opponent plays — a combination of how deeply it searches and 
 _Hungarian_: nehézség (Kezdő, Haladó, Erős, Mester)
 _Avoid_: level, strength, skill
 
+**Blunder rate**:
+How often a difficulty plays a weaker move on purpose, counted as a share of its moves. It is nought at Mester, which is what makes Mester deterministic: the same position gives the same move.
+_Hungarian_: none — nothing in the interface words it; only the difficulty it belongs to is named
+_Avoid_: error rate, mistake rate, handicap
+
+**Near-best move**:
+A move the search scored within a fixed margin of the one it prefers. These are what a difficulty below Mester draws its deliberate mistakes from, weighted so that a nearly-as-good move comes up far more often than a barely-good-enough one. The margin is what keeps those mistakes human-sized: a mill missed is inside it and a piece handed over for nothing is not, so no difficulty ever plays the second on purpose.
+_Hungarian_: none — nothing in the interface words it; the board shows the move
+_Avoid_: second-best move, plausible move, reasonable move
+
 ## Teaching
 
 **Teaching mode**:

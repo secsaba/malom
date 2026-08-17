@@ -4,12 +4,19 @@ import { evaluate } from "../../src/ai/evaluation";
 import type { PointId } from "../../src/engine/board";
 import { type Game, type Move, afterMove, legalMovesOf } from "../../src/engine/game";
 import type { Side } from "../../src/engine/position";
+import { DEFAULT_DIFFICULTY, DIFFICULTIES, type Difficulty } from "../../src/opponent/difficulty";
 import { strings } from "../../src/strings";
 import { gameOf } from "../fixtures/games";
 import { pointAt, tap } from "./taps";
 
-/** Start a game against the computer, with the player on this side. */
-const startAgainstTheComputer = async (page: Page, humanSide: Side) => {
+/**
+ * Start a game against the computer, with the player on this side and the
+ * computer at this difficulty. The difficulty is chosen before the game rather
+ * than as part of starting it: it is a setting, and it applies to the game in
+ * progress as much as to the next one.
+ */
+const startAgainstTheComputer = async (page: Page, humanSide: Side, difficulty: Difficulty) => {
+  await page.getByTestId(`difficulty-${difficulty}`).check();
   await page.getByTestId("against-computer").check();
   await page.getByTestId(`side-${humanSide}`).check();
   await page.getByTestId("start").click();
@@ -104,7 +111,7 @@ test("starts a game against the computer with the player on light", async ({ pag
 });
 
 test("opens the game itself when the player takes dark", async ({ page }) => {
-  await startAgainstTheComputer(page, "dark");
+  await startAgainstTheComputer(page, "dark", DEFAULT_DIFFICULTY);
 
   await expect(page.getByTestId("thinking")).toBeVisible();
 
@@ -115,7 +122,7 @@ test("opens the game itself when the player takes dark", async ({ page }) => {
 });
 
 test("leaves the interface working while it thinks, and the board unplayable", async ({ page }) => {
-  await startAgainstTheComputer(page, "light");
+  await startAgainstTheComputer(page, "light", DEFAULT_DIFFICULTY);
   await tap(page, "a1");
 
   await expect(page.getByTestId("thinking")).toBeVisible();
@@ -133,17 +140,53 @@ test("leaves the interface working while it thinks, and the board unplayable", a
 });
 
 test("brings the piece it moved in from where it came", async ({ page }) => {
-  await startAgainstTheComputer(page, "dark");
+  await startAgainstTheComputer(page, "dark", DEFAULT_DIFFICULTY);
   await answered(page, "dark");
 
   await expect(page.locator("[data-point][data-arrived='placed']")).toHaveCount(1);
+});
+
+test("offers the four difficulties, starting at the one a new player meets", async ({ page }) => {
+  for (const difficulty of DIFFICULTIES) {
+    await expect(page.getByTestId(`difficulty-${difficulty}`)).toHaveCount(1);
+  }
+
+  await expect(page.getByTestId("difficulty")).toContainText(strings.difficulty.legend);
+  await expect(page.getByTestId(`difficulty-${DEFAULT_DIFFICULTY}`)).toBeChecked();
+});
+
+test("changes difficulty without giving up the game in progress", async ({ page }) => {
+  await startAgainstTheComputer(page, "light", "beginner");
+
+  await tap(page, "a1");
+  await answered(page, "light");
+
+  await expect(page.locator("[data-point][data-occupant]")).toHaveCount(2);
+
+  await page.getByTestId("difficulty-master").check();
+
+  // The change is visible, and the game is exactly where it was left.
+  await expect(page.getByTestId("difficulty-master")).toBeChecked();
+  await expect(page.getByTestId(`difficulty-${DEFAULT_DIFFICULTY}`)).not.toBeChecked();
+  await expect(pointAt(page, "a1")).toHaveAttribute("data-occupant", "light");
+  await expect(page.locator("[data-point][data-occupant]")).toHaveCount(2);
+  await expect(page.getByTestId("result")).toHaveCount(0);
+  await expect(page.getByTestId("side-to-move")).toHaveText(strings.game.toMove.light);
+
+  // And it carries on from there, with the stronger opponent answering.
+  await tap(page, "g7");
+  await answered(page, "light");
+
+  await expect(page.locator("[data-point][data-occupant]")).toHaveCount(4);
 });
 
 test("plays a whole game, and offers the sides the other way round afterwards", async ({ page }) => {
   test.setTimeout(180_000);
   const result = page.getByTestId("result");
 
-  await startAgainstTheComputer(page, "light");
+  // At Mester: the strongest opponent there is, and the one that answers the
+  // same way twice, so what the game turns on is the player throwing it away.
+  await startAgainstTheComputer(page, "light", "master");
 
   // The player throws the game away a move at a time; the computer takes it.
   for (let move = 0; move < 60 && (await result.count()) === 0; move += 1) {
@@ -153,9 +196,8 @@ test("plays a whole game, and offers the sides the other way round afterwards", 
 
   await expect(result).toHaveText(strings.game.result.winner.dark);
 
-  // Which of the two endings light is left in is the search's own business —
-  // how far it gets in the time it is given is the machine's — so all that is
-  // asked here is that light is the side left in one.
+  // Which of the two endings light is left in is the search's own business, so
+  // all that is asked here is that light is the side left in one.
   await expect(page.getByTestId("ending")).toContainText(strings.game.side.light);
 
   await page.getByTestId("rematch").click();

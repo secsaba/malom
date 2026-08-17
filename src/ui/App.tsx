@@ -5,6 +5,7 @@ import { type Side, opponentOf } from "../engine/position";
 import type { GameState, Intent, Players } from "../session/game-session";
 import { strings } from "../strings";
 import { Board } from "./Board";
+import { Difficulty } from "./Difficulty";
 import { FIRST_GAME, type NextGame, Setup } from "./Setup";
 import { Status } from "./Status";
 import { useGameSession } from "./useGameSession";
@@ -37,7 +38,7 @@ const playersOf = ({ against, humanSide }: NextGame): Players =>
 export const App = () => {
   const [showCoordinates, setShowCoordinates] = useState(false);
   const [next, setNext] = useState<NextGame>(FIRST_GAME);
-  const { state, apply, start } = useGameSession();
+  const { state, apply, start, playAt } = useGameSession();
 
   const select = (point: PointId) => apply(intentFor(state, point));
 
@@ -78,6 +79,8 @@ export const App = () => {
           {strings.setup.rematch}
         </button>
       )}
+
+      <Difficulty difficulty={state.difficulty} onChoose={playAt} />
 
       <Setup next={next} onChoose={setNext} onStart={() => startGame(next)} />
 

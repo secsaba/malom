@@ -12,6 +12,7 @@ import { useState, useSyncExternalStore } from "react";
 
 import { createWorkerOpponent } from "../opponent/worker-opponent";
 import {
+  type Difficulty,
   type GameState,
   type Intent,
   type Players,
@@ -23,11 +24,13 @@ export type UseGameSession = {
   readonly apply: (intent: Intent) => void;
   /** Throw the game away and start another one, played by whoever is given. */
   readonly start: (players: Players) => void;
+  /** Change how strongly the computer plays, without disturbing the game in progress. */
+  readonly playAt: (difficulty: Difficulty) => void;
 };
 
 export const useGameSession = (): UseGameSession => {
   const [session] = useState(() => createGameSession({ chooseMove: createWorkerOpponent() }));
   const state = useSyncExternalStore(session.subscribe, () => session.state);
 
-  return { state, apply: session.apply, start: session.start };
+  return { state, apply: session.apply, start: session.start, playAt: session.playAt };
 };

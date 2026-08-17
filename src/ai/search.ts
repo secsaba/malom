@@ -11,9 +11,11 @@
  * result out, and everything it calls is this, run in-process and testable
  * without one.
  *
- * It is deterministic — the same game and the same weights give the same move,
- * every time. Playing a weaker move on purpose is the opponent's difficulty
- * setting (#7) and belongs to choosing a move, not to searching for one.
+ * It is deterministic — the same game, the same weights and the same depth give
+ * the same move, every time, on any machine. Playing a weaker move on purpose is
+ * the opponent's difficulty setting (#8) and belongs to choosing a move, not to
+ * searching for one; what the weaker difficulties choose among is the ranked root
+ * moves this returns alongside the one it prefers.
  */
 
 import { type Game, type Move, type Result, afterMove, legalMovesOf } from "../engine/game";
@@ -47,6 +49,13 @@ export type SearchOptions = {
   readonly weights?: Weights;
 };
 
+/** A move at the root, with what the search made of the position it leads to. */
+export type ScoredMove = {
+  readonly move: Move;
+  /** How good the position is for the side to move, once this move is played. */
+  readonly score: number;
+};
+
 /** What the search made of a position. */
 export type SearchResult = {
   /** The move it prefers, or nothing at all where the game is already over. */
@@ -55,6 +64,16 @@ export type SearchResult = {
   readonly evaluation: number;
   /** How many moves deep the answer comes from. Nought, for a game that is over. */
   readonly depth: number;
+  /**
+   * Every move the rules offer, best first, each with what the last completed
+   * round made of it — which is what an opponent playing below its best picks
+   * among (#8), and what makes that pick a choice between moves the search has
+   * scored rather than a shot in the dark.
+   *
+   * It is empty exactly when there is no move to prefer, so a caller that reads
+   * the first of these reads the same move as {@link SearchResult.move}.
+   */
+  readonly candidates: readonly ScoredMove[];
 };
 
 /** How deep to look when the caller does not say. */
@@ -151,7 +170,7 @@ export const search = (game: Game, options: SearchOptions = {}): SearchResult =>
   };
 
   /** One round of deepening, played out over every move at the root. */
-  const rootRound = (moves: readonly Move[], depth: number) => {
+  const rootRound = (moves: readonly Move[], depth: number): readonly ScoredMove[] => {
     const scored = moves.map((move) => ({
       move,
       score: 0 - negamax(afterMove(game, move), depth - 1, -Infinity, Infinity, 1),
@@ -163,15 +182,26 @@ export const search = (game: Game, options: SearchOptions = {}): SearchResult =>
   };
 
   const legal = capturesFirst(legalMovesOf(game));
-  if (legal.length === 0) {
+  const [first] = legal;
+  if (first === undefined) {
     return {
       move: undefined,
       evaluation: game.result ? scoreOf(game.result, game.sideToMove, 0) : lostAt(0),
       depth: 0,
+      candidates: [],
     };
   }
 
-  let result: SearchResult = { move: legal[0], evaluation: 0, depth: 0 };
+  // What stands before a round has finished. The first round is never abandoned,
+  // so nothing but a maximum depth below one can leave this as the answer — but
+  // an answer with a move in it always has that move among its candidates, which
+  // is what lets a caller read the two as saying the same thing.
+  let result: SearchResult = {
+    move: first,
+    evaluation: 0,
+    depth: 0,
+    candidates: [{ move: first, score: 0 }],
+  };
   let order = legal;
 
   for (let depth = 1; depth <= maxDepth; depth += 1) {
@@ -180,7 +210,7 @@ export const search = (game: Game, options: SearchOptions = {}): SearchResult =>
       const [best] = round;
       if (!best) break;
 
-      result = { move: best.move, evaluation: best.score, depth };
+      result = { move: best.move, evaluation: best.score, depth, candidates: round };
       order = round.map((scored) => scored.move);
       stoppable = true;
     } catch (thrown) {

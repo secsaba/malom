@@ -60,6 +60,18 @@ export const hu = {
       },
     },
   },
+  /**
+   * How strongly the computer plays, keyed by the difficulty the game session
+   * reports. The four names are the glossary's and are not translations of the
+   * English keys: Kezdő and Haladó are what a Hungarian course calls its levels.
+   */
+  difficulty: {
+    legend: "Nehézség",
+    beginner: "Kezdő",
+    intermediate: "Haladó",
+    strong: "Erős",
+    master: "Mester",
+  },
   /** Starting a game: who is playing it, and which side the player takes. */
   setup: {
     heading: "Új játék",
