@@ -69,8 +69,10 @@ describe("Mester against Kezdő", () => {
  * as a statistical claim — Mester against Mester draws reliably — and the games
  * refuse to support one. They were run, at four opening lengths and four search
  * depths, and `docs/tuning/weights.md` has every number: Mester beats itself
- * about four times in five from any position but the one the game starts in,
- * and looking a move deeper than Mester does not bring the draw back.
+ * about three times in four from positions it chose to enter itself, and
+ * looking a move deeper than Mester does not bring the draw back. Openings
+ * drawn at random are worse still and prove less — some of them are lost
+ * before either engine chooses anything, and perfect play would lose those too.
  *
  * The start position was drawn, and for a while that was asserted here. It was
  * then measured properly and it is a knife-edge: of ten reasonable weight sets,

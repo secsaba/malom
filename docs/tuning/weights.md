@@ -100,13 +100,15 @@ Openings drawn uniformly from the legal moves:
 | ------------- | - | - | - | - | - | - |
 | Drawn, of 6   | 6 | 0 | 3 | 0 | 0 | 0 |
 
-Openings drawn from Mester's own near-best shortlist — positions it would willingly enter, which is the fairest reading of the ticket's intent:
+Openings drawn from Mester's own near-best shortlist — positions it would willingly enter:
 
 | Opening moves | 2 | 4 | 6 |
 | ------------- | - | - | - |
 | Drawn, of 6   | 1 | 2 | 1 |
 
-So: three drawn games in thirty-six from random openings, four in eighteen from openings Mester chose itself. It beats itself about four times in five.
+**The second table is the one that means anything, and the first is contaminated.** A game being a theoretical draw is a fact about the position, not about the game of malom in general: perfect play draws from a drawn position and loses from a lost one. Some of those uniform-random openings will have thrown the game away before either engine chose anything, and a decisive result from one of them is the opening's doing rather than the evaluation's — a perfect player with the whole solved database behind it would lose those too. Openings drawn from the shortlist Mester itself ranked near its best are very unlikely to be lost positions, which is why four draws in eighteen of them is the number that indicts the evaluation, and three in thirty-six of the others is not.
+
+So: four drawn games in eighteen from openings Mester chose itself. It beats itself about three times in four from positions it was happy to be in.
 
 **It is not the search depth.** The same six near-best two-move openings, played at four different depths:
 
