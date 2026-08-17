@@ -10,6 +10,7 @@ import {
   WALLED_IN,
 } from "../../tests/fixtures/games";
 import { DEFAULT_DIFFICULTY } from "../opponent/difficulty";
+import { createOpponent, searchInProcess } from "../opponent/opponent";
 import {
   type ChooseMove,
   type Difficulty,
@@ -886,6 +887,44 @@ describe("how strongly the computer plays", () => {
 
     expect(session.state).toBe(before);
     expect(told).toBe(0);
+  });
+});
+
+/**
+ * The difficulties as a player meets them: through the facade, with the real
+ * engine behind it rather than a stand-in. Nothing here says what the computer
+ * should play — only that Mester plays the same thing twice and that Kezdő does
+ * not, which is what the four difficulties are for.
+ */
+describe("the game a difficulty actually produces", () => {
+  const engine = createOpponent(searchInProcess, { minimumDelay: 0 });
+
+  /** The point the computer opened on, playing light at this difficulty. */
+  const openedBy = async (difficulty: Difficulty) => {
+    const session = createGameSession({
+      chooseMove: engine,
+      players: { opponentSide: "light" },
+      difficulty,
+    });
+
+    while (session.state.thinking) await settled();
+
+    return [...session.state.position.keys()][0];
+  };
+
+  it("opens the same way every time at Mester", async () => {
+    const opened: (PointId | undefined)[] = [];
+    for (let again = 0; again < 3; again += 1) opened.push(await openedBy("master"));
+
+    expect(opened[0]).toBeDefined();
+    expect(new Set(opened).size).toBe(1);
+  });
+
+  it("opens more than one way over a run of games at Kezdő", async () => {
+    const opened = new Set<PointId | undefined>();
+    for (let again = 0; again < 40; again += 1) opened.add(await openedBy("beginner"));
+
+    expect(opened.size).toBeGreaterThan(1);
   });
 });
 

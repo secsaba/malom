@@ -5,7 +5,7 @@ import { type Side, opponentOf } from "../engine/position";
 import type { GameState, Intent, Players } from "../session/game-session";
 import { strings } from "../strings";
 import { Board } from "./Board";
-import { Difficulty } from "./Difficulty";
+import { DifficultyChoice } from "./DifficultyChoice";
 import { FIRST_GAME, type NextGame, Setup } from "./Setup";
 import { Status } from "./Status";
 import { useGameSession } from "./useGameSession";
@@ -80,7 +80,7 @@ export const App = () => {
         </button>
       )}
 
-      <Difficulty difficulty={state.difficulty} onChoose={playAt} />
+      <DifficultyChoice difficulty={state.difficulty} onChoose={playAt} />
 
       <Setup next={next} onChoose={setNext} onStart={() => startGame(next)} />
 

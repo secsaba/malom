@@ -1,10 +1,12 @@
 /**
  * The search: given a game, the move it prefers and how good the position is.
  *
- * Alpha-beta over negamax, deepened one move at a time. Each round of deepening
- * finishes before its answer is taken, so a search cut short by its time bound
- * still returns the best move of the last depth it completed rather than half of
- * the next one.
+ * Alpha-beta over negamax, deepened one move at a time. The deepening is for the
+ * move ordering it leaves behind: each round starts with what the round before it
+ * preferred, and alpha-beta cuts away the most when the best move is tried first.
+ * How far it goes is the caller's depth and nothing else — there is no clock in
+ * here, and a search that cannot be cut short is a search that answers the same
+ * way on every machine (#8).
  *
  * It is synchronous and it holds no state between calls. Nothing here knows what
  * a Web Worker is: the worker (#7) is an adapter that passes a game in and a
@@ -31,17 +33,10 @@ import { DEFAULT_WEIGHTS, EVALUATION_LIMIT, type Weights, evaluate } from "./eva
  */
 export const WIN_SCORE = EVALUATION_LIMIT * 10;
 
-/** How far to look, and when to give up looking. */
+/** How far to look. */
 export type Limits = {
   /** How many moves deep to search. The first move is depth one. */
   readonly depth?: number;
-  /**
-   * Asked as the search runs. Once it answers true the search stops at the end
-   * of the depth it has already completed. It is passed in rather than read off
-   * a clock here so that the search stays pure, and so that a test can stop it
-   * at a chosen point instead of at a chosen time.
-   */
-  readonly shouldStop?: () => boolean;
 };
 
 export type SearchOptions = {
@@ -78,12 +73,6 @@ export type SearchResult = {
 
 /** How deep to look when the caller does not say. */
 const DEFAULT_DEPTH = 4;
-
-/** How many nodes to search between two askings of {@link Limits.shouldStop}. */
-const NODES_BETWEEN_CHECKS = 512;
-
-/** Thrown to unwind a search the caller has asked to stop, and caught where it began. */
-const ABANDONED = Symbol("abandoned search");
 
 /**
  * What a finished game is worth to the side to move. A win is worth less the
@@ -129,26 +118,9 @@ export const search = (game: Game, options: SearchOptions = {}): SearchResult =>
   const { limits = {}, weights = DEFAULT_WEIGHTS } = options;
   const maxDepth = Math.max(1, Math.floor(limits.depth ?? DEFAULT_DEPTH));
 
-  let nodesToNextCheck = NODES_BETWEEN_CHECKS;
-  // The first round is never abandoned. Whatever the caller's hurry, an answer
-  // one move deep is what makes the difference between a move and no move.
-  let stoppable = false;
-
-  const checkStop = () => {
-    if (!stoppable) return;
-
-    nodesToNextCheck -= 1;
-    if (nodesToNextCheck > 0) return;
-
-    nodesToNextCheck = NODES_BETWEEN_CHECKS;
-    if (limits.shouldStop?.()) throw ABANDONED;
-  };
-
   const negamax = (node: Game, depth: number, alpha: number, beta: number, ply: number): number => {
     if (node.result) return scoreOf(node.result, node.sideToMove, ply);
     if (depth === 0) return evaluate(node, weights);
-
-    checkStop();
 
     const moves = capturesFirst(legalMovesOf(node));
     if (moves.length === 0) return lostAt(ply);
@@ -192,10 +164,10 @@ export const search = (game: Game, options: SearchOptions = {}): SearchResult =>
     };
   }
 
-  // What stands before a round has finished. The first round is never abandoned,
-  // so nothing but a maximum depth below one can leave this as the answer — but
-  // an answer with a move in it always has that move among its candidates, which
-  // is what lets a caller read the two as saying the same thing.
+  // What stands before a round has finished, which only a maximum depth below
+  // one could leave standing. An answer with a move in it always has that move
+  // among its candidates, which is what lets a caller read the two as saying the
+  // same thing.
   let result: SearchResult = {
     move: first,
     evaluation: 0,
@@ -205,20 +177,12 @@ export const search = (game: Game, options: SearchOptions = {}): SearchResult =>
   let order = legal;
 
   for (let depth = 1; depth <= maxDepth; depth += 1) {
-    try {
-      const round = rootRound(order, depth);
-      const [best] = round;
-      if (!best) break;
+    const round = rootRound(order, depth);
+    const [best] = round;
+    if (!best) break;
 
-      result = { move: best.move, evaluation: best.score, depth, candidates: round };
-      order = round.map((scored) => scored.move);
-      stoppable = true;
-    } catch (thrown) {
-      if (thrown !== ABANDONED) throw thrown;
-      // The round was cut short, so its scores are worth nothing; the last one
-      // that finished stands.
-      break;
-    }
+    result = { move: best.move, evaluation: best.score, depth, candidates: round };
+    order = round.map((scored) => scored.move);
   }
 
   return result;

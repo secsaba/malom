@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import type { ScoredMove } from "../ai/search";
+import { POINTS } from "../engine/board";
+import type { Phase } from "../engine/game";
 import {
   DEFAULT_DIFFICULTY,
   DIFFICULTIES,
   DIFFICULTY_SETTINGS,
   type Difficulty,
+  NEAR_BEST_COUNT,
   NEAR_BEST_MARGIN,
   moveAtDifficulty,
 } from "./difficulty";
+
+const PHASES = ["placing", "moving", "flying"] as const satisfies readonly Phase[];
 
 /**
  * A source of numbers that answers with what the test wrote down, in order, and
@@ -53,15 +58,28 @@ describe("the four difficulties", () => {
     expect(DIFFICULTIES).toContain(DEFAULT_DIFFICULTY);
   });
 
+  /**
+   * Deeper in every phase it can be deeper in, and never shallower in any — the
+   * flying phase is the one that caps out, being the widest the board ever gets,
+   * so the two strongest meet there and are told apart by their blunder rates.
+   */
   it("look deeper and blunder less at every step up", () => {
-    const tiers = DIFFICULTIES.map((difficulty) => DIFFICULTY_SETTINGS[difficulty]);
+    const steps = DIFFICULTIES.map((difficulty) => DIFFICULTY_SETTINGS[difficulty]);
 
-    for (const [step, tier] of tiers.entries()) {
-      const below = tiers[step - 1];
+    for (const [step, above] of steps.entries()) {
+      const below = steps[step - 1];
       if (!below) continue;
 
-      expect(tier.depth, `depth at step ${step}`).toBeGreaterThan(below.depth);
-      expect(tier.blunderRate, `blunder rate at step ${step}`).toBeLessThan(below.blunderRate);
+      const deeper = PHASES.filter((phase) => above.depth[phase] > below.depth[phase]);
+
+      for (const phase of PHASES) {
+        expect(above.depth[phase], `${phase} at step ${step}`).toBeGreaterThanOrEqual(
+          below.depth[phase],
+        );
+      }
+
+      expect(deeper.length, `nothing deeper at step ${step}`).toBeGreaterThan(0);
+      expect(above.blunderRate, `blunder rate at step ${step}`).toBeLessThan(below.blunderRate);
     }
   });
 
@@ -69,9 +87,12 @@ describe("the four difficulties", () => {
     expect(DIFFICULTY_SETTINGS.master.blunderRate).toBe(0);
   });
 
-  it("all look at least one move ahead, so none of them plays blind", () => {
+  it("all look at least one move ahead in every phase, so none of them plays blind", () => {
     for (const difficulty of DIFFICULTIES) {
-      expect(DIFFICULTY_SETTINGS[difficulty].depth).toBeGreaterThanOrEqual(1);
+      for (const phase of PHASES) {
+        expect(DIFFICULTY_SETTINGS[difficulty].depth[phase], `${difficulty} ${phase}`)
+          .toBeGreaterThanOrEqual(1);
+      }
     }
   });
 });
@@ -147,6 +168,31 @@ describe("the move a difficulty below Mester plays", () => {
 
     expect(nearer).toBeGreaterThan(further);
     expect(further).toBeGreaterThan(0); // the far edge is still somewhere it goes
+  });
+
+  /**
+   * The other half of "never uniformly at random among legal moves", and the one
+   * the margin alone does not give: on an empty board every placement scores
+   * within twenty of every other, so a margin wide enough to be a mistake
+   * anywhere admits the lot. A shortlist stays a shortlist all the same.
+   */
+  it("is drawn from a shortlist even where every legal move is as good as the best", () => {
+    // The opening as the search really scores it: 24 placements, none of them a
+    // whole point behind the one in front of it, every one inside the margin.
+    const openingBoard: readonly ScoredMove[] = POINTS.map((point, nth) => ({
+      move: { to: point },
+      score: 100 - nth * 0.5,
+    }));
+
+    const played = everyTicket(500).map((ticket) =>
+      moveAtDifficulty("beginner", openingBoard, answering(0, ticket)),
+    );
+    const distinct = new Set(played.map((move) => move?.to));
+
+    expect(distinct.size).toBeGreaterThan(1); // it is still a choice
+    expect(distinct.size).toBeLessThanOrEqual(NEAR_BEST_COUNT);
+    // And a choice out of far fewer moves than the board offered it.
+    expect(openingBoard.length).toBeGreaterThan(NEAR_BEST_COUNT * 2);
   });
 
   it("is the best move after all when nothing else is near enough to it", () => {

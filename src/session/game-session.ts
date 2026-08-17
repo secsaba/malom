@@ -47,9 +47,12 @@ import {
   emptyPoints,
   movablePointsOf,
 } from "../engine/position";
-import { DEFAULT_DIFFICULTY, type Difficulty } from "../opponent/difficulty";
+import { DEFAULT_DIFFICULTY, DIFFICULTIES, type Difficulty } from "../opponent/difficulty";
 
 export type { Difficulty, Draw, Ending, Phase, Result };
+// The interface offers the difficulties the facade accepts, and asks the facade
+// for them rather than reaching past it to the opponent (ADR-0002).
+export { DIFFICULTIES };
 
 /**
  * What the computer is asked when its turn comes: the game as it stands and how
@@ -291,9 +294,9 @@ export type GameSession = {
   readonly start: (players: Players) => void;
   /**
    * Change how strongly the computer plays. The game in progress carries on: a
-   * player who finds the opponent too hard or too easy meets it at another
-   * level from its next move rather than starting again. A move already being
-   * thought about was asked for at the old difficulty and arrives at it.
+   * player who finds the opponent too hard or too easy meets a different one
+   * from its next move rather than starting again. A move already being thought
+   * about was asked for at the old difficulty and arrives at it.
    */
   readonly playAt: (difficulty: Difficulty) => void;
 };

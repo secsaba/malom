@@ -150,7 +150,7 @@ _Hungarian_: none — nothing in the interface words it; only the difficulty it 
 _Avoid_: error rate, mistake rate, handicap
 
 **Near-best move**:
-A move the search scored within a fixed margin of the one it prefers. These are what a difficulty below Mester draws its deliberate mistakes from, weighted so that a nearly-as-good move comes up far more often than a barely-good-enough one. The margin is what keeps those mistakes human-sized: a mill missed is inside it and a piece handed over for nothing is not, so no difficulty ever plays the second on purpose.
+One of the few moves the search ranked closest to the one it prefers — a shortlist, bounded both by how many moves may be on it and by how far behind the best one they may be. These are what a difficulty below Mester draws its deliberate mistakes from, weighted so that a nearly-as-good move comes up far more often than a barely-good-enough one. Both bounds are needed and neither is enough alone: the margin is what keeps a mill missed on the list and a piece handed over off it, and the count is what keeps the list short in a flat position — an empty board, where every placement scores within a whisker of every other and a margin alone would admit all 24 of them.
 _Hungarian_: none — nothing in the interface words it; the board shows the move
 _Avoid_: second-best move, plausible move, reasonable move
 

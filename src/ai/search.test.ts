@@ -178,11 +178,11 @@ describe("a game neither side can win any more", () => {
     // Light is four pieces against eight, so every other move leaves it the game
     // it is losing, and nothing it can play is worth more than a draw's nought.
     // The search has to see the repetition to prefer that move, and it does.
-    expect(search(game, { limits: { depth: 1 } })).toMatchObject({
-      move: drawing,
-      evaluation: 0,
-      depth: 1,
-    });
+    const answer = search(game, { limits: { depth: 1 } });
+
+    expect(answer).toMatchObject({ move: drawing, evaluation: 0, depth: 1 });
+    expect(answer.candidates[0]).toEqual({ move: drawing, score: 0 });
+    expect(answer.candidates).toHaveLength(legalMovesOf(game).length);
   });
 });
 
@@ -252,41 +252,6 @@ describe("how far the search looks", () => {
   it("answers from the depth it was given", () => {
     for (const depth of [1, 2, 3]) {
       expect(search(NEW_GAME, { limits: { depth } }).depth).toBe(depth);
-    }
-  });
-
-  it("still answers with a move when it is told to stop at once", () => {
-    const stopped = search(NEW_GAME, { limits: { depth: 8, shouldStop: () => true } });
-
-    expect(stopped.move).toBeDefined();
-    expect(legalMovesOf(NEW_GAME)).toContainEqual(stopped.move);
-    // The round that was cut short is thrown away, so the answer is a whole one
-    // from a shallower depth rather than half of a deeper one.
-    expect(stopped.depth).toBeGreaterThanOrEqual(1);
-    expect(stopped.depth).toBeLessThan(8);
-  });
-
-  /**
-   * A budget the search really has to spend, counted in askings rather than in
-   * milliseconds so that the test says the same thing on a fast machine and a
-   * slow one. What a clock is for is the worker (#7); what the search needs is
-   * only something that eventually answers true.
-   */
-  const budgetOf = (askings: number) => {
-    let asked = 0;
-    return () => (asked += 1) > askings;
-  };
-
-  it("goes as deep as the budget it is given runs to, and no deeper", () => {
-    const brief = search(NEW_GAME, { limits: { depth: 8, shouldStop: budgetOf(1) } });
-    const longer = search(NEW_GAME, { limits: { depth: 8, shouldStop: budgetOf(20) } });
-
-    expect(brief.depth).toBeGreaterThanOrEqual(1);
-    expect(longer.depth).toBeGreaterThan(brief.depth);
-    expect(longer.depth).toBeLessThan(8);
-    // Both answers are whole ones: the round the budget cut short is thrown away.
-    for (const answer of [brief, longer]) {
-      expect(legalMovesOf(NEW_GAME)).toContainEqual(answer.move);
     }
   });
 

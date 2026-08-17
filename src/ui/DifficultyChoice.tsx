@@ -1,14 +1,14 @@
-import { DIFFICULTIES, type Difficulty as Tier } from "../opponent/difficulty";
+import { DIFFICULTIES, type Difficulty } from "../session/game-session";
 import { strings } from "../strings";
 
-type DifficultyProps = {
+type DifficultyChoiceProps = {
   /** The difficulty the computer is playing at now. */
-  readonly difficulty: Tier;
-  readonly onChoose: (difficulty: Tier) => void;
+  readonly difficulty: Difficulty;
+  readonly onChoose: (difficulty: Difficulty) => void;
 };
 
 /**
- * How strongly the computer plays, and the four levels to move it between.
+ * How strongly the computer plays, and the four difficulties to move it between.
  *
  * Unlike the setup below it, choosing here takes effect at once: difficulty is a
  * setting rather than part of a game, so a player who finds the opponent too
@@ -16,21 +16,21 @@ type DifficultyProps = {
  * are in the middle of. It is shown whoever is playing, because it is what the
  * next game against the computer will be played at as well as this one.
  */
-export const Difficulty = ({ difficulty, onChoose }: DifficultyProps) => (
+export const DifficultyChoice = ({ difficulty, onChoose }: DifficultyChoiceProps) => (
   <section className="difficulty" data-testid="difficulty">
     <fieldset className="difficulty__choice">
       <legend>{strings.difficulty.legend}</legend>
-      {DIFFICULTIES.map((tier) => (
-        <label key={tier} className="difficulty__option">
+      {DIFFICULTIES.map((offered) => (
+        <label key={offered} className="difficulty__option">
           <input
             type="radio"
             name="difficulty"
-            value={tier}
-            data-testid={`difficulty-${tier}`}
-            checked={difficulty === tier}
-            onChange={() => onChoose(tier)}
+            value={offered}
+            data-testid={`difficulty-${offered}`}
+            checked={difficulty === offered}
+            onChange={() => onChoose(offered)}
           />
-          {strings.difficulty[tier]}
+          {strings.difficulty[offered]}
         </label>
       ))}
     </fieldset>

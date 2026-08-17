@@ -73,9 +73,43 @@ describe("the opponent", () => {
     expect(asked).toEqual(
       DIFFICULTIES.map((difficulty) => ({
         game: NEW_GAME,
-        depth: DIFFICULTY_SETTINGS[difficulty].depth,
+        depth: DIFFICULTY_SETTINGS[difficulty].depth.placing,
       })),
     );
+  });
+
+  /**
+   * A flying side reaches every empty point, so the phase it is in decides how
+   * much there is to look at — and the difficulty says how deep to look at each.
+   */
+  it("looks as far ahead as the phase the game is in calls for", async () => {
+    const asked: SearchRequest[] = [];
+    const chooseMove = createOpponent(
+      (request) => {
+        asked.push(request);
+        return Promise.resolve(A_MOVE);
+      },
+      { minimumDelay: 0 },
+    );
+
+    const moving = gameOf({
+      light: ["a1", "b4", "c5", "e3", "g4"],
+      dark: ["a7", "b2", "c4", "e5", "g1"],
+      sideToMove: "light",
+    });
+    const flying = gameOf({
+      light: ["a1", "c5", "e3"],
+      dark: ["a7", "b2", "d7", "e5", "g4"],
+      sideToMove: "light",
+    });
+
+    await chooseMove(moving, "master");
+    await chooseMove(flying, "master");
+
+    expect(asked.map(({ depth }) => depth)).toEqual([
+      DIFFICULTY_SETTINGS.master.depth.moving,
+      DIFFICULTY_SETTINGS.master.depth.flying,
+    ]);
   });
 
   it("holds a move that took no time at all back, so it never merely flickers", async () => {
@@ -137,6 +171,15 @@ describe("the same position put to the opponent again and again", () => {
     for (const move of played) expect(sameMove(move, first)).toBe(true);
   });
 
+  it("is answered by Erős with the same move too, whenever it does not blunder", async () => {
+    // Chance that never comes up under any blunder rate: the difficulties below
+    // Mester are deterministic in everything but when to be weak.
+    const steady = createOpponent(searchInProcess, { minimumDelay: 0, random: () => 0.999 });
+    const played = await playedRepeatedly((game) => steady(game, "strong"), 3);
+
+    for (const move of played) expect(sameMove(move, played[0])).toBe(true);
+  });
+
   it("is answered by Kezdő with more than one move over a run of them", async () => {
     const played = await playedRepeatedly((game) => opponent(game, "beginner"), 40);
     const distinct = new Set(played.map((move) => JSON.stringify(move)));
@@ -151,7 +194,7 @@ describe("the same position put to the opponent again and again", () => {
   it("is answered by Kezdő only with moves the search ranked near the best one", async () => {
     const played = await playedRepeatedly((game) => opponent(game, "beginner"), 40);
     const { candidates } = search(A_POSITION, {
-      limits: { depth: DIFFICULTY_SETTINGS.beginner.depth },
+      limits: { depth: DIFFICULTY_SETTINGS.beginner.depth.placing },
     });
     const [best] = candidates;
 
@@ -170,7 +213,7 @@ describe("the search the opponent runs in this process", () => {
     // and d2 kill the other line through each of light's pieces.
     const { move } = await searchInProcess({
       game: A_POSITION,
-      depth: DIFFICULTY_SETTINGS.master.depth,
+      depth: DIFFICULTY_SETTINGS.master.depth.placing,
     });
 
     expect(move?.to).toBe("g1");

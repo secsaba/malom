@@ -17,12 +17,12 @@
  * There is no clock anywhere in this. A search bounded by time answers one thing
  * on a desktop and another on a phone, and an opponent whose moves depend on the
  * machine it runs on cannot be the fixed thing a learner measures themselves
- * against. It is bounded by depth alone, at depths shallow enough that the
- * widest position on the board is answered well inside a second.
+ * against. It is bounded by depth alone, at depths chosen per phase so that even
+ * the widest position the board reaches is answered inside about half a second.
  */
 
 import { type SearchResult, search } from "../ai/search";
-import type { Game } from "../engine/game";
+import { type Game, phaseOf } from "../engine/game";
 import type { ChooseMove } from "../session/game-session";
 import { DIFFICULTY_SETTINGS, type Difficulty, moveAtDifficulty } from "./difficulty";
 
@@ -73,7 +73,9 @@ export const createOpponent = (runSearch: RunSearch, options: OpponentOptions = 
   const { minimumDelay = MINIMUM_DELAY, random = Math.random } = options;
 
   return async (game: Game, difficulty: Difficulty) => {
-    const { depth } = DIFFICULTY_SETTINGS[difficulty];
+    // The phase is read here rather than where the search runs, so that what
+    // crosses into the worker stays the plain question of how deep to look.
+    const depth = DIFFICULTY_SETTINGS[difficulty].depth[phaseOf(game)];
 
     const [result] = await Promise.all([runSearch({ game, depth }), wait(minimumDelay)]);
 
