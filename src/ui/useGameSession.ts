@@ -4,14 +4,15 @@
  *
  * The session is the store; React only subscribes to it. Nothing about the
  * rules lives here — and nothing about the search either: the session is handed
- * an opponent and an engine to ask for hints, both of which think in a Web
- * Worker, and what it does with them is its own business.
+ * an opponent, an engine to ask for hints and an engine to grade moves, all of
+ * which think in a Web Worker, and what it does with them is its own business.
  *
- * This is where the two are put together, because this is where the app is: one
- * thread, thought in by both. The computer's move and the player's hint are the
- * same search asked a different question — the opponent's weakened by the
- * difficulty being played at, the hint's never (ADR-0001) — so a second worker
- * would be a second copy of the engine and nothing more.
+ * This is where the three are put together, because this is where the app is:
+ * one thread, thought in by all of them. The computer's move, the player's hint
+ * and the grade on the move they played are the same search asked different
+ * questions — the opponent's weakened by the difficulty being played at, the
+ * other two never (ADR-0001) — so a second worker would be a second copy of the
+ * engine and nothing more.
  */
 
 import { useState, useSyncExternalStore } from "react";
@@ -25,6 +26,7 @@ import {
   type Players,
   createGameSession,
 } from "../session/game-session";
+import { createGrader } from "../teaching/grade";
 import { createHint } from "../teaching/hint";
 
 export type UseGameSession = {
@@ -47,6 +49,7 @@ export const useGameSession = (): UseGameSession => {
     return createGameSession({
       chooseMove: createOpponent(runSearch),
       chooseHint: createHint(runSearch),
+      gradeMove: createGrader(runSearch),
     });
   });
   const state = useSyncExternalStore(session.subscribe, () => session.state);

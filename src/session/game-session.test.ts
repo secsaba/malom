@@ -16,6 +16,8 @@ import {
   type ChooseMove,
   type Difficulty,
   type GameSession,
+  type Grade,
+  type GradeMove,
   createGameSession,
 } from "./game-session";
 
@@ -102,6 +104,33 @@ const askedEngine = () => {
     reply: async (move: Move | undefined) => {
       answer?.(move);
       answer = undefined;
+      await settled();
+    },
+  };
+};
+
+/**
+ * A stand-in for the engine asked what a move was worth: it writes down the game
+ * and the move it was asked about and answers only when the test says so, one
+ * answer per question in the order they were asked.
+ */
+const askedGrader = () => {
+  const asked: { game: Game; move: Move }[] = [];
+  const answers: ((grade: Grade | undefined) => void)[] = [];
+
+  const gradeMove: GradeMove = (game, move) => {
+    asked.push({ game, move });
+    return new Promise((resolve) => {
+      answers.push(resolve);
+    });
+  };
+
+  return {
+    asked,
+    gradeMove,
+    /** Hand back the grade for the oldest question still waiting on one. */
+    reply: async (grade: Grade | undefined) => {
+      answers.shift()?.(grade);
       await settled();
     },
   };
@@ -1232,6 +1261,207 @@ describe("asking for a hint", () => {
 
     expect(session.state.hint).toBeUndefined();
     expect(session.state.hinting).toBe(false);
+  });
+});
+
+describe("grading the move just played", () => {
+  /** A game two people are playing, with teaching switched on. */
+  const beingTaught = () => {
+    const engine = askedGrader();
+    const session = createGameSession({ gradeMove: engine.gradeMove });
+    session.teach(true);
+
+    return { engine, session };
+  };
+
+  it("asks about the game as it stood before the move, and the move played in it", async () => {
+    const { engine, session } = beingTaught();
+
+    place(session, "a1");
+
+    expect(engine.asked).toHaveLength(1);
+    expect(engine.asked[0]?.game.position.size).toBe(0); // the board the move was played on
+    expect(engine.asked[0]?.move).toEqual({ to: "a1" });
+    expect(session.state.grading).toBe(true);
+    expect(session.state.grade).toBeUndefined();
+
+    await engine.reply("good");
+
+    expect(session.state.grade).toBe("good");
+    expect(session.state.grading).toBe(false);
+  });
+
+  /** A move is graded whole: which piece a mill takes is part of what was played. */
+  it("waits for the capture the move earned and sends the whole move", () => {
+    const { engine, session } = beingTaught();
+    place(session, "a1", "a7", "d1", "d7"); // four moves, four questions
+
+    place(session, "g1"); // closes a1-d1-g1
+
+    expect(session.state.pendingCapture).toBe(true);
+    expect(engine.asked).toHaveLength(4);
+
+    capture(session, "a7");
+
+    expect(engine.asked).toHaveLength(5);
+    expect(engine.asked[4]?.game.position.size).toBe(4);
+    expect(engine.asked[4]?.move).toEqual({ to: "g1", capture: "a7" });
+  });
+
+  /** The acceptance criterion: teaching is a setting, not a mode for one player. */
+  it("grades both players' moves in a game two people are playing", async () => {
+    const { engine, session } = beingTaught();
+
+    place(session, "a1");
+    await engine.reply("best");
+    place(session, "g7");
+    await engine.reply("mistake");
+
+    expect(engine.asked.map(({ move }) => move)).toEqual([{ to: "a1" }, { to: "g7" }]);
+    expect(session.state.grade).toBe("mistake");
+  });
+
+  it("says nothing about the computer's own moves", async () => {
+    const engine = askedGrader();
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      gradeMove: engine.gradeMove,
+      players: { opponentSide: "light" },
+    });
+
+    await opponent.reply({ to: "a1" });
+
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(engine.asked).toEqual([]);
+    expect(session.state.grading).toBe(false);
+  });
+
+  /**
+   * The grade is about the move the player made, so it stays in front of them
+   * while the computer answers it — the reply is not their move and says nothing
+   * about it.
+   */
+  it("stays in front of the player while the computer plays its reply", async () => {
+    const engine = askedGrader();
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      gradeMove: engine.gradeMove,
+      players: { opponentSide: "dark" },
+    });
+
+    place(session, "a1");
+    await engine.reply("inaccuracy");
+    await opponent.reply({ to: "g7" });
+
+    expect(session.state.position.get("g7")).toBe("dark");
+    expect(session.state.grade).toBe("inaccuracy");
+  });
+
+  it("shows nothing where the engine had nothing to grade", async () => {
+    const { engine, session } = beingTaught();
+
+    place(session, "a1");
+    await engine.reply(undefined);
+
+    expect(session.state.grade).toBeUndefined();
+    expect(session.state.grading).toBe(false);
+  });
+
+  it("puts the grade away as soon as the next move is played", async () => {
+    const { engine, session } = beingTaught();
+    place(session, "a1");
+    await engine.reply("good");
+
+    place(session, "g7");
+
+    expect(session.state.grade).toBeUndefined();
+    expect(session.state.grading).toBe(true);
+  });
+
+  it("drops an answer about a move the player has already moved on from", async () => {
+    const { engine, session } = beingTaught();
+
+    place(session, "a1");
+    place(session, "g7");
+    await engine.reply("blunder"); // the answer about a1, arriving late
+
+    expect(session.state.grade).toBeUndefined();
+    expect(session.state.grading).toBe(true);
+
+    await engine.reply("good");
+
+    expect(session.state.grade).toBe("good");
+    expect(session.state.grading).toBe(false);
+  });
+
+  it("asks nothing at all while teaching is off", () => {
+    const engine = askedGrader();
+    const session = createGameSession({ gradeMove: engine.gradeMove });
+
+    place(session, "a1");
+
+    expect(engine.asked).toEqual([]);
+    expect(session.state.grading).toBe(false);
+    expect(session.state.grade).toBeUndefined();
+  });
+
+  it("goes away when teaching does, and does not come back with it", async () => {
+    const { engine, session } = beingTaught();
+    place(session, "a1");
+    await engine.reply("good");
+
+    session.teach(false);
+
+    expect(session.state.grade).toBeUndefined();
+
+    session.teach(true);
+
+    expect(session.state.grade).toBeUndefined();
+  });
+
+  it("drops an answer that arrives after teaching has been switched off", async () => {
+    const { engine, session } = beingTaught();
+    place(session, "a1");
+
+    session.teach(false);
+    await engine.reply("good");
+    session.teach(true);
+
+    expect(session.state.grade).toBeUndefined();
+    expect(session.state.grading).toBe(false);
+  });
+
+  it("discards the answer to a game that has been thrown away", async () => {
+    const { engine, session } = beingTaught();
+    place(session, "a1");
+
+    session.start({});
+    await engine.reply("blunder");
+
+    expect(session.state.grade).toBeUndefined();
+    expect(session.state.grading).toBe(false);
+  });
+
+  it("starts another game with nothing in front of the player", async () => {
+    const { engine, session } = beingTaught();
+    place(session, "a1");
+    await engine.reply("blunder");
+
+    session.start({});
+
+    expect(session.state.grade).toBeUndefined();
+  });
+
+  it("says nothing in a game whose session was given no engine to ask", () => {
+    const session = createGameSession();
+    session.teach(true);
+
+    place(session, "a1");
+
+    expect(session.state.grading).toBe(false);
+    expect(session.state.grade).toBeUndefined();
   });
 });
 

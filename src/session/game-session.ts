@@ -48,8 +48,9 @@ import {
   movablePointsOf,
 } from "../engine/position";
 import { DEFAULT_DIFFICULTY, DIFFICULTIES, type Difficulty } from "../opponent/difficulty";
+import type { Grade } from "../teaching/grade";
 
-export type { Difficulty, Draw, Ending, Phase, Result };
+export type { Difficulty, Draw, Ending, Grade, Phase, Result };
 // The interface offers the difficulties the facade accepts, and asks the facade
 // for them rather than reaching past it to the opponent (ADR-0002).
 export { DIFFICULTIES };
@@ -75,6 +76,18 @@ export type ChooseMove = (game: Game, difficulty: Difficulty) => Promise<Move | 
  */
 export type ChooseHint = (game: Game) => Promise<Move | undefined>;
 
+/**
+ * What the engine is asked once a player has played a move: the game as it stood
+ * before the move and the whole move they played in it, for what it makes of it.
+ * Nothing, where there was nothing to grade — a position the rules left one move
+ * in tells nobody anything about the player who played it.
+ *
+ * Like a hint it runs at full strength however weakly the computer has been
+ * asked to play (ADR-0001), and like a hint it answers later rather than at
+ * once: the search behind it is the same search.
+ */
+export type GradeMove = (game: Game, move: Move) => Promise<Grade | undefined>;
+
 /** Who is playing: the side the computer takes, or nobody, for two people sharing a device. */
 export type Players = {
   readonly opponentSide?: Side | undefined;
@@ -85,6 +98,8 @@ export type GameSessionOptions = {
   readonly chooseMove?: ChooseMove | undefined;
   /** Asked for the move a hint shows. Without it, no hint is ever on offer. */
   readonly chooseHint?: ChooseHint | undefined;
+  /** Asked what a move just played was worth. Without it, no move is ever graded. */
+  readonly gradeMove?: GradeMove | undefined;
   readonly players?: Players | undefined;
   /** How strongly the computer plays to begin with. */
   readonly difficulty?: Difficulty | undefined;
@@ -117,6 +132,13 @@ type Recorded = {
   readonly arrival: Arrival | undefined;
   /** Where the last piece to move came to rest, whoever moved it. */
   readonly lastArrival: Arrival | undefined;
+  /**
+   * The last move played out in full, whoever played it — the capture it earned
+   * included, which is what tells it from {@link Recorded.lastArrival}: an
+   * arrival is recorded the moment the piece lands, and a move only once the
+   * capture it owes has been taken.
+   */
+  readonly lastMove: Move | undefined;
 };
 
 /** How the game is being played, as against how it stands. */
@@ -142,6 +164,15 @@ type Teaching = {
   readonly hint: Hint | undefined;
   /** Whether the engine is working one out. */
   readonly hinting: boolean;
+  /**
+   * What the engine made of the last move a player played. It is held against
+   * the move rather than against the position, which is what keeps it in front
+   * of the player while the computer answers: the reply is not their move, and
+   * says nothing about it.
+   */
+  readonly grade: Grade | undefined;
+  /** Whether the engine is still working out what to make of the move just played. */
+  readonly grading: boolean;
 };
 
 /** Everything a player can see about the game: what is recorded, and what follows from it. */
@@ -184,6 +215,15 @@ export type GameState = {
    * or in a finished game there is no such move.
    */
   readonly hintOffered: boolean;
+  /**
+   * What the engine made of the last move a player played, once it has said —
+   * nothing until the answer comes back, nothing where the rules left no choice
+   * to grade, and nothing about the computer's own moves, which are not the
+   * player's to learn from.
+   */
+  readonly grade: Grade | undefined;
+  /** Whether the engine is still working out what to make of the move just played. */
+  readonly grading: boolean;
   /**
    * Where the last piece to move came to rest — the capture it may have earned
    * is not part of it — so the interface can bring it in from where it came
@@ -280,6 +320,8 @@ const stateOf = (
     hint: hintShown(recorded, teaching),
     hinting: teaching.hinting,
     hintOffered: hintIsOffered(recorded, playing, teaching),
+    grade: teaching.on ? teaching.grade : undefined,
+    grading: teaching.grading,
     lastArrival,
   };
 };
@@ -298,30 +340,40 @@ const NEW_SESSION: Recorded = {
   selection: undefined,
   arrival: undefined,
   lastArrival: undefined,
+  lastMove: undefined,
 };
 
 /**
  * A piece has arrived on a point — put there or moved there — so the mill it may
  * have closed decides whether the move is over or a capture is owed.
  */
-const afterSending = ({ game }: Recorded, arrival: Arrival): Recorded =>
+const afterSending = (recorded: Recorded, arrival: Arrival): Recorded => {
+  const { game, lastMove } = recorded;
+
   // A move closing two mills still earns one capture: the debt is owed, not counted.
-  afterArrival(game, arrival).captures.length > 0
-    ? { game, selection: undefined, arrival, lastArrival: arrival }
+  return afterArrival(game, arrival).captures.length > 0
+    ? { game, selection: undefined, arrival, lastArrival: arrival, lastMove }
     : {
         game: afterMove(game, arrival),
         selection: undefined,
         arrival: undefined,
         lastArrival: arrival,
+        lastMove: arrival,
       };
+};
 
 /** The capture the arrival owed has been taken, so the move is played out in full. */
-const afterCapturing = (game: Game, arrival: Arrival, point: PointId): Recorded => ({
-  game: afterMove(game, { ...arrival, capture: point }),
-  selection: undefined,
-  arrival: undefined,
-  lastArrival: arrival,
-});
+const afterCapturing = (game: Game, arrival: Arrival, point: PointId): Recorded => {
+  const move: Move = { ...arrival, capture: point };
+
+  return {
+    game: afterMove(game, move),
+    selection: undefined,
+    arrival: undefined,
+    lastArrival: arrival,
+    lastMove: move,
+  };
+};
 
 /**
  * The move the computer chose, played out whole — the capture it earned
@@ -334,6 +386,7 @@ const afterChoosing = (game: Game, move: Move): Recorded => ({
   selection: undefined,
   arrival: undefined,
   lastArrival: { from: move.from, to: move.to },
+  lastMove: move,
 });
 
 /**
@@ -426,6 +479,7 @@ export type GameSession = {
 export const createGameSession = ({
   chooseMove,
   chooseHint,
+  gradeMove,
   players = {},
   difficulty = DEFAULT_DIFFICULTY,
 }: GameSessionOptions = {}): GameSession => {
@@ -441,6 +495,8 @@ export const createGameSession = ({
     hasEngine: chooseHint !== undefined,
     hint: undefined,
     hinting: false,
+    grade: undefined,
+    grading: false,
   };
   let state = stateOf(recorded, playing, teaching);
   const listeners = new Set<() => void>();
@@ -481,6 +537,43 @@ export const createGameSession = ({
     void chooseMove(thought, playing.difficulty).then(played, () => played(undefined));
   };
 
+  // How many moves have been sent to be graded. An answer to any but the last of
+  // them is about a move the player has already moved on from.
+  let gradesAsked = 0;
+
+  /**
+   * Send a move a player has just made to be graded, where teaching is on and
+   * there is an engine to send it to. The answer comes back later, so this
+   * returns long before there is a grade to show — and the grade the player was
+   * looking at goes now rather than then, because it was about the move before
+   * this one.
+   *
+   * Only the moves a player makes come through here. The computer's own arrive
+   * by another road, and grading them would teach nobody anything.
+   */
+  const grade = (about: Game, move: Move) => {
+    if (gradeMove === undefined || !teaching.on) return;
+
+    const asked = gamesStarted;
+    gradesAsked += 1;
+    const question = gradesAsked;
+    teaching = { ...teaching, grading: true, grade: undefined };
+
+    const graded = (answer: Grade | undefined) => {
+      if (asked !== gamesStarted) return; // another game is being played now
+      if (question !== gradesAsked) return; // and another move has been played since
+
+      // A search that fails and a move there was nothing to say about come to
+      // the same thing: the player is left with no grade. So does an answer to a
+      // question they have withdrawn by switching teaching off while it was
+      // being worked out.
+      teaching = { ...teaching, grading: false, grade: teaching.on ? answer : undefined };
+      publish();
+    };
+
+    void gradeMove(about, move).then(graded, () => graded(undefined));
+  };
+
   // A game the computer opens is under way from the moment it is created.
   think();
   publish();
@@ -496,8 +589,16 @@ export const createGameSession = ({
       const next = nextRecorded(recorded, intent);
       if (next === recorded) return;
 
+      // A move is over exactly when the game moves on, and the game it moved on
+      // from is the position the move has to be graded in.
+      const played = next.game === recorded.game ? undefined : next.lastMove;
+      const about = recorded.game;
+
       recorded = next;
+      // The computer is asked before the engine is: the two think in the same
+      // thread, and the move somebody is waiting for goes first.
       think();
+      if (played) grade(about, played);
       publish();
     },
 
@@ -516,11 +617,14 @@ export const createGameSession = ({
       };
       // A hint asked for in the game just thrown away says nothing about this
       // one, and neither does the answer to it, which may still be on its way.
+      // Nor does a grade: the move it was about is not in this game.
       teaching = {
         ...teaching,
         on: taughtIn(next.opponentSide, chosenTeaching),
         hint: undefined,
         hinting: false,
+        grade: undefined,
+        grading: false,
       };
       think();
       publish();
@@ -539,9 +643,14 @@ export const createGameSession = ({
       chosenTeaching = on;
       if (on === teaching.on) return;
 
-      // Teaching switched off takes its hint off the board with it, so switching
-      // it back on is a clean slate rather than the hint they turned away from.
-      teaching = { ...teaching, on, hint: on ? teaching.hint : undefined };
+      // Teaching switched off takes its hint and its grade with it, so switching
+      // it back on is a clean slate rather than what they turned away from.
+      teaching = {
+        ...teaching,
+        on,
+        hint: on ? teaching.hint : undefined,
+        grade: on ? teaching.grade : undefined,
+      };
       publish();
     },
 

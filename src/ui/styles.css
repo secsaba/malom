@@ -326,6 +326,27 @@ body {
   cursor: default;
 }
 
+/*
+ * The verdict on the move just played, in the page's own ink rather than in one
+ * per grade: a colour scale from good to bad would be read before the word is,
+ * and a learner who has stopped reading the word has stopped learning from it.
+ * The heading beside it says what the word is a verdict on.
+ */
+.teaching__grade {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.teaching__grade-heading {
+  color: var(--page-ink-dim);
+}
+
+.teaching__grade-verdict {
+  font-weight: 600;
+}
+
 .difficulty {
   display: flex;
   justify-content: center;

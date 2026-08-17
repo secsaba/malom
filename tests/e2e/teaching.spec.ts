@@ -2,6 +2,7 @@ import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import type { PointId } from "../../src/engine/board";
 import { strings } from "../../src/strings";
+import { GRADES } from "../../src/teaching/grade";
 import { MILL_FREE_PLACING } from "../fixtures/games";
 import { pointAt, tap } from "./taps";
 
@@ -102,6 +103,29 @@ test("marks the hint apart from a selection, a legal move and the last move", as
 
   expect(selected.stroke).not.toEqual(hint.stroke);
   await expect(rings).toHaveCount(2);
+});
+
+test("grades the move the player has just made", async ({ page }) => {
+  const teaching = page.getByLabel(strings.teaching.toggle);
+  await teaching.check();
+
+  const grade = page.getByTestId("grade");
+  await expect(grade).toHaveCount(0); // nothing has been played to grade
+
+  await tap(page, "d2");
+
+  // Which of the five it is is the engine's own business; that it names one of
+  // them, and words it as the glossary words it, is not.
+  await expect(grade).toBeVisible({ timeout: 30_000 });
+
+  expect(GRADES).toContain(await grade.getAttribute("data-grade"));
+  expect(Object.values(strings.teaching.grade)).toContain(
+    await page.getByTestId("grade-verdict").innerText(),
+  );
+
+  await teaching.uncheck();
+
+  await expect(grade).toHaveCount(0);
 });
 
 test("offers no hint while the computer is the one to move", async ({ page }) => {

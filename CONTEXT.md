@@ -175,6 +175,16 @@ _Avoid_: score, rating, mark
 How much worse the played move is than the engine's preferred move. The grade is derived from it.
 _Avoid_: delta, centipawn loss, error margin
 
+**Band**:
+The stretch of eval loss a grade covers. The bands are what turn a number into one of the five words, and they are provisional until they have been calibrated against played games rather than picked by intuition.
+_Hungarian_: none — nothing in the interface words it; only the grade it produces is shown
+_Avoid_: threshold, bucket, tier, cutoff
+
+**Lost position**:
+A position the side to move had already lost before they played anything — hopeless by the evaluation, or seen lost outright by the search. A move played in one is graded no worse than Pontatlan, whatever it lost: the mistake was made further back, and the grade would otherwise point at the wrong move. It is a ceiling and nothing else, so the best move in a lost position is still Legjobb.
+_Hungarian_: none — nothing in the interface words it; only the grade it caps is shown
+_Avoid_: hopeless position, dead lost, resignable — and _lost game_, which is a game with a result rather than a position still being played
+
 **Pattern**:
 A named tactical feature the engine can positively detect — a fork created, a mill let through, a piece left blocked. Patterns are the only permitted source of a reason.
 _Hungarian_: mintázat

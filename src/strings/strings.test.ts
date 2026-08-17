@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { DIFFICULTIES } from "../opponent/difficulty";
+import { GRADES } from "../teaching/grade";
 import { hu } from "./hu";
 import { strings } from "./index";
 
@@ -35,6 +36,17 @@ describe("the strings module", () => {
     expect(hu.difficulty.legend).toBe("Nehézség");
     expect(hu.teaching.toggle).toBe("Tanulómód");
     expect(hu.teaching.hint).toBe("Tipp kérése");
+    expect(hu.teaching.gradeHeading).toBe("Értékelés");
+  });
+
+  it("names the five grades as the glossary names them, best first", () => {
+    expect(GRADES.map((grade) => hu.teaching.grade[grade])).toEqual([
+      "Legjobb",
+      "Jó",
+      "Pontatlan",
+      "Hiba",
+      "Súlyos hiba",
+    ]);
   });
 
   it("names the four difficulties as the glossary names them", () => {

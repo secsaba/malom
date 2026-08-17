@@ -73,13 +73,29 @@ export const hu = {
     master: "Mester",
   },
   /**
-   * Teaching: the setting itself, and the button that asks the engine what it
-   * would play. The hint is worded as the request rather than as the thing —
-   * "tipp" alone would read as a label on a hint nobody has asked for yet.
+   * Teaching: the setting itself, the button that asks the engine what it would
+   * play, and what it made of the move that was played. The hint is worded as
+   * the request rather than as the thing — "tipp" alone would read as a label on
+   * a hint nobody has asked for yet.
    */
   teaching: {
     toggle: "Tanulómód",
     hint: "Tipp kérése",
+    /** What the grade shown beside it is a grade of. */
+    gradeHeading: "Értékelés",
+    /**
+     * What the engine made of the move just played, keyed by the grade the game
+     * session reports. The five are the glossary's own scale, best first; Súlyos
+     * hiba is two words because Hungarian has no single word for a blunder that
+     * is not also a word for a lesser mistake.
+     */
+    grade: {
+      best: "Legjobb",
+      good: "Jó",
+      inaccuracy: "Pontatlan",
+      mistake: "Hiba",
+      blunder: "Súlyos hiba",
+    },
   },
   /** Starting a game: who is playing it, and which side the player takes. */
   setup: {
