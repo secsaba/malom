@@ -47,7 +47,7 @@ test("shows the move the engine prefers when the player asks for one", async ({ 
   // Which point it prefers is the engine's own business; that it names one is not.
   await expect(marked(page, "[data-hint='to']")).toBeVisible();
 
-  await tap(page, "d2"); // any move of the player's own leaves the advice behind
+  await tap(page, "d2"); // a move somewhere else leaves the hint behind
 
   await expect(page.locator("[data-point][data-hint]")).toHaveCount(0);
 });

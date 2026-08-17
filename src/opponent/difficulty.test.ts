@@ -8,6 +8,7 @@ import {
   DIFFICULTIES,
   DIFFICULTY_SETTINGS,
   type Difficulty,
+  FULL_STRENGTH,
   NEAR_BEST_COUNT,
   NEAR_BEST_MARGIN,
   moveAtDifficulty,
@@ -85,6 +86,15 @@ describe("the four difficulties", () => {
 
   it("play the strongest of them with no deliberate mistake in it at all", () => {
     expect(DIFFICULTY_SETTINGS.master.blunderRate).toBe(0);
+  });
+
+  /**
+   * Full strength is named rather than derived, so that hints and grades can ask
+   * for it without knowing the table (ADR-0001). This is what keeps the name
+   * pointing at the strongest of them if a fifth is ever added above it.
+   */
+  it("are led by the one hints and grades are worked out at", () => {
+    expect(FULL_STRENGTH).toBe(DIFFICULTIES[DIFFICULTIES.length - 1]);
   });
 
   it("all look at least one move ahead in every phase, so none of them plays blind", () => {

@@ -157,7 +157,7 @@ _Avoid_: second-best move, plausible move, reasonable move
 ## Teaching
 
 **Teaching mode**:
-The setting that switches on hints, grading, and takebacks. It is independent of who the players are, so two humans can also play with it on.
+The setting that switches on hints, grading, and takebacks. It is independent of who the players are, so two humans can also play with it on. Where the player has not said either way, who is playing answers for them — off for two people sharing a device, on against the computer — and once they have said, their word carries into every game after it, as a difficulty does.
 _Hungarian_: tanulómód
 _Avoid_: tutorial, coach mode, practice mode
 

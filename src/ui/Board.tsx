@@ -176,7 +176,7 @@ export const Board = ({
      * The hint, drawn as a ring round each point the engine's move touches
      * rather than as a mark on the point itself. The point keeps every mark it
      * had — a piece it may pick up still looks like one, a destination still
-     * looks like one — and the advice sits outside it, which is what stops the
+     * looks like one — and the hint is drawn outside it, which is what stops the
      * board saying two things at once about the same circle.
      */}
     {hint && (

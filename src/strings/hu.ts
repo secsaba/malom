@@ -75,7 +75,7 @@ export const hu = {
   /**
    * Teaching: the setting itself, and the button that asks the engine what it
    * would play. The hint is worded as the request rather than as the thing —
-   * "tipp" alone would read as a label on advice nobody has asked for yet.
+   * "tipp" alone would read as a label on a hint nobody has asked for yet.
    */
   teaching: {
     toggle: "Tanulómód",

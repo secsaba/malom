@@ -41,7 +41,7 @@ export const PIECE_RADIUS = 34;
  * How far out the ring marking a hint sits: outside the piece standing on the
  * point, and clear of the point next door. Going round the outside is what makes
  * a hint impossible to mistake for a state of the game — the point underneath
- * keeps every mark it had, and the advice about it is drawn around it.
+ * keeps every mark it had, and the hint is drawn around it.
  */
 export const HINT_RADIUS = 46;
 

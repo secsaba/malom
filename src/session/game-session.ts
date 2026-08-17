@@ -137,7 +137,7 @@ type Teaching = {
   /** Whether teaching is on. */
   readonly on: boolean;
   /** Whether there is an engine to ask for a hint: a session given none offers none. */
-  readonly engine: boolean;
+  readonly hasEngine: boolean;
   /** The hint the engine has answered with, for as long as it is about this position. */
   readonly hint: Hint | undefined;
   /** Whether the engine is working one out. */
@@ -205,14 +205,30 @@ const legalPointsOf = ({ game, selection, arrival }: Recorded): readonly PointId
 };
 
 /**
- * The hint as the player sees it: the move the engine came back with, for as
- * long as the game it was asked about is the game standing. A hint is advice
- * about one position, so anything played after it — the player's own move, the
- * computer's answer, the half move a capture is owed on — takes it off the board
- * rather than leaving advice up about a position nobody is looking at.
+ * Whether the half-played move on the board is the one the hint named: the same
+ * piece, sent to the same point.
  */
-const hintShown = ({ game, arrival }: Recorded, { on, hint }: Teaching): Move | undefined =>
-  on && hint?.about === game && arrival === undefined ? hint.move : undefined;
+const arrivedAsHinted = (arrival: Arrival, { move }: Hint): boolean =>
+  arrival.from === move.from && arrival.to === move.to;
+
+/**
+ * The hint as the player sees it: the move the engine came back with, for as
+ * long as the game it was asked about is the game standing. A hint is about one
+ * position and no other, so a move played after it takes it off the board rather
+ * than leaving it up over a position nobody is looking at any more.
+ *
+ * A move being played out is the exception, and it has to be: a player who plays
+ * what the hint named closes the mill it named, and the capture it earns is the
+ * half of the move they have still to choose. Taking the hint off the board
+ * there would take it away at the very moment its last half became the useful
+ * one. An arrival somewhere else ends it as any other move does — what it said
+ * about the piece to play no longer describes the piece that moved.
+ */
+const hintShown = ({ game, arrival }: Recorded, { on, hint }: Teaching): Move | undefined => {
+  if (!on || hint === undefined || hint.about !== game) return undefined;
+
+  return arrival === undefined || arrivedAsHinted(arrival, hint) ? hint.move : undefined;
+};
 
 /**
  * Whether a hint is the player's to ask for: teaching is on, there is an engine
@@ -223,10 +239,10 @@ const hintShown = ({ game, arrival }: Recorded, { on, hint }: Teaching): Move | 
 const hintIsOffered = (
   { game, arrival }: Recorded,
   { opponentSide }: Playing,
-  { on, engine }: Teaching,
+  { on, hasEngine }: Teaching,
 ): boolean =>
   on &&
-  engine &&
+  hasEngine &&
   arrival === undefined &&
   game.result === undefined &&
   !isOpponentToMove(game, opponentSide);
@@ -422,7 +438,7 @@ export const createGameSession = ({
   let playing: Playing = { opponentSide: players.opponentSide, thinking: false, difficulty };
   let teaching: Teaching = {
     on: taughtIn(players.opponentSide, chosenTeaching),
-    engine: chooseHint !== undefined,
+    hasEngine: chooseHint !== undefined,
     hint: undefined,
     hinting: false,
   };
@@ -498,8 +514,8 @@ export const createGameSession = ({
         thinking: false,
         difficulty: playing.difficulty,
       };
-      // A hint asked for in the game just thrown away is not advice about this
-      // one, and the answer to it — which may still be on its way — is not either.
+      // A hint asked for in the game just thrown away says nothing about this
+      // one, and neither does the answer to it, which may still be on its way.
       teaching = {
         ...teaching,
         on: taughtIn(next.opponentSide, chosenTeaching),
@@ -524,7 +540,7 @@ export const createGameSession = ({
       if (on === teaching.on) return;
 
       // Teaching switched off takes its hint off the board with it, so switching
-      // it back on is a clean slate rather than the advice they turned away from.
+      // it back on is a clean slate rather than the hint they turned away from.
       teaching = { ...teaching, on, hint: on ? teaching.hint : undefined };
       publish();
     },
@@ -542,8 +558,13 @@ export const createGameSession = ({
 
         // A search that fails, and a position with no move in it, both come to
         // the same thing: there is nothing to show, and the player is left with
-        // an engine that has stopped working one out.
-        teaching = { ...teaching, hinting: false, hint: move && { about, move } };
+        // an engine that has stopped working one out. So does an answer to a
+        // question the player has withdrawn by switching teaching off while it
+        // was being worked out — kept, it would come back when they switched
+        // teaching on again.
+        const answered = move !== undefined && teaching.on;
+
+        teaching = { ...teaching, hinting: false, hint: answered ? { about, move } : undefined };
         publish();
       };
 

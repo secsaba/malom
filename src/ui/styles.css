@@ -126,7 +126,6 @@ body {
  * the very thing the greys above exist to stop. Empty points are marked only
  * while a piece is picked up: during the placing phase every empty point is
  * legal, so marking them all would say nothing.
- *
  */
 .board[data-selection] .board__points circle[data-legal]:not([data-occupant]) {
   fill: var(--point-legal-ink);
@@ -177,9 +176,9 @@ body {
  *
  * It goes round the outside rather than onto the point, at a radius nothing else
  * on the board uses, so no mark of the game's own has to give way to it and none
- * of them can be mistaken for it: the shape says advice as plainly as the colour
- * does. The rings take no taps — the targets below do that — so a hint never
- * stands between a player and the board.
+ * of them can be mistaken for it: where the ring sits tells it from a state of
+ * the game as plainly as its colour does. The rings take no taps — the targets
+ * below do that — so a hint never stands between a player and the board.
  */
 .board__hints circle {
   fill: none;

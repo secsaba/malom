@@ -1081,7 +1081,7 @@ describe("asking for a hint", () => {
     expect(session.state.hinting).toBe(false);
   });
 
-  /** Advice about one position, and only about that one. */
+  /** A hint is about one position, and only about that one. */
   it("goes off the board as soon as a move is played", async () => {
     const { engine, session } = beingTaught();
     session.askForHint();
@@ -1090,6 +1090,52 @@ describe("asking for a hint", () => {
     place(session, "d2");
 
     expect(session.state.hint).toBeUndefined();
+  });
+
+  /**
+   * The capture is the half of the move a player still has to choose when the
+   * mill closes, so a hint they have just played out stays in front of them
+   * rather than going out at the moment its last half becomes the useful one.
+   */
+  it("stays through the arrival it named, so the capture it earns is still shown", async () => {
+    const { engine, session } = beingTaught();
+    place(session, "a1", "a7", "d1", "d7");
+
+    session.askForHint();
+    await engine.reply({ to: "g1", capture: "a7" }); // g1 closes a1-d1-g1
+    place(session, "g1"); // the player plays what it named
+
+    expect(session.state.pendingCapture).toBe(true);
+    expect(session.state.hint).toEqual({ to: "g1", capture: "a7" });
+
+    capture(session, "a7");
+
+    expect(session.state.hint).toBeUndefined(); // the move is played out and the hint spent
+  });
+
+  it("goes off the board where the player closed some other mill instead", async () => {
+    const { engine, session } = beingTaught();
+    // Light stands a piece away from two mills: a1-d1-g1 and b2-b4-b6.
+    place(session, "a1", "a7", "d1", "d7", "b2", "g7", "b4", "f6");
+
+    session.askForHint();
+    await engine.reply({ to: "g1", capture: "a7" });
+    place(session, "b6"); // and closes the other one
+
+    expect(session.state.pendingCapture).toBe(true);
+    expect(session.state.hint).toBeUndefined();
+  });
+
+  it("drops an answer that arrives after teaching has been switched off", async () => {
+    const { engine, session } = beingTaught();
+    session.askForHint();
+
+    session.teach(false);
+    await engine.reply({ to: "d2" });
+    session.teach(true);
+
+    expect(session.state.hint).toBeUndefined();
+    expect(session.state.hinting).toBe(false);
   });
 
   it("stays while the player picks up the piece it named", async () => {
