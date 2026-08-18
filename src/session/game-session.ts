@@ -179,6 +179,55 @@ type Teaching = {
   readonly assessing: boolean;
 };
 
+/**
+ * A move the player has committed to and the game has not: it is held off the
+ * board while the engine says whether it is a blunder, and then while the player
+ * answers for the one it calls a blunder.
+ */
+type Held = {
+  /** Where the move was played from — what a takeback of it would return to. */
+  readonly from: Recorded;
+  /** Where it leaves the game, once the player stands by it. */
+  readonly next: Recorded;
+  /** What the engine made of it, once it has said. A held move it has judged is a blunder. */
+  readonly assessment: Assessment | undefined;
+};
+
+/**
+ * What a player's second thoughts about a move have to work with, as against how
+ * the game stands: the decisions they can go back to, and the move they have
+ * committed to and not yet played.
+ *
+ * The two are one thing here because they are one thing to a learner — second
+ * thoughts after the move, and second thoughts before it. Both are teaching's
+ * own, both are about a move rather than about the position, and a move waiting
+ * on the player is the one state in which neither is on offer.
+ */
+type SecondThoughts = {
+  /**
+   * Where the game has stood before each whole move played in it, oldest first
+   * — the computer's moves as well as the player's, because a takeback steps
+   * back past the computer's reply on its way to the player's own decision.
+   *
+   * It is written down whether or not teaching is on. What teaching gates is the
+   * offer of a takeback, not the recording of one, so a player who switches
+   * teaching on halfway through a game can still take back the moves they played
+   * before they switched it on.
+   */
+  readonly history: readonly Recorded[];
+  /**
+   * Where the move being assembled started. An arrival has overwritten what a
+   * takeback would return to by the time the capture it owes plays the move out,
+   * so the state the piece was sent from is kept here from the tap that sent it
+   * until the tap that finishes the move.
+   */
+  readonly startedFrom: Recorded;
+  /** Whether a move is checked before it is played, so a blunder can be asked about. */
+  readonly warns: boolean;
+  /** The move waiting on the engine, and then on the player. */
+  readonly held: Held | undefined;
+};
+
 /** Everything a player can see about the game: what is recorded, and what follows from it. */
 export type GameState = {
   readonly position: Position;
@@ -241,6 +290,22 @@ export type GameState = {
   /** Whether the engine is still working out what to make of the move just played. */
   readonly assessing: boolean;
   /**
+   * Whether a move is the player's to take back: teaching is on, and the game
+   * has stood somewhere the player themselves had the move. Nothing is on offer
+   * in a game whose only earlier positions are ones the computer was to move in
+   * — its own opening move is not the player's to take back.
+   */
+  readonly takebackOffered: boolean;
+  /** Whether a move is checked before it is played, so a blunder can be asked about. */
+  readonly warnsOfBlunders: boolean;
+  /**
+   * Whether the move the player has committed to is being checked. The board
+   * still stands where it stood: the move is theirs until they stand by it.
+   */
+  readonly checking: boolean;
+  /** Whether the player is being asked to stand by a move the engine calls a blunder. */
+  readonly warned: boolean;
+  /**
    * Where the last piece to move came to rest — the capture it may have earned
    * is not part of it — so the interface can bring it in from where it came
    * rather than have it appear. Nothing, in a game nobody has moved in yet.
@@ -299,12 +364,69 @@ const hintIsOffered = (
   { game, arrival }: Recorded,
   { opponentSide }: Playing,
   { on, hasEngine }: Teaching,
+  { held }: SecondThoughts,
 ): boolean =>
   on &&
   hasEngine &&
+  held === undefined &&
   arrival === undefined &&
   game.result === undefined &&
   !isOpponentToMove(game, opponentSide);
+
+/**
+ * The state with nothing picked up. A takeback returns a player to a decision
+ * rather than to the middle of one, so the piece they had in their hand when
+ * they made the move goes back down with it.
+ */
+const withNothingPickedUp = (recorded: Recorded): Recorded =>
+  recorded.selection === undefined ? recorded : { ...recorded, selection: undefined };
+
+/**
+ * Where a takeback lands, and the history left behind it: the last state the
+ * player themselves had the move in, and everything before that one.
+ *
+ * Against the computer that is two plies rather than one — its reply and the
+ * move that drew it — because a takeback that left the computer to move would
+ * play the reply again and hand the board straight back with the mistake still
+ * on it. Where every state further back is one of the computer's, there is
+ * nowhere to go: the game's opening move is the computer's own.
+ */
+const takenBackTo = (
+  recorded: Recorded,
+  { history, startedFrom }: SecondThoughts,
+  { opponentSide }: Playing,
+): { readonly to: Recorded; readonly earlier: readonly Recorded[] } | undefined => {
+  // A move only half played goes back no further than the tap that sent the
+  // piece: the arrival is the player's own decision, and it is the one they are
+  // taking back. Anything further would take the move before it back as well.
+  if (recorded.arrival !== undefined) return { to: startedFrom, earlier: history };
+
+  for (let step = history.length - 1; step >= 0; step -= 1) {
+    const at = history[step];
+    if (at !== undefined && !isOpponentToMove(at.game, opponentSide)) {
+      return { to: at, earlier: history.slice(0, step) };
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * Whether a move is the player's to take back. It is teaching's own, and it is
+ * not on offer while a move is waiting on them — that one is answered by
+ * standing by it or thinking again, not by going back past it.
+ *
+ * A game that is over is not the exception it looks like. That is exactly where
+ * a learner wants a takeback: the move they lost by is the move they most want
+ * to play again.
+ */
+const takebackIsOffered = (
+  recorded: Recorded,
+  secondThoughts: SecondThoughts,
+  playing: Playing,
+  { on }: Teaching,
+): boolean =>
+  on && secondThoughts.held === undefined && takenBackTo(recorded, secondThoughts, playing) !== undefined;
 
 // What the players see is spelled out rather than spread from what is recorded,
 // so that a state built from an earlier one cannot smuggle a stale set of legal
@@ -313,8 +435,10 @@ const stateOf = (
   recorded: Recorded,
   playing: Playing,
   teaching: Teaching,
+  secondThoughts: SecondThoughts,
 ): GameState => {
   const { opponentSide, thinking, difficulty } = playing;
+  const { held } = secondThoughts;
   const { game, selection, arrival, lastArrival } = recorded;
   const assessment = teaching.on ? teaching.assessment : undefined;
   // A piece that has arrived is on the board and out of its hand from the moment
@@ -331,19 +455,28 @@ const stateOf = (
     selection,
     result: game.result,
     // The computer's turn is not the player's to take, so there is nothing to
-    // offer them while it is thinking about it.
-    legalPoints: isOpponentToMove(game, opponentSide) ? [] : legalPointsOf(recorded),
+    // offer them while it is thinking about it — and neither is the board, while
+    // a move of their own is waiting on them.
+    legalPoints:
+      held !== undefined || isOpponentToMove(game, opponentSide) ? [] : legalPointsOf(recorded),
     opponentSide,
     thinking,
     difficulty,
     teaching: teaching.on,
     hint: hintShown(recorded, teaching),
     hinting: teaching.hinting,
-    hintOffered: hintIsOffered(recorded, playing, teaching),
+    hintOffered: hintIsOffered(recorded, playing, teaching, secondThoughts),
     grade: assessment?.grade,
     reason: assessment?.reason,
     patterns: assessment?.patterns ?? NOTHING_DETECTED,
     assessing: teaching.assessing,
+    takebackOffered: takebackIsOffered(recorded, secondThoughts, playing, teaching),
+    warnsOfBlunders: secondThoughts.warns,
+    // A held move the engine has judged is one it called a blunder, so what it
+    // has said is exactly what tells the two apart: still being checked, or back
+    // with the player to answer for.
+    checking: held !== undefined && held.assessment === undefined,
+    warned: held?.assessment !== undefined,
     lastArrival,
   };
 };
@@ -495,6 +628,26 @@ export type GameSession = {
    * changes nothing, and asking when no hint is on offer does nothing at all.
    */
   readonly askForHint: () => void;
+  /**
+   * Take the last move back, returning the game to the player's own decision
+   * point — two plies against the computer, so that its reply goes back with the
+   * move that drew it and the player is never handed a board it is to move in.
+   *
+   * It is teaching's own and it is unlimited: a learner working out why the
+   * better move was better is not on a budget. Asking when there is nothing to
+   * go back to does nothing at all.
+   */
+  readonly takeBack: () => void;
+  /**
+   * Ask to be warned before a blunder, or stop asking. It is off until the
+   * player asks for it — a learner stopped at every move never has to think for
+   * themselves — and, like teaching, it outlives the game it was asked for.
+   */
+  readonly warnOfBlunders: (on: boolean) => void;
+  /** Play the move the warning asked about. What the engine said of it stands as its grade. */
+  readonly playAnyway: () => void;
+  /** Take that move off the table again: the board is left exactly as it stood. */
+  readonly thinkAgain: () => void;
 };
 
 /** Start a game. */
@@ -520,16 +673,23 @@ export const createGameSession = ({
     assessment: undefined,
     assessing: false,
   };
-  let state = stateOf(recorded, playing, teaching);
+  let secondThoughts: SecondThoughts = {
+    history: [],
+    startedFrom: NEW_SESSION,
+    warns: false,
+    held: undefined,
+  };
+  let state = stateOf(recorded, playing, teaching, secondThoughts);
   const listeners = new Set<() => void>();
 
-  // How many games have been started here. A game thrown away while the computer
-  // was still thinking about it gets its answer all the same, and this is what
-  // tells that answer from one worth playing.
-  let gamesStarted = 0;
+  // How many times the game in front of the player has been put aside — another
+  // one started, or a move taken back. A search still running when one of those
+  // happens answers all the same, and this is what tells that answer from one
+  // worth acting on.
+  let putAside = 0;
 
   const publish = () => {
-    state = stateOf(recorded, playing, teaching);
+    state = stateOf(recorded, playing, teaching, secondThoughts);
     for (const listener of listeners) listener();
   };
 
@@ -541,15 +701,21 @@ export const createGameSession = ({
     if (chooseMove === undefined) return;
     if (playing.thinking || !isOpponentToMove(recorded.game, playing.opponentSide)) return;
 
-    const asked = gamesStarted;
+    const asked = putAside;
+    const from = recorded;
     const thought = recorded.game;
     playing = { ...playing, thinking: true };
 
     const played = (move: Move | undefined) => {
-      if (asked !== gamesStarted) return; // another game is being played now
+      if (asked !== putAside) return; // the game has moved on without this answer
 
       playing = { ...playing, thinking: false };
-      if (move) recorded = afterChoosing(thought, move);
+      // The computer's move goes into the history as a player's does: it is what
+      // a takeback steps back past on its way to the player's own decision.
+      if (move) {
+        secondThoughts = { ...secondThoughts, history: [...secondThoughts.history, from] };
+        recorded = afterChoosing(thought, move);
+      }
       publish();
     };
 
@@ -576,13 +742,13 @@ export const createGameSession = ({
   const assess = (about: Game, move: Move) => {
     if (assessMove === undefined || !teaching.on) return;
 
-    const asked = gamesStarted;
+    const asked = putAside;
     assessmentsAsked += 1;
     const question = assessmentsAsked;
     teaching = { ...teaching, assessing: true, assessment: undefined };
 
     const graded = (answer: Assessment | undefined) => {
-      if (asked !== gamesStarted) return; // another game is being played now
+      if (asked !== putAside) return; // the game has moved on without this answer
       if (question !== assessmentsAsked) return; // and another move has been played since
 
       // A search that fails and a move there was nothing to say about come to
@@ -596,6 +762,87 @@ export const createGameSession = ({
     void assessMove(about, move).then(graded, () => graded(undefined));
   };
 
+  /**
+   * A whole move is played out: the state it was played from goes into the
+   * history, and the game moves on.
+   */
+  const play = (from: Recorded, next: Recorded) => {
+    secondThoughts = { ...secondThoughts, history: [...secondThoughts.history, from], held: undefined };
+    recorded = next;
+    // The computer is asked before the engine is: the two think in the same
+    // thread, and the move somebody is waiting for goes first.
+    think();
+  };
+
+  /** Play a move the player was being asked to stand by, however the asking ended. */
+  const playHeld = () => {
+    const { held } = secondThoughts;
+    if (held === undefined) return;
+
+    play(held.from, held.next);
+    teaching = { ...teaching, assessing: false, assessment: held.assessment };
+  };
+
+  /**
+   * Put a move to the engine before it is played, so that a blunder can be asked
+   * about rather than merely reported afterwards. Nothing goes onto the board
+   * while it thinks: the move is still the player's until they stand by it.
+   *
+   * It is the grading run early rather than a second opinion — the same
+   * question, about the same move in the same position — so the answer it comes
+   * back with stands as the move's grade the moment the move is played, and no
+   * second search is ever run.
+   *
+   * Only a blunder comes back to the player. A move the engine had nothing to
+   * say about and a search that failed are both played: a check that cannot say
+   * a move is a blunder has not said it is one.
+   */
+  const check = (from: Recorded, next: Recorded, about: Game, move: Move) => {
+    if (assessMove === undefined) return;
+
+    const asked = putAside;
+    // A check is a move sent to be graded, and is counted as one: a move played
+    // out from under a check that was still running — by teaching or the warning
+    // itself being switched off — leaves an answer behind that must not land on
+    // the move played after it. Nothing can be sent while a move is held, so an
+    // answer to a move still held is never a stale one.
+    assessmentsAsked += 1;
+    const question = assessmentsAsked;
+    secondThoughts = { ...secondThoughts, held: { from, next, assessment: undefined } };
+    // What was said about the move before this one stands until this one is
+    // played. Nothing has gone onto the board yet, so a player who thinks again
+    // is left looking at exactly what they were looking at.
+    teaching = { ...teaching, assessing: true };
+
+    const answered = (assessment: Assessment | undefined) => {
+      if (asked !== putAside) return; // the game has moved on without this answer
+      if (question !== assessmentsAsked) return; // and another move has been graded since
+
+      const { held } = secondThoughts;
+
+      if (held !== undefined && assessment?.grade === "blunder") {
+        secondThoughts = { ...secondThoughts, held: { ...held, assessment } };
+        teaching = { ...teaching, assessing: false };
+        publish();
+        return;
+      }
+
+      // The move goes onto the board, whether it is still held or was played
+      // while the answer was on its way — by teaching or the warning itself
+      // being switched off, either of which plays a move rather than taking it
+      // away from the player who committed to it.
+      if (held !== undefined) play(held.from, held.next);
+      teaching = {
+        ...teaching,
+        assessing: false,
+        assessment: teaching.on ? assessment : undefined,
+      };
+      publish();
+    };
+
+    void assessMove(about, move).then(answered, () => answered(undefined));
+  };
+
   // A game the computer opens is under way from the moment it is created.
   think();
   publish();
@@ -606,6 +853,9 @@ export const createGameSession = ({
     },
 
     apply: (intent) => {
+      // A move waiting on the player is the only thing there is for them to
+      // answer, and it is not answered by tapping the board.
+      if (secondThoughts.held !== undefined) return;
       if (isOpponentToMove(recorded.game, playing.opponentSide)) return;
 
       const next = nextRecorded(recorded, intent);
@@ -615,12 +865,30 @@ export const createGameSession = ({
       // from is the position the move has to be graded in.
       const played = next.game === recorded.game ? undefined : next.lastMove;
       const about = recorded.game;
+      const from =
+        recorded.arrival === undefined ? withNothingPickedUp(recorded) : secondThoughts.startedFrom;
+      secondThoughts = { ...secondThoughts, startedFrom: from };
 
-      recorded = next;
-      // The computer is asked before the engine is: the two think in the same
-      // thread, and the move somebody is waiting for goes first.
-      think();
-      if (played) assess(about, played);
+      // Half a move: a piece picked up or put down, or an arrival with the
+      // capture it earned still owed. There is nothing yet to grade, to check or
+      // to take back.
+      if (played === undefined) {
+        recorded = next;
+        publish();
+        return;
+      }
+
+      // Where the player has asked to be warned, the move is checked before it
+      // is played rather than graded after it: the same question either way, and
+      // the answer to it is the grade whichever way round it was asked.
+      if (secondThoughts.warns && teaching.on && assessMove !== undefined) {
+        check(from, next, about, played);
+        publish();
+        return;
+      }
+
+      play(from, next);
+      assess(about, played);
       publish();
     },
 
@@ -630,13 +898,18 @@ export const createGameSession = ({
     },
 
     start: (next) => {
-      gamesStarted += 1;
+      putAside += 1;
       recorded = NEW_SESSION;
       playing = {
         opponentSide: next.opponentSide,
         thinking: false,
         difficulty: playing.difficulty,
       };
+      // Nothing of the game just thrown away is a move of this one, so there is
+      // nowhere in it to take a move back to — and a move it was still checking
+      // is a move nobody will ever play. Whether the player asked to be warned is
+      // not a game's own, and stays where they put it, as the difficulty does.
+      secondThoughts = { ...secondThoughts, history: [], startedFrom: NEW_SESSION, held: undefined };
       // A hint asked for in the game just thrown away says nothing about this
       // one, and neither does the answer to it, which may still be on its way.
       // Nor does an assessment: the move it was about is not in this game.
@@ -665,6 +938,11 @@ export const createGameSession = ({
       chosenTeaching = on;
       if (on === teaching.on) return;
 
+      // A move held for the player to answer for is played rather than dropped:
+      // they committed to it, and switching teaching off asks not to be checked
+      // rather than asking to have the move back.
+      if (!on) playHeld();
+
       // Teaching switched off takes its hint and its assessment with it, so switching
       // it back on is a clean slate rather than what they turned away from.
       teaching = {
@@ -678,14 +956,14 @@ export const createGameSession = ({
 
     askForHint: () => {
       if (chooseHint === undefined) return;
-      if (teaching.hinting || !hintIsOffered(recorded, playing, teaching)) return;
+      if (teaching.hinting || !hintIsOffered(recorded, playing, teaching, secondThoughts)) return;
 
-      const asked = gamesStarted;
+      const asked = putAside;
       const about = recorded.game;
       teaching = { ...teaching, hinting: true };
 
       const shown = (move: Move | undefined) => {
-        if (asked !== gamesStarted) return; // another game is being played now
+        if (asked !== putAside) return; // the game has moved on without this answer
 
         // A search that fails, and a position with no move in it, both come to
         // the same thing: there is nothing to show, and the player is left with
@@ -700,6 +978,56 @@ export const createGameSession = ({
       };
 
       void chooseHint(about).then(shown, () => shown(undefined));
+      publish();
+    },
+
+    takeBack: () => {
+      if (!teaching.on || secondThoughts.held !== undefined) return;
+
+      const back = takenBackTo(recorded, secondThoughts, playing);
+      if (back === undefined) return;
+
+      putAside += 1;
+      secondThoughts = { ...secondThoughts, history: back.earlier };
+      recorded = back.to;
+      // A move the computer was still thinking about is not played: the position
+      // it was asked about is one nobody is looking at any more.
+      playing = { ...playing, thinking: false };
+      // The grade goes back with the move it was about. A verdict left standing
+      // would be a verdict on a move that is no longer in the game, over a board
+      // that is waiting for the player to make another one.
+      teaching = { ...teaching, hinting: false, assessment: undefined, assessing: false };
+      publish();
+    },
+
+    warnOfBlunders: (on) => {
+      if (on === secondThoughts.warns) return;
+
+      // A move already being checked is played rather than dropped: the check
+      // the player has just switched off was the only thing standing between
+      // them and the board.
+      if (!on) playHeld();
+
+      secondThoughts = { ...secondThoughts, warns: on };
+      publish();
+    },
+
+    playAnyway: () => {
+      // Only a move the engine has judged is a move to stand by: one still being
+      // checked has asked the player nothing yet.
+      if (secondThoughts.held?.assessment === undefined) return;
+
+      playHeld();
+      publish();
+    },
+
+    thinkAgain: () => {
+      if (secondThoughts.held?.assessment === undefined) return;
+
+      // Nothing of the move was ever recorded, so there is nothing to put back:
+      // the board, the piece picked up, the capture still owed and what was said
+      // about the move before are all exactly where the player left them.
+      secondThoughts = { ...secondThoughts, held: undefined };
       publish();
     },
   };

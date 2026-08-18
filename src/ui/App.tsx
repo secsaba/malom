@@ -39,7 +39,18 @@ const playersOf = ({ against, humanSide }: NextGame): Players =>
 export const App = () => {
   const [showCoordinates, setShowCoordinates] = useState(false);
   const [next, setNext] = useState<NextGame>(FIRST_GAME);
-  const { state, apply, start, playAt, teach, askForHint } = useGameSession();
+  const {
+    state,
+    apply,
+    start,
+    playAt,
+    teach,
+    askForHint,
+    takeBack,
+    warnOfBlunders,
+    playAnyway,
+    thinkAgain,
+  } = useGameSession();
 
   const select = (point: PointId) => apply(intentFor(state, point));
 
@@ -75,10 +86,18 @@ export const App = () => {
         teaching={state.teaching}
         hintOffered={state.hintOffered}
         hinting={state.hinting}
+        takebackOffered={state.takebackOffered}
+        warnsOfBlunders={state.warnsOfBlunders}
+        checking={state.checking}
+        warned={state.warned}
         grade={state.grade}
         reason={state.reason}
         onTeach={teach}
         onAskForHint={askForHint}
+        onTakeBack={takeBack}
+        onWarnOfBlunders={warnOfBlunders}
+        onPlayAnyway={playAnyway}
+        onThinkAgain={thinkAgain}
       />
 
       {rematchSide && (

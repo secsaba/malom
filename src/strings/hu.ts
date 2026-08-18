@@ -74,13 +74,17 @@ export const hu = {
   },
   /**
    * Teaching: the setting itself, the button that asks the engine what it would
-   * play, and what it made of the move that was played. The hint is worded as
-   * the request rather than as the thing — "tipp" alone would read as a label on
-   * a hint nobody has asked for yet.
+   * play, what it made of the move that was played, and the two second thoughts
+   * a learner is allowed — a move taken back, and the warning before a blunder. The hint is worded as the
+   * request rather than as the thing — "tipp" alone would read as a label on a
+   * hint nobody has asked for yet. The takeback beside it is the glossary's own
+   * word and needs no such help.
    */
   teaching: {
     toggle: "Tanulómód",
     hint: "Tipp kérése",
+    /** Taking a move back, in the glossary's own term. */
+    takeback: "Visszalépés",
     /** What the grade shown beside it is a grade of. */
     gradeHeading: "Értékelés",
     /**
@@ -95,6 +99,22 @@ export const hu = {
       inaccuracy: "Pontatlan",
       mistake: "Hiba",
       blunder: "Súlyos hiba",
+    },
+    /**
+     * The warning a player can ask for before a blunder: the setting itself, the
+     * line shown while the engine looks at the move, the question it comes back
+     * with, and the two answers to it.
+     *
+     * The question states the verdict rather than hedging it. The engine has
+     * graded the move by the time it is asked, so "lehet" would claim less than
+     * the search actually says — the discipline of ADR-0003 cuts both ways.
+     */
+    warning: {
+      toggle: "Figyelmeztetés súlyos hiba előtt",
+      checking: "A gép megnézi a lépést…",
+      asks: "Ez a lépés súlyos hiba. Biztosan ezt lépi?",
+      playAnyway: "Mégis ezt lépem",
+      thinkAgain: "Mégsem",
     },
     /**
      * The one line that stands beside the grade and says why. Every sentence

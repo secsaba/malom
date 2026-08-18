@@ -1525,6 +1525,556 @@ describe("assessing the move just played", () => {
   });
 });
 
+describe("taking a move back", () => {
+  /** A game two people are playing, with teaching switched on. */
+  const beingTaught = () => {
+    const session = createGameSession();
+    session.teach(true);
+
+    return session;
+  };
+
+  it("is not offered in a game nobody has moved in", () => {
+    const session = beingTaught();
+
+    expect(session.state.takebackOffered).toBe(false);
+
+    session.takeBack();
+
+    expect(session.state.position.size).toBe(0);
+  });
+
+  it("puts the board back to where the player last had the move", () => {
+    const session = beingTaught();
+
+    place(session, "a1", "a4");
+
+    expect(session.state.takebackOffered).toBe(true);
+
+    session.takeBack();
+
+    expect(session.state.position.get("a4")).toBeUndefined();
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(session.state.sideToMove).toBe("dark");
+  });
+
+  it("puts back what the board draws as well as the pieces on it", () => {
+    const session = beingTaught();
+
+    place(session, "a1", "a4", "a7");
+    session.takeBack();
+
+    expect(session.state.lastArrival).toEqual({ to: "a4" });
+  });
+
+  it("is unlimited: as many moves go back as the player asks for", () => {
+    const session = beingTaught();
+
+    place(session, "a1", "a4", "a7");
+    session.takeBack();
+    session.takeBack();
+    session.takeBack();
+
+    expect(session.state.position.size).toBe(0);
+    expect(session.state.takebackOffered).toBe(false);
+  });
+
+  it("puts a piece the player had picked up down again", () => {
+    const session = createGameSession();
+    place(session, ...MILL_FREE_PLACING);
+    session.teach(true);
+
+    slide(session, "b2", "d2");
+    select(session, "d3");
+    session.takeBack();
+
+    expect(session.state.selection).toBeUndefined();
+    expect(session.state.position.get("d2")).toBeUndefined();
+    expect(session.state.position.get("b2")).toBe("light");
+    expect(session.state.sideToMove).toBe("light");
+  });
+
+  it("is neither offered nor taken while teaching is off", () => {
+    const session = createGameSession();
+
+    place(session, "a1", "a4");
+
+    expect(session.state.takebackOffered).toBe(false);
+
+    session.takeBack();
+
+    expect(session.state.position.size).toBe(2);
+  });
+
+  /**
+   * Against the computer a takeback is two plies rather than one: its reply goes
+   * back with the move that drew it, or the player would be handed a board with
+   * the mistake still on it and nothing to do about it.
+   */
+  it("goes back past the computer's reply, so the player is the one to move", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      players: { opponentSide: "dark" },
+    });
+
+    place(session, "a1");
+    await opponent.reply({ to: "a4" });
+
+    expect(session.state.position.size).toBe(2);
+
+    session.takeBack();
+
+    expect(session.state.position.size).toBe(0);
+    expect(session.state.sideToMove).toBe("light");
+  });
+
+  it("is not offered where going further back would leave the computer to move", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      players: { opponentSide: "light" },
+    });
+
+    await opponent.reply({ to: "a1" }); // the computer opens
+    place(session, "a4");
+    await opponent.reply({ to: "a7" });
+
+    session.takeBack();
+
+    expect(session.state.position.size).toBe(1);
+    expect(session.state.sideToMove).toBe("dark");
+    expect(session.state.takebackOffered).toBe(false);
+  });
+
+  it("drops the move the computer was still thinking about", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      players: { opponentSide: "dark" },
+    });
+
+    place(session, "a1");
+
+    expect(session.state.thinking).toBe(true);
+
+    session.takeBack();
+
+    expect(session.state.thinking).toBe(false);
+    expect(session.state.position.size).toBe(0);
+
+    await opponent.reply({ to: "a4" });
+
+    expect(session.state.position.size).toBe(0);
+  });
+
+  it("takes the grade back with the move it was about", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+
+    place(session, "a1");
+    await engine.reply("blunder");
+
+    expect(session.state.grade).toBe("blunder");
+
+    session.takeBack();
+
+    expect(session.state.grade).toBeUndefined();
+    expect(session.state.patterns).toEqual([]);
+  });
+
+  it("drops a verdict that was still being worked out", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+
+    place(session, "a1");
+
+    expect(session.state.assessing).toBe(true);
+
+    session.takeBack();
+
+    expect(session.state.assessing).toBe(false);
+
+    await engine.reply("blunder");
+
+    expect(session.state.grade).toBeUndefined();
+  });
+
+  /**
+   * A hint is about one position, and taking a move back is how a player comes
+   * back to the position it was about — so the move it named is still the move
+   * it names, and stands.
+   */
+  it("leaves a hint standing where it is about the position come back to", async () => {
+    const engine = askedEngine();
+    const session = createGameSession({ chooseHint: engine.chooseHint });
+    session.teach(true);
+
+    session.askForHint();
+    await engine.reply({ to: "d2" });
+    place(session, "a1");
+
+    expect(session.state.hint).toBeUndefined();
+
+    session.takeBack();
+
+    expect(session.state.hint).toEqual({ to: "d2" });
+  });
+
+  it("takes back a move that is only half played, the arrival and all", () => {
+    const session = beingTaught();
+
+    place(session, "a1", "a4", "d1", "a7", "g1"); // g1 closes light's mill a1-d1-g1
+
+    expect(session.state.pendingCapture).toBe(true);
+
+    session.takeBack();
+
+    expect(session.state.pendingCapture).toBe(false);
+    expect(session.state.position.get("g1")).toBeUndefined();
+    expect(session.state.sideToMove).toBe("light");
+  });
+
+  it("puts back the piece the move it takes back had captured", () => {
+    const session = beingTaught();
+
+    place(session, "a1", "a4", "d1", "a7", "g1");
+    capture(session, "a4");
+
+    expect(session.state.position.get("a4")).toBeUndefined();
+
+    session.takeBack();
+
+    expect(session.state.position.get("a4")).toBe("dark");
+    expect(session.state.position.get("g1")).toBeUndefined();
+    expect(session.state.sideToMove).toBe("light");
+  });
+
+  it("is offered in a game that is over, which is where a learner most wants it", () => {
+    const session = beingTaught();
+
+    place(session, ...WALLED_IN);
+
+    expect(session.state.result).toBeDefined();
+    expect(session.state.takebackOffered).toBe(true);
+
+    session.takeBack();
+
+    expect(session.state.result).toBeUndefined();
+  });
+
+  it("forgets the game before when another one is started", () => {
+    const session = beingTaught();
+
+    place(session, "a1", "a4");
+    session.start({});
+
+    expect(session.state.takebackOffered).toBe(false);
+  });
+});
+
+describe("warning before a blunder", () => {
+  /** A game two people are playing, taught, with the warning asked for. */
+  const beingWarned = () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+    session.warnOfBlunders(true);
+
+    return { engine, session };
+  };
+
+  /**
+   * A position is reached with teaching off, so that nothing on the way to it is
+   * checked or graded and the questions the engine is asked are the test's own.
+   */
+  const beingWarnedAfterPlacing = (...points: readonly PointId[]) => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    place(session, ...points);
+    session.teach(true);
+    session.warnOfBlunders(true);
+
+    return { engine, session };
+  };
+
+  it("is off until the player asks for it", () => {
+    const session = createGameSession();
+
+    expect(session.state.warnsOfBlunders).toBe(false);
+  });
+
+  it("checks the move with the engine before it is played, leaving the board where it stood", () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+
+    expect(engine.asked).toHaveLength(1);
+    expect(engine.asked[0]?.move).toEqual({ to: "a1" });
+    expect(session.state.position.size).toBe(0);
+    expect(session.state.checking).toBe(true);
+    expect(session.state.warned).toBe(false);
+  });
+
+  /**
+   * The check is the grading run early rather than a second opinion: one search,
+   * asked about one move in one position, whose answer is the grade the move
+   * carries the moment it is played.
+   */
+  it("plays a move the engine did not call a blunder, and what it said stands as the grade", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    await engine.reply("mistake");
+
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(session.state.grade).toBe("mistake");
+    expect(session.state.checking).toBe(false);
+    expect(engine.asked).toHaveLength(1);
+  });
+
+  it("puts a move the engine calls a blunder back to the player, the board untouched", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    await engine.reply("blunder");
+
+    expect(session.state.warned).toBe(true);
+    expect(session.state.checking).toBe(false);
+    expect(session.state.position.size).toBe(0);
+    expect(session.state.grade).toBeUndefined();
+  });
+
+  it("plays the move when the player stands by it, graded as the check graded it", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    await engine.reply("blunder", ["mill-missed"]);
+    session.playAnyway();
+
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(session.state.grade).toBe("blunder");
+    expect(session.state.patterns).toEqual(["mill-missed"]);
+    expect(session.state.warned).toBe(false);
+    expect(engine.asked).toHaveLength(1);
+  });
+
+  it("leaves the board where it stood when the player thinks again, the piece still picked up", async () => {
+    const { engine, session } = beingWarnedAfterPlacing(...MILL_FREE_PLACING);
+
+    slide(session, "b2", "d2");
+    await engine.reply("blunder");
+    session.thinkAgain();
+
+    expect(session.state.warned).toBe(false);
+    expect(session.state.selection).toBe("b2");
+    expect(session.state.legalPoints).toContain("d2");
+    expect(session.state.position.get("b2")).toBe("light");
+    expect(session.state.position.get("d2")).toBeUndefined();
+    expect(session.state.grade).toBeUndefined();
+  });
+
+  /**
+   * Which piece a mill takes is a decision of its own, so a warned capture goes
+   * back to the capture rather than to the arrival that earned it.
+   */
+  it("returns to the capture still to be taken where the move was one that earned it", async () => {
+    const { engine, session } = beingWarnedAfterPlacing("a1", "a4", "d1", "a7");
+
+    place(session, "g1"); // closes light's mill a1-d1-g1
+
+    expect(session.state.pendingCapture).toBe(true);
+    expect(engine.asked).toHaveLength(0); // half a move is not a move to check
+
+    capture(session, "a4");
+    await engine.reply("blunder");
+
+    expect(session.state.warned).toBe(true);
+    expect(session.state.position.get("a4")).toBe("dark");
+
+    session.thinkAgain();
+
+    expect(session.state.pendingCapture).toBe(true);
+    expect(session.state.legalPoints).toContain("a4");
+    expect(session.state.position.get("g1")).toBe("light");
+  });
+
+  it("offers the player nothing to act on while the move waits on them", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+
+    expect(session.state.legalPoints).toEqual([]);
+    expect(session.state.takebackOffered).toBe(false);
+
+    await engine.reply("blunder");
+
+    expect(session.state.legalPoints).toEqual([]);
+    expect(session.state.takebackOffered).toBe(false);
+  });
+
+  it("ignores what the player taps while the move waits on them", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    place(session, "a4");
+
+    expect(engine.asked).toHaveLength(1);
+
+    await engine.reply("blunder");
+    place(session, "a4");
+
+    expect(session.state.position.size).toBe(0);
+  });
+
+  it("plays a move the engine had nothing to say about", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    await engine.reply(undefined);
+
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(session.state.grade).toBeUndefined();
+  });
+
+  it("checks nothing at all while teaching is off", () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.warnOfBlunders(true);
+
+    place(session, "a1");
+
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(engine.asked).toHaveLength(0);
+  });
+
+  it("stays where the player put it when another game is started", () => {
+    const { session } = beingWarned();
+
+    session.start({});
+
+    expect(session.state.warnsOfBlunders).toBe(true);
+  });
+
+  /**
+   * A held move was committed to by the player; only the check stood between
+   * them and the board. Switching the check off therefore plays it rather than
+   * dropping it, which would take a move away from a player who never asked to
+   * take one back.
+   */
+  it("plays the move it was holding when the warning is switched off", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    await engine.reply("blunder");
+    session.warnOfBlunders(false);
+
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(session.state.grade).toBe("blunder");
+  });
+
+  it("plays the move it was holding when teaching is switched off, and says nothing", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    await engine.reply("blunder");
+    session.teach(false);
+
+    expect(session.state.warned).toBe(false);
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(session.state.grade).toBeUndefined();
+  });
+
+  it("drops a move it was checking when another game is started", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    session.start({});
+    await engine.reply("blunder");
+
+    expect(session.state.warned).toBe(false);
+    expect(session.state.position.size).toBe(0);
+  });
+
+  /**
+   * Thinking again changes nothing, and what the player was told about the move
+   * before this one is part of nothing: the check takes a verdict away only when
+   * it has a move to put in its place.
+   */
+  it("leaves the verdict on the move before it exactly where it was", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    await engine.reply("good");
+
+    expect(session.state.grade).toBe("good");
+
+    place(session, "a4");
+
+    expect(session.state.grade).toBe("good"); // nothing has gone onto the board
+
+    await engine.reply("blunder");
+
+    expect(session.state.grade).toBe("good");
+    expect(session.state.assessing).toBe(false); // the engine has said its piece
+
+    session.thinkAgain();
+
+    expect(session.state.grade).toBe("good");
+    expect(session.state.position.size).toBe(1);
+  });
+
+  it("puts the new verdict in its place once the move is played", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    await engine.reply("good");
+    place(session, "a4");
+    await engine.reply("blunder");
+    session.playAnyway();
+
+    expect(session.state.grade).toBe("blunder");
+  });
+
+  /**
+   * A move played out from under a running check — by the warning being switched
+   * off while it ran — leaves the answer to that check behind it. It is about a
+   * move the player has already moved on from, so it lands nowhere.
+   */
+  it("drops the answer to a check the move was taken out of", async () => {
+    const { engine, session } = beingWarned();
+
+    place(session, "a1");
+    session.warnOfBlunders(false);
+
+    expect(session.state.position.get("a1")).toBe("light");
+
+    place(session, "a4"); // graded the ordinary way, after the move rather than before
+
+    await engine.reply("mistake"); // the check's own answer, about a1
+
+    expect(session.state.grade).toBeUndefined();
+    expect(session.state.assessing).toBe(true);
+
+    await engine.reply("good"); // and the grade for a4
+
+    expect(session.state.grade).toBe("good");
+  });
+
+  it("checks nothing in a game whose session was given no engine to ask", () => {
+    const session = createGameSession();
+    session.teach(true);
+    session.warnOfBlunders(true);
+
+    place(session, "a1");
+
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(session.state.checking).toBe(false);
+  });
+});
+
 describe("starting another game", () => {
   it("puts the board back and hands the first move to the player", () => {
     const session = createGameSession();

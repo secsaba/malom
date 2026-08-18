@@ -201,12 +201,12 @@ _Hungarian_: none — nothing in the interface words it; the grade and the reaso
 _Avoid_: analysis, verdict, review, feedback
 
 **Blunder warning**:
-The optional, off-by-default intervention that asks for confirmation before a player commits a move graded as a blunder.
-_Hungarian_: figyelmeztetés hiba előtt
+The optional, off-by-default intervention that asks for confirmation before a player commits a move graded as a blunder. It is the grading run early rather than a second opinion — the same search, asked about the same move in the same position — so what it comes back with is what the move is graded as the moment it is played, and a move it has nothing to say about is played rather than queried. Being asked is the whole of it: standing by the move plays it, and declining leaves the board exactly as it stood, down to the piece the player had picked up.
+_Hungarian_: figyelmeztetés súlyos hiba előtt (the grade it warns about is Súlyos hiba, and _hiba_ alone would name the grade above it)
 _Avoid_: alert, nag, safety net
 
 **Takeback**:
-Returning the game to the player's previous decision point so they can try a different move.
+Returning the game to the player's previous decision point so they can try a different move. Against the computer it is two plies rather than one — its reply and the move that drew it — because a takeback that left the computer to move would play the reply again and hand the board back with the mistake still on it. It belongs to teaching mode and is unlimited: a learner working out why the better move was better is not on a budget.
 _Hungarian_: visszalépés
 _Avoid_: undo, rewind, retry
 

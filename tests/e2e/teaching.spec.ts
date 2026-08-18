@@ -173,3 +173,58 @@ test("puts the hint away with teaching itself", async ({ page }) => {
 
   await expect(pointAt(page, "a1")).toHaveAttribute("data-occupant", "light");
 });
+
+test("takes a move back, and offers it only while teaching is on", async ({ page }) => {
+  const takeback = page.getByTestId("takeback");
+  const teaching = page.getByLabel(strings.teaching.toggle);
+
+  await expect(takeback).toHaveCount(0); // teaching is off for two people sharing a device
+
+  await teaching.check();
+
+  await expect(takeback).toBeDisabled(); // nothing has been played to take back
+
+  await tap(page, "a1");
+
+  await expect(pointAt(page, "a1")).toHaveAttribute("data-occupant", "light");
+  await expect(takeback).toBeEnabled();
+
+  // The grade goes back with the move it was about, so what the player is left
+  // looking at is the board they played from and nothing else.
+  await expect(page.getByTestId("grade")).toBeVisible({ timeout: 30_000 });
+
+  await takeback.click();
+
+  await expect(pointAt(page, "a1")).not.toHaveAttribute("data-occupant", "light");
+  await expect(page.getByTestId("grade")).toHaveCount(0);
+  await expect(takeback).toBeDisabled();
+});
+
+test("checks a move before playing it once the player asks to be warned", async ({ page }) => {
+  const warning = page.getByTestId("warning-toggle");
+
+  await expect(warning).toHaveCount(0);
+
+  await page.getByLabel(strings.teaching.toggle).check();
+
+  // Discoverable where the rest of teaching is, and off until it is asked for.
+  await expect(page.getByLabel(strings.teaching.warning.toggle)).toBeVisible();
+  await expect(warning).not.toBeChecked();
+
+  await warning.check();
+  await tap(page, "a1");
+
+  // The move is the player's until they stand by it: the board holds still while
+  // the engine looks at it, and says that is what it is doing.
+  await expect(page.getByTestId("checking")).toBeVisible();
+  await expect(pointAt(page, "a1")).not.toHaveAttribute("data-occupant", "light");
+
+  await expect(page.getByTestId("checking")).toHaveCount(0, { timeout: 30_000 });
+
+  // Whether the engine calls that move a blunder is the engine's own business;
+  // that the move went through the check before it went onto the board is not.
+  const occupant = await pointAt(page, "a1").getAttribute("data-occupant");
+  const asked = await page.getByTestId("warning").count();
+
+  expect(occupant === "light" || asked === 1).toBe(true);
+});

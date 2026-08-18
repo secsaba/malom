@@ -40,6 +40,14 @@ export type UseGameSession = {
   readonly teach: (on: boolean) => void;
   /** Ask the engine what it would play here. */
   readonly askForHint: () => void;
+  /** Take the last move back, to the player's own decision point. */
+  readonly takeBack: () => void;
+  /** Ask to be warned before a blunder, or stop asking. */
+  readonly warnOfBlunders: (on: boolean) => void;
+  /** Play the move the warning asked about. */
+  readonly playAnyway: () => void;
+  /** Take that move off the table again. */
+  readonly thinkAgain: () => void;
 };
 
 export const useGameSession = (): UseGameSession => {
@@ -61,5 +69,9 @@ export const useGameSession = (): UseGameSession => {
     playAt: session.playAt,
     teach: session.teach,
     askForHint: session.askForHint,
+    takeBack: session.takeBack,
+    warnOfBlunders: session.warnOfBlunders,
+    playAnyway: session.playAnyway,
+    thinkAgain: session.thinkAgain,
   };
 };

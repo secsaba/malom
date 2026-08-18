@@ -301,11 +301,13 @@ body {
 }
 
 /*
- * Bordered like the other buttons rather than in the hint's own ink, which is
- * chosen to carry on a cream board and is too dark to outline a control on this
- * one. What ties the two together is the ring the button produces.
+ * Every button teaching offers — the hint, the takeback, and the two answers to
+ * the warning — is drawn the same way, bordered like the other buttons on the
+ * page rather than in the hint's own ink, which is chosen to carry on a cream
+ * board and is too dark to outline a control on this one. What ties the hint's
+ * button to the hint is the ring it produces on the board.
  */
-.teaching__hint {
+.teaching__button {
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--page-ink);
   border-radius: 0.5rem;
@@ -315,15 +317,50 @@ body {
   cursor: pointer;
 }
 
-.teaching__hint:hover:enabled {
+.teaching__button:hover:enabled {
   background: var(--point-hint-ink);
 }
 
-/* Nothing to ask about: it is the computer's turn, or the game is over. */
-.teaching__hint:disabled {
+/*
+ * Nothing to ask about: it is the computer's turn, or the game is over, or there
+ * is no move of the player's own to take back.
+ */
+.teaching__button:disabled {
   border-color: var(--page-ink-dim);
   color: var(--page-ink-dim);
   cursor: default;
+}
+
+/*
+ * The move is checked but not played, so the board is holding still: this line
+ * is what says the page is waiting rather than stuck.
+ */
+.teaching__checking {
+  flex-basis: 100%;
+  margin: 0;
+  text-align: center;
+  color: var(--page-ink-dim);
+}
+
+/*
+ * The question a blunder is put back with, and the two answers to it, on a line
+ * of their own: the player is being asked something, and an answer that shares a
+ * line with the toggles reads as another setting.
+ */
+.teaching__warning {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.75rem;
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.teaching__warning-asks {
+  flex-basis: 100%;
+  text-align: center;
+  font-weight: 600;
 }
 
 /*
