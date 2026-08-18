@@ -29,8 +29,12 @@ import { GRADES, type Grade } from "./grade";
 import type { Assessment } from "./assessment";
 import { CRITICISM, type Criticism, isCriticism } from "./patterns";
 
-/** How a game ended for the side the summary is about. */
-export type Outcome = "won" | "drawn" | "lost";
+/**
+ * The Result read from one side's own point of view. It is the same ending the
+ * game has — the glossary keeps _outcome_ out of this project's language — asked
+ * about one of the two players rather than about the game.
+ */
+export type SideResult = "won" | "drawn" | "lost";
 
 /** A move the summary counts: who played it, and what the engine made of it. */
 export type GradedMove = {
@@ -45,7 +49,8 @@ export type GradedMove = {
 /** How a side's moves were graded, and what its mistakes came to. */
 export type Summary = {
   readonly side: Side;
-  readonly outcome: Outcome;
+  /** How the game ended for this side. */
+  readonly result: SideResult;
   /** How many of the side's moves the engine graded — what the counts add up to. */
   readonly graded: number;
   /** How many of them fell in each of the five grades. */
@@ -62,8 +67,8 @@ const NO_MOVES_GRADED: Readonly<Record<Grade, number>> = Object.fromEntries(
   GRADES.map((grade) => [grade, 0]),
 ) as Record<Grade, number>;
 
-/** How the game ended for this side. A draw is drawn for both of them. */
-const outcomeFor = (result: Result, side: Side): Outcome => {
+/** The game's Result, read from this side. A draw is drawn for both of them. */
+const resultFor = (result: Result, side: Side): SideResult => {
   if ("draw" in result) return "drawn";
 
   return result.winner === side ? "won" : "lost";
@@ -92,7 +97,7 @@ const weaknessIn = (assessments: readonly Assessment[]): Criticism | undefined =
 
 const summaryOf = (result: Result, side: Side, assessments: readonly Assessment[]): Summary => ({
   side,
-  outcome: outcomeFor(result, side),
+  result: resultFor(result, side),
   graded: assessments.length,
   counts: assessments.reduce<Record<Grade, number>>(
     (counts, { grade }) => ({ ...counts, [grade]: counts[grade] + 1 }),

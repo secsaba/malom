@@ -124,17 +124,15 @@ describe("the summary at the end of a game", () => {
 
   describe("how the game ended", () => {
     it("is read from each side's own point of view", () => {
-      expect(
-        summaryFor("light", LIGHT_WON, [graded("light", "good")])?.outcome,
-      ).toBe("won");
-      expect(summaryFor("dark", LIGHT_WON, [graded("dark", "good")])?.outcome).toBe("lost");
+      expect(summaryFor("light", LIGHT_WON, [graded("light", "good")])?.result).toBe("won");
+      expect(summaryFor("dark", LIGHT_WON, [graded("dark", "good")])?.result).toBe("lost");
     });
 
     /** A draw is a draw for both of them: it is nobody's failure. */
     it("is drawn for both sides where neither could win it", () => {
       const summaries = summariesOf(DRAWN, [graded("light", "good"), graded("dark", "good")]);
 
-      expect(summaries.map(({ outcome }) => outcome)).toEqual(["drawn", "drawn"]);
+      expect(summaries.map(({ result }) => result)).toEqual(["drawn", "drawn"]);
     });
   });
 });

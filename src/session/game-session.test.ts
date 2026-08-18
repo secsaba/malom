@@ -2442,6 +2442,26 @@ describe("looking back at a move", () => {
     expect(session.state.moves).toHaveLength(2);
   });
 
+  /**
+   * The move list is teaching's, so the way back off a reviewed board goes with
+   * it. The game has to be handed back rather than left on a board with nothing
+   * on it to play and no way to leave it.
+   */
+  it("hands the game back when teaching is switched off under it", () => {
+    const { session } = played();
+    session.review(0);
+
+    session.teach(false);
+
+    expect(session.state.reviewing).toBeUndefined();
+    expect(session.state.position.get("d1")).toBe("light");
+    expect(session.state.legalPoints.length).toBeGreaterThan(0);
+
+    place(session, "d7"); // and the game carries on from where it was left
+
+    expect(session.state.position.get("d7")).toBe("dark");
+  });
+
   it("is put away with the game it was looking into", () => {
     const { session } = played();
     session.review(0);
@@ -2488,14 +2508,14 @@ describe("the summary at the end of the game", () => {
     expect(session.state.summary).toEqual([
       {
         side: "light",
-        outcome: "lost",
+        result: "lost",
         graded: 9,
         counts: { best: 0, good: 0, inaccuracy: 0, mistake: 9, blunder: 0 },
         weakness: "mill-missed",
       },
       {
         side: "dark",
-        outcome: "won",
+        result: "won",
         graded: 9,
         counts: { best: 0, good: 9, inaccuracy: 0, mistake: 0, blunder: 0 },
         weakness: "mill-missed",

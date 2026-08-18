@@ -253,8 +253,9 @@ type Played = {
  *
  * Like the history it is written down whether or not teaching is on: what
  * teaching gates is the offer, not the recording, so a player who switches it on
- * halfway through a game is shown the whole game rather than the half of it they
- * were being taught in.
+ * halfway through a game is shown every move of it rather than only the ones
+ * played since. The moves played before carry no grade — nothing was ever asked
+ * about them — and are listed without one.
  */
 type MoveList = {
   readonly moves: readonly Played[];
@@ -831,6 +832,25 @@ export const createGameSession = ({
   };
 
   /**
+   * Whether the player is looking back at a move rather than at the game. The
+   * board they are being shown is not the one the game is on, so nothing that
+   * acts on the game answers while it stands.
+   */
+  const isLookingBack = () => list.reviewing !== undefined;
+
+  /**
+   * Come back to the game itself. It is not only the player's to ask for: the
+   * move list is teaching's, so switching teaching off takes away the way back
+   * and the game has to be handed over rather than left on a board nobody can
+   * play or leave.
+   */
+  const watchTheGame = () => {
+    if (!isLookingBack()) return;
+
+    list = { ...list, reviewing: undefined };
+  };
+
+  /**
    * A whole move goes into the record, alongside the state it was played from
    * going into the history: the two are appended to together, here and in the
    * computer's own answer, and nowhere else. That is what lets a takeback
@@ -1043,7 +1063,7 @@ export const createGameSession = ({
       // answer, and it is not answered by tapping the board.
       if (secondThoughts.held !== undefined) return;
       // Neither is the board being looked back at the board the game is on.
-      if (list.reviewing !== undefined) return;
+      if (isLookingBack()) return;
       if (isOpponentToMove(recorded.game, playing.opponentSide)) return;
 
       const next = nextRecorded(recorded, intent);
@@ -1134,6 +1154,11 @@ export const createGameSession = ({
       // they committed to it, and switching teaching off asks not to be checked
       // rather than asking to have the move back.
       if (!on) playHeld();
+      // And a player looking back at a move is handed the game back. The move
+      // list is teaching's, so switching it off takes the way back off the page
+      // — and a board frozen on a move already played, with nothing on it to
+      // play and nothing to say why, is the worst thing this could leave behind.
+      if (!on) watchTheGame();
 
       // Teaching switched off takes its hint and its assessment with it, so switching
       // it back on is a clean slate rather than what they turned away from.
@@ -1147,7 +1172,7 @@ export const createGameSession = ({
     },
 
     askForHint: () => {
-      if (chooseHint === undefined || list.reviewing !== undefined) return;
+      if (chooseHint === undefined || isLookingBack()) return;
       if (teaching.hinting || !hintIsOffered(recorded, playing, teaching, secondThoughts)) return;
 
       const asked = putAside;
@@ -1175,7 +1200,7 @@ export const createGameSession = ({
 
     takeBack: () => {
       if (!teaching.on || secondThoughts.held !== undefined) return;
-      if (list.reviewing !== undefined) return;
+      if (isLookingBack()) return;
 
       const back = takenBackTo(recorded, secondThoughts, playing);
       if (back === undefined) return;
@@ -1208,9 +1233,9 @@ export const createGameSession = ({
     },
 
     stopReviewing: () => {
-      if (list.reviewing === undefined) return;
+      if (!isLookingBack()) return;
 
-      list = { ...list, reviewing: undefined };
+      watchTheGame();
       publish();
     },
 

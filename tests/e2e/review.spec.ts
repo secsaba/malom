@@ -1,7 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { strings } from "../../src/strings";
-import { MILL_FREE_PLACING, WALLED_IN } from "../fixtures/games";
+import { MILL_FREE_PLACING, REPETITION_CYCLE, WALLED_IN } from "../fixtures/games";
 import { pointAt, tap } from "./taps";
 
 /** The block of the summary about one side. */
@@ -94,11 +94,11 @@ test("counts the finished game up and names what to work on", async ({ page }) =
 
   // One block per side, because both of them were being taught.
   await expect(page.getByTestId("summary-side")).toHaveCount(2);
-  await expect(summaryFor(page, "light").getByTestId("outcome")).toHaveText(
-    strings.teaching.summary.outcome.lost,
+  await expect(summaryFor(page, "light").getByTestId("side-result")).toHaveText(
+    strings.teaching.summary.result.lost,
   );
-  await expect(summaryFor(page, "dark").getByTestId("outcome")).toHaveText(
-    strings.teaching.summary.outcome.won,
+  await expect(summaryFor(page, "dark").getByTestId("side-result")).toHaveText(
+    strings.teaching.summary.result.won,
   );
 
   // Every move each side played is counted, once the engine has answered for
@@ -120,6 +120,25 @@ test("counts the finished game up and names what to work on", async ({ page }) =
     said === strings.teaching.summary.noWeakness ||
       catalogued.some((criticism) => said.includes(criticism)),
   ).toBe(true);
+});
+
+/** The acceptance criterion: a draw is not framed as a failure. */
+test("sums a drawn game up as drawn rather than as a defeat", async ({ page }) => {
+  await page.getByLabel(strings.teaching.toggle).check();
+  await tap(page, ...MILL_FREE_PLACING);
+
+  // Twice round the cycle brings the position back for the third time, which
+  // draws the game with neither side having lost it.
+  for (const [from, to] of REPETITION_CYCLE) await tap(page, from, to);
+  for (const [from, to] of REPETITION_CYCLE) await tap(page, from, to);
+
+  await expect(page.getByTestId("result")).toHaveText(strings.game.result.draw);
+
+  for (const side of ["light", "dark"] as const) {
+    await expect(summaryFor(page, side).getByTestId("side-result")).toHaveText(
+      strings.teaching.summary.result.drawn,
+    );
+  }
 });
 
 test("throws the record away with the game it was written for", async ({ page }) => {

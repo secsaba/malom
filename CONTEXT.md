@@ -211,7 +211,7 @@ _Hungarian_: visszalépés
 _Avoid_: undo, rewind, retry
 
 **Move list**:
-Every move of the game in order, written in the notation a move is read out in and carrying the grade it earned. It is the record of the one game in front of the player, and it is written down whether or not teaching is on — what teaching gates is showing it, in the way it gates the offer of a takeback rather than the recording of one.
+Every move of the game in order, written in the notation a move is read out in and carrying the grade it earned. It is the record of the one game in front of the player, and it is written down whether or not teaching is on — what teaching gates is showing it, in the way it gates the offer of a takeback rather than the recording of one. A move played before teaching was switched on is in the list without a grade: nothing was ever asked about it.
 _Hungarian_: lépéslista
 _Avoid_: history, log, transcript, scoresheet
 
@@ -221,7 +221,7 @@ _Hungarian_: visszanézés _(coined)_
 _Avoid_: replay, rewind, browse, undo
 
 **Summary**:
-What a finished game came to for one side: how many of its moves fell in each grade, and its weakness. There is one per side the engine graded a move of, so two people sharing a device each read their own game and a player against the computer reads only their own. Its scope is the one game and nothing carries across games — a mistake the player has stopped making is not one to work on. A drawn game is summarised as drawn and never as a defeat: against Mester a draw is the result to play for.
+What a finished game came to for one side: the Result read from that side's own point of view — won, drawn or lost — how many of its moves fell in each grade, and its weakness. There is one per side the engine graded a move of, so two people sharing a device each read their own game and a player against the computer reads only their own. Its scope is the one game and nothing carries across games — a mistake the player has stopped making is not one to work on. A drawn game is summarised as drawn and never as a defeat: against Mester a draw is the result to play for.
 _Hungarian_: összegzés
 _Avoid_: report, statistics, post-mortem, review — the last of those naming looking back at a move
 

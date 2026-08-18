@@ -20,10 +20,10 @@ type SummaryProps = {
  * who changed difficulty mid-game is taken at their last word, which is the same
  * reading the rest of the interface gives that setting.
  */
-const outcomeOf = ({ outcome }: SideSummary, againstMaster: boolean): string =>
-  outcome === "drawn" && againstMaster
-    ? strings.teaching.summary.outcome.drawnAgainstMaster
-    : strings.teaching.summary.outcome[outcome];
+const resultOf = ({ result }: SideSummary, againstMaster: boolean): string =>
+  result === "drawn" && againstMaster
+    ? strings.teaching.summary.result.drawnAgainstMaster
+    : strings.teaching.summary.result[result];
 
 /**
  * The summary at the end of the game: what it came to for each side the engine
@@ -54,8 +54,8 @@ export const Summary = ({ summary, againstMaster }: SummaryProps) => (
       >
         <h3 className="summary__who">{strings.game.side[side.side]}</h3>
 
-        <p className="summary__outcome" data-testid="outcome" data-outcome={side.outcome}>
-          {outcomeOf(side, againstMaster)}
+        <p className="summary__result" data-testid="side-result" data-result={side.result}>
+          {resultOf(side, againstMaster)}
         </p>
 
         <dl className="summary__counts">

@@ -81,15 +81,15 @@ describe("the strings module", () => {
 
   /** The acceptance criterion: a draw is the target result against Mester. */
   it("words a draw as a draw and never as a defeat", () => {
-    const { outcome } = hu.teaching.summary;
+    const { result } = hu.teaching.summary;
 
-    expect(outcome.drawn).toContain("Döntetlen");
-    expect(outcome.drawnAgainstMaster).toContain("Döntetlen");
-    expect(outcome.drawnAgainstMaster).toContain("Mester");
-    expect(`${outcome.drawn} ${outcome.drawnAgainstMaster}`.toLowerCase()).not.toMatch(
+    expect(result.drawn).toContain("Döntetlen");
+    expect(result.drawnAgainstMaster).toContain("Döntetlen");
+    expect(result.drawnAgainstMaster).toContain("Mester");
+    expect(`${result.drawn} ${result.drawnAgainstMaster}`.toLowerCase()).not.toMatch(
       /veszt|vereség/u,
     );
-    expect(outcome.lost.toLowerCase()).toMatch(/veszt/u); // which is what the loss says
+    expect(result.lost.toLowerCase()).toMatch(/veszt/u); // which is what the loss says
   });
 
   it("words the patterns with the terms the glossary settles on", () => {

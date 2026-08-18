@@ -180,8 +180,8 @@ export const hu = {
      */
     summary: {
       heading: "Játszma összegzése",
-      /** Keyed by how the game ended for the side being summarised. */
-      outcome: {
+      /** Keyed by the Result read from the side being summarised. */
+      result: {
         won: "Megnyerte a játszmát.",
         drawn: "Döntetlen: egyik fél sem tudta megnyerni.",
         /** The draw shown where the opponent was the computer at full strength. */
