@@ -334,6 +334,7 @@ body {
  */
 .teaching__grade {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 0.5rem;
   margin: 0;
@@ -345,6 +346,16 @@ body {
 
 .teaching__grade-verdict {
   font-weight: 600;
+}
+
+/*
+ * The reason takes the line under the verdict rather than running on beside it:
+ * it is a whole sentence, and a sentence set beside two words reads as a caption
+ * on them.
+ */
+.teaching__grade-reason {
+  flex-basis: 100%;
+  color: var(--page-ink-dim);
 }
 
 .difficulty {

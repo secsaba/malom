@@ -12,12 +12,14 @@ import {
 import { DEFAULT_DIFFICULTY } from "../opponent/difficulty";
 import { createOpponent, searchInProcess } from "../opponent/opponent";
 import {
+  type Assessment,
   type ChooseHint,
   type ChooseMove,
   type Difficulty,
   type GameSession,
   type Grade,
-  type GradeMove,
+  type AssessMove,
+  type Pattern,
   createGameSession,
 } from "./game-session";
 
@@ -110,15 +112,26 @@ const askedEngine = () => {
 };
 
 /**
+ * A verdict of the shape the engine hands back. What the facade does with one is
+ * carry it, so the tests say the grade they mean and let the patterns default to
+ * none; the ones about patterns and reasons name them.
+ */
+const verdict = (grade: Grade, patterns: readonly Pattern[] = []): Assessment => ({
+  grade,
+  patterns,
+  reason: patterns[0] === undefined ? { kind: "agrees" } : { kind: "pattern", pattern: patterns[0] },
+});
+
+/**
  * A stand-in for the engine asked what a move was worth: it writes down the game
  * and the move it was asked about and answers only when the test says so, one
  * answer per question in the order they were asked.
  */
-const askedGrader = () => {
+const askedAssessor = () => {
   const asked: { game: Game; move: Move }[] = [];
-  const answers: ((grade: Grade | undefined) => void)[] = [];
+  const answers: ((assessment: Assessment | undefined) => void)[] = [];
 
-  const gradeMove: GradeMove = (game, move) => {
+  const assessMove: AssessMove = (game, move) => {
     asked.push({ game, move });
     return new Promise((resolve) => {
       answers.push(resolve);
@@ -127,10 +140,10 @@ const askedGrader = () => {
 
   return {
     asked,
-    gradeMove,
-    /** Hand back the grade for the oldest question still waiting on one. */
-    reply: async (grade: Grade | undefined) => {
-      answers.shift()?.(grade);
+    assessMove,
+    /** Hand back the verdict for the oldest question still waiting on one. */
+    reply: async (grade: Grade | undefined, patterns?: readonly Pattern[]) => {
+      answers.shift()?.(grade === undefined ? undefined : verdict(grade, patterns));
       await settled();
     },
   };
@@ -1264,11 +1277,11 @@ describe("asking for a hint", () => {
   });
 });
 
-describe("grading the move just played", () => {
+describe("assessing the move just played", () => {
   /** A game two people are playing, with teaching switched on. */
   const beingTaught = () => {
-    const engine = askedGrader();
-    const session = createGameSession({ gradeMove: engine.gradeMove });
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
     session.teach(true);
 
     return { engine, session };
@@ -1282,13 +1295,60 @@ describe("grading the move just played", () => {
     expect(engine.asked).toHaveLength(1);
     expect(engine.asked[0]?.game.position.size).toBe(0); // the board the move was played on
     expect(engine.asked[0]?.move).toEqual({ to: "a1" });
-    expect(session.state.grading).toBe(true);
+    expect(session.state.assessing).toBe(true);
     expect(session.state.grade).toBeUndefined();
 
     await engine.reply("good");
 
     expect(session.state.grade).toBe("good");
-    expect(session.state.grading).toBe(false);
+    expect(session.state.assessing).toBe(false);
+  });
+
+  /**
+   * The grade is a word and the reason is what stands beside it, so both have to
+   * reach the player together. The facade carries them as data and never as a
+   * sentence (ADR-0002).
+   */
+  it("carries the reason and everything detected alongside the grade", async () => {
+    const { engine, session } = beingTaught();
+
+    place(session, "a1");
+
+    expect(session.state.reason).toBeUndefined();
+    expect(session.state.patterns).toEqual([]);
+
+    await engine.reply("best", ["fork-created", "intersection-taken"]);
+
+    expect(session.state.reason).toEqual({ kind: "pattern", pattern: "fork-created" });
+    expect(session.state.patterns).toEqual(["fork-created", "intersection-taken"]);
+  });
+
+  /**
+   * Everything the engine detected is carried and not only the one the reason
+   * names, because a game is more than a move: the summary at the end of one
+   * counts the mistakes the player keeps making, and a criticism that went
+   * unsaid is still one they made.
+   */
+  it("carries what it detected even where the reason names something else", async () => {
+    const { engine, session } = beingTaught();
+
+    place(session, "a1");
+    await engine.reply("blunder", ["mill-closed", "piece-left-blockable"]);
+
+    expect(session.state.patterns).toContain("piece-left-blockable");
+  });
+
+  it("takes the reason away with the grade when teaching is switched off", async () => {
+    const { engine, session } = beingTaught();
+
+    place(session, "a1");
+    await engine.reply("good", ["mill-blocked"]);
+
+    session.teach(false);
+
+    expect(session.state.grade).toBeUndefined();
+    expect(session.state.reason).toBeUndefined();
+    expect(session.state.patterns).toEqual([]);
   });
 
   /** A move is graded whole: which piece a mill takes is part of what was played. */
@@ -1322,11 +1382,11 @@ describe("grading the move just played", () => {
   });
 
   it("says nothing about the computer's own moves", async () => {
-    const engine = askedGrader();
+    const engine = askedAssessor();
     const opponent = askedOpponent();
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      gradeMove: engine.gradeMove,
+      assessMove: engine.assessMove,
       players: { opponentSide: "light" },
     });
 
@@ -1334,7 +1394,7 @@ describe("grading the move just played", () => {
 
     expect(session.state.position.get("a1")).toBe("light");
     expect(engine.asked).toEqual([]);
-    expect(session.state.grading).toBe(false);
+    expect(session.state.assessing).toBe(false);
   });
 
   /**
@@ -1343,11 +1403,11 @@ describe("grading the move just played", () => {
    * about it.
    */
   it("stays in front of the player while the computer plays its reply", async () => {
-    const engine = askedGrader();
+    const engine = askedAssessor();
     const opponent = askedOpponent();
     const session = createGameSession({
       chooseMove: opponent.chooseMove,
-      gradeMove: engine.gradeMove,
+      assessMove: engine.assessMove,
       players: { opponentSide: "dark" },
     });
 
@@ -1366,7 +1426,7 @@ describe("grading the move just played", () => {
     await engine.reply(undefined);
 
     expect(session.state.grade).toBeUndefined();
-    expect(session.state.grading).toBe(false);
+    expect(session.state.assessing).toBe(false);
   });
 
   it("puts the grade away as soon as the next move is played", async () => {
@@ -1377,7 +1437,7 @@ describe("grading the move just played", () => {
     place(session, "g7");
 
     expect(session.state.grade).toBeUndefined();
-    expect(session.state.grading).toBe(true);
+    expect(session.state.assessing).toBe(true);
   });
 
   it("drops an answer about a move the player has already moved on from", async () => {
@@ -1388,22 +1448,22 @@ describe("grading the move just played", () => {
     await engine.reply("blunder"); // the answer about a1, arriving late
 
     expect(session.state.grade).toBeUndefined();
-    expect(session.state.grading).toBe(true);
+    expect(session.state.assessing).toBe(true);
 
     await engine.reply("good");
 
     expect(session.state.grade).toBe("good");
-    expect(session.state.grading).toBe(false);
+    expect(session.state.assessing).toBe(false);
   });
 
   it("asks nothing at all while teaching is off", () => {
-    const engine = askedGrader();
-    const session = createGameSession({ gradeMove: engine.gradeMove });
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
 
     place(session, "a1");
 
     expect(engine.asked).toEqual([]);
-    expect(session.state.grading).toBe(false);
+    expect(session.state.assessing).toBe(false);
     expect(session.state.grade).toBeUndefined();
   });
 
@@ -1430,7 +1490,7 @@ describe("grading the move just played", () => {
     session.teach(true);
 
     expect(session.state.grade).toBeUndefined();
-    expect(session.state.grading).toBe(false);
+    expect(session.state.assessing).toBe(false);
   });
 
   it("discards the answer to a game that has been thrown away", async () => {
@@ -1441,7 +1501,7 @@ describe("grading the move just played", () => {
     await engine.reply("blunder");
 
     expect(session.state.grade).toBeUndefined();
-    expect(session.state.grading).toBe(false);
+    expect(session.state.assessing).toBe(false);
   });
 
   it("starts another game with nothing in front of the player", async () => {
@@ -1460,7 +1520,7 @@ describe("grading the move just played", () => {
 
     place(session, "a1");
 
-    expect(session.state.grading).toBe(false);
+    expect(session.state.assessing).toBe(false);
     expect(session.state.grade).toBeUndefined();
   });
 });

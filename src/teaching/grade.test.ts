@@ -1,49 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { DEFAULT_WEIGHTS } from "../ai/evaluation";
-import { type ScoredMove, type SearchResult, WIN_SCORE } from "../ai/search";
-import { type Game, NEW_GAME, PHASES, type Phase, phaseOf } from "../engine/game";
-import { DIFFICULTY_SETTINGS } from "../opponent/difficulty";
-import type { RunSearch, SearchRequest } from "../opponent/opponent";
-import { gameOf } from "../../tests/fixtures/games";
-import { BANDS, GRADES, LOST_POSITION, createGrader, gradeOf, isNoWorseThan } from "./grade";
-
-/** One game in each phase, so what grading asks for can be read off all three. */
-const IN_EACH_PHASE: Readonly<Record<Phase, Game>> = {
-  placing: NEW_GAME,
-  moving: gameOf({
-    light: ["a1", "a4", "a7", "b2"],
-    dark: ["g1", "g4", "g7", "f6"],
-    sideToMove: "light",
-  }),
-  flying: gameOf({
-    light: ["a1", "a4", "a7"],
-    dark: ["g1", "g4", "g7", "f6"],
-    sideToMove: "light",
-  }),
-};
-
-/**
- * A search that writes down what it was asked and answers with the moves the
- * test ranked, best first — which is the order the search itself hands them back
- * in, and the only thing grading reads off them.
- */
-const rankedSearch = (candidates: readonly ScoredMove[]) => {
-  const asked: SearchRequest[] = [];
-  const result: SearchResult = {
-    move: candidates[0]?.move,
-    evaluation: candidates[0]?.score ?? 0,
-    depth: 4,
-    candidates,
-  };
-
-  const runSearch: RunSearch = (request) => {
-    asked.push(request);
-    return Promise.resolve(result);
-  };
-
-  return { asked, runSearch };
-};
+import { WIN_SCORE } from "../ai/search";
+import { PHASES } from "../engine/game";
+import { BANDS, GRADES, LOST_POSITION, gradeOf, isNoWorseThan } from "./grade";
 
 describe("what the engine makes of a move", () => {
   it("calls the move it would have played itself the best one", () => {
@@ -177,98 +137,6 @@ describe("a move played in a position already lost", () => {
         gradeOf(phase, { preferred: 5 - WIN_SCORE, played: 1 - WIN_SCORE - 900 }),
         phase,
       ).toBe("inaccuracy");
-    }
-  });
-});
-
-describe("grading the move a player has just played", () => {
-  it("weighs it against the moves the engine ranked in the position it was played in", async () => {
-    const search = rankedSearch([
-      { move: { to: "d2" }, score: 30 },
-      { move: { to: "a1" }, score: 30 - BANDS.placing[0].loss },
-    ]);
-
-    const grade = await createGrader(search.runSearch)(NEW_GAME, { to: "a1" });
-
-    expect(grade).toBe(BANDS.placing[0].grade);
-    expect(search.asked[0]?.game).toBe(NEW_GAME);
-  });
-
-  it("calls the move the engine preferred the best one", async () => {
-    const search = rankedSearch([
-      { move: { to: "d2" }, score: 30 },
-      { move: { to: "a1" }, score: -900 },
-    ]);
-
-    expect(await createGrader(search.runSearch)(NEW_GAME, { to: "d2" })).toBe("best");
-  });
-
-  /** A move nobody had a choice about says nothing about the player who played it. */
-  it("gives no grade where the rules offered one move and no other", async () => {
-    const search = rankedSearch([{ move: { from: "a1", to: "a4" }, score: 30 }]);
-
-    expect(await createGrader(search.runSearch)(NEW_GAME, { from: "a1", to: "a4" })).toBeUndefined();
-  });
-
-  it("gives no grade where the search ranked nothing at all", async () => {
-    const search = rankedSearch([]);
-
-    expect(await createGrader(search.runSearch)(NEW_GAME, { to: "a1" })).toBeUndefined();
-  });
-
-  /**
-   * Which piece to take is a decision of its own, so two moves arriving on the
-   * same point are two moves and are told apart by the piece they took.
-   */
-  it("tells one capture from another out of the same arrival", async () => {
-    const search = rankedSearch([
-      { move: { to: "g1", capture: "a7" }, score: 30 },
-      { move: { to: "g1", capture: "d7" }, score: 30 - BANDS.placing[0].loss },
-    ]);
-    const grade = createGrader(search.runSearch);
-
-    expect(await grade(NEW_GAME, { to: "g1", capture: "a7" })).toBe("best");
-    expect(await grade(NEW_GAME, { to: "g1", capture: "d7" })).toBe(BANDS.placing[0].grade);
-  });
-
-  it("gives no grade for a move the search did not rank", async () => {
-    const search = rankedSearch([
-      { move: { to: "d2" }, score: 30 },
-      { move: { to: "a1" }, score: 10 },
-    ]);
-
-    expect(await createGrader(search.runSearch)(NEW_GAME, { to: "g7" })).toBeUndefined();
-  });
-
-  /**
-   * The bands belong to the phase, so the grader reads them off the game it was
-   * handed rather than off one table for the whole match. The same two scores
-   * are a blunder while pieces are being placed, where a piece is worth 8, and
-   * are not one while they fly, where a piece is worth 300.
-   */
-  it("reads the bands of the phase the move was played in", async () => {
-    const candidates: readonly ScoredMove[] = [
-      { move: { to: "d2" }, score: 0 },
-      { move: { to: "a1" }, score: -BANDS.placing[0].loss },
-    ];
-
-    expect(await createGrader(rankedSearch(candidates).runSearch)(NEW_GAME, { to: "a1" })).toBe(
-      "blunder",
-    );
-    expect(
-      await createGrader(rankedSearch(candidates).runSearch)(IN_EACH_PHASE.flying, { to: "a1" }),
-    ).not.toBe("blunder");
-  });
-
-  /** ADR-0001: the engine that teaches is never the weakened one that plays. */
-  it("is searched for as deeply as the strongest difficulty looks, in every phase", async () => {
-    for (const [phase, game] of Object.entries(IN_EACH_PHASE)) {
-      const search = rankedSearch([{ move: { to: "d2" }, score: 0 }]);
-      expect(phaseOf(game), phase).toBe(phase);
-
-      await createGrader(search.runSearch)(game, { to: "d2" });
-
-      expect(search.asked[0]?.depth, phase).toBe(DIFFICULTY_SETTINGS.master.depth[phase as Phase]);
     }
   });
 });

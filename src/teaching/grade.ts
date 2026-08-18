@@ -10,25 +10,21 @@
  * twice — once about the position before the move and once about the position
  * after it — would be asking two different questions and subtracting the answers.
  *
- * It runs the engine at full strength whatever difficulty is being played
- * (ADR-0001), for the same reason a hint does: a grade handed down by the
- * weakened opponent would call the opponent's own mistakes good moves. Where the
- * search runs is handed in, exactly as it is for the hint and the opponent.
- *
  * The bands the loss is read against are calibrated against a corpus of played
  * games rather than picked by intuition, and there is a table of them per phase
  * because the evaluation's units are not the same size in all three;
- * `docs/tuning/grades.md` has the run. No reason is attached to a grade here — a
- * reason may only come from a pattern the engine positively detected
- * (ADR-0003), which is #13's work and not this module's.
+ * `docs/tuning/grades.md` has the run.
+ *
+ * What a move cost is the whole of this module. What the move actually did is
+ * `patterns.ts`, what the player is told about it is `reason.ts`, and the engine
+ * that asks for all three is `assessment.ts` — which is also where the search
+ * comes in. Keeping the four apart is what stops a reason being inferred from a
+ * number: a grade may not reach for a pattern, and a pattern may not be read off
+ * a grade.
  */
 
 import { EVALUATION_LIMIT } from "../ai/evaluation";
-import type { ScoredMove } from "../ai/search";
-import { type Game, type Move, type Phase, phaseOf } from "../engine/game";
-import { FULL_STRENGTH, depthAt } from "../opponent/difficulty";
-import type { RunSearch } from "../opponent/opponent";
-import type { GradeMove } from "../session/game-session";
+import type { Move, Phase } from "../engine/game";
 
 /**
  * The five grades, best first. In Hungarian: Legjobb, Jó, Pontatlan, Hiba,
@@ -205,26 +201,3 @@ export const gradeOf = (phase: Phase, { preferred, played }: Scores): Grade => {
  */
 export const isTheSameMove = (one: Move, other: Move): boolean =>
   one.from === other.from && one.to === other.to && one.capture === other.capture;
-
-/** What the search made of the move actually played, where it ranked it at all. */
-const asPlayed = (candidates: readonly ScoredMove[], move: Move): ScoredMove | undefined =>
-  candidates.find(({ move: candidate }) => isTheSameMove(candidate, move));
-
-/**
- * An engine to grade moves with, thinking wherever the search it is given
- * thinks. A move the rules left no choice about is not graded — a player forced
- * into it has told nobody anything — and neither is a move the search did not
- * rank, which is a question about a position other than the one it was asked.
- */
-export const createGrader =
-  (runSearch: RunSearch): GradeMove =>
-  async (game: Game, move: Move) => {
-    const { candidates } = await runSearch({ game, depth: depthAt(FULL_STRENGTH, game) });
-
-    const [preferred] = candidates;
-    if (preferred === undefined || candidates.length < 2) return undefined;
-
-    const played = asPlayed(candidates, move);
-
-    return played && gradeOf(phaseOf(game), { preferred: preferred.score, played: played.score });
-  };

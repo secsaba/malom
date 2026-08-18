@@ -48,9 +48,12 @@ import {
   movablePointsOf,
 } from "../engine/position";
 import { DEFAULT_DIFFICULTY, DIFFICULTIES, type Difficulty } from "../opponent/difficulty";
+import type { Assessment } from "../teaching/assessment";
 import type { Grade } from "../teaching/grade";
+import type { Pattern } from "../teaching/patterns";
+import type { Reason } from "../teaching/reason";
 
-export type { Difficulty, Draw, Ending, Grade, Phase, Result };
+export type { Assessment, Difficulty, Draw, Ending, Grade, Pattern, Phase, Reason, Result };
 // The interface offers the difficulties the facade accepts, and asks the facade
 // for them rather than reaching past it to the opponent (ADR-0002).
 export { DIFFICULTIES };
@@ -78,15 +81,16 @@ export type ChooseHint = (game: Game) => Promise<Move | undefined>;
 
 /**
  * What the engine is asked once a player has played a move: the game as it stood
- * before the move and the whole move they played in it, for what it makes of it.
- * Nothing, where there was nothing to grade — a position the rules left one move
- * in tells nobody anything about the player who played it.
+ * before the move and the whole move they played in it, for the grade, the
+ * patterns and the reason it makes of it. Nothing, where there was nothing to
+ * grade — a position the rules left one move in tells nobody anything about the
+ * player who played it.
  *
  * Like a hint it runs at full strength however weakly the computer has been
  * asked to play (ADR-0001), and like a hint it answers later rather than at
  * once: the search behind it is the same search.
  */
-export type GradeMove = (game: Game, move: Move) => Promise<Grade | undefined>;
+export type AssessMove = (game: Game, move: Move) => Promise<Assessment | undefined>;
 
 /** Who is playing: the side the computer takes, or nobody, for two people sharing a device. */
 export type Players = {
@@ -98,8 +102,8 @@ export type GameSessionOptions = {
   readonly chooseMove?: ChooseMove | undefined;
   /** Asked for the move a hint shows. Without it, no hint is ever on offer. */
   readonly chooseHint?: ChooseHint | undefined;
-  /** Asked what a move just played was worth. Without it, no move is ever graded. */
-  readonly gradeMove?: GradeMove | undefined;
+  /** Asked what the engine makes of a move just played. Without it, no move is ever graded. */
+  readonly assessMove?: AssessMove | undefined;
   readonly players?: Players | undefined;
   /** How strongly the computer plays to begin with. */
   readonly difficulty?: Difficulty | undefined;
@@ -170,9 +174,9 @@ type Teaching = {
    * of the player while the computer answers: the reply is not their move, and
    * says nothing about it.
    */
-  readonly grade: Grade | undefined;
+  readonly assessment: Assessment | undefined;
   /** Whether the engine is still working out what to make of the move just played. */
-  readonly grading: boolean;
+  readonly assessing: boolean;
 };
 
 /** Everything a player can see about the game: what is recorded, and what follows from it. */
@@ -222,8 +226,20 @@ export type GameState = {
    * player's to learn from.
    */
   readonly grade: Grade | undefined;
+  /**
+   * The one thing the player is told about that move, beside the grade: a
+   * pattern the engine detected, or the move it would have played instead. It is
+   * data rather than a sentence, and `src/ui` words it (ADR-0002).
+   */
+  readonly reason: Reason | undefined;
+  /**
+   * Everything the engine detected in that move, ranked, and not only the one
+   * the reason names. Empty where there is nothing to say — including while the
+   * answer is still on its way.
+   */
+  readonly patterns: readonly Pattern[];
   /** Whether the engine is still working out what to make of the move just played. */
-  readonly grading: boolean;
+  readonly assessing: boolean;
   /**
    * Where the last piece to move came to rest — the capture it may have earned
    * is not part of it — so the interface can bring it in from where it came
@@ -231,6 +247,9 @@ export type GameState = {
    */
   readonly lastArrival: Arrival | undefined;
 };
+
+/** What the engine detected in a move it has nothing to say about. */
+const NOTHING_DETECTED: readonly Pattern[] = [];
 
 /** Whether the game is waiting on the computer rather than on the player. */
 const isOpponentToMove = (game: Game, opponentSide: Side | undefined): boolean =>
@@ -297,6 +316,7 @@ const stateOf = (
 ): GameState => {
   const { opponentSide, thinking, difficulty } = playing;
   const { game, selection, arrival, lastArrival } = recorded;
+  const assessment = teaching.on ? teaching.assessment : undefined;
   // A piece that has arrived is on the board and out of its hand from the moment
   // it lands, so what the players see mid-move is the arrival, not the game the
   // capture it owes will complete.
@@ -320,8 +340,10 @@ const stateOf = (
     hint: hintShown(recorded, teaching),
     hinting: teaching.hinting,
     hintOffered: hintIsOffered(recorded, playing, teaching),
-    grade: teaching.on ? teaching.grade : undefined,
-    grading: teaching.grading,
+    grade: assessment?.grade,
+    reason: assessment?.reason,
+    patterns: assessment?.patterns ?? NOTHING_DETECTED,
+    assessing: teaching.assessing,
     lastArrival,
   };
 };
@@ -479,7 +501,7 @@ export type GameSession = {
 export const createGameSession = ({
   chooseMove,
   chooseHint,
-  gradeMove,
+  assessMove,
   players = {},
   difficulty = DEFAULT_DIFFICULTY,
 }: GameSessionOptions = {}): GameSession => {
@@ -495,8 +517,8 @@ export const createGameSession = ({
     hasEngine: chooseHint !== undefined,
     hint: undefined,
     hinting: false,
-    grade: undefined,
-    grading: false,
+    assessment: undefined,
+    assessing: false,
   };
   let state = stateOf(recorded, playing, teaching);
   const listeners = new Set<() => void>();
@@ -539,39 +561,39 @@ export const createGameSession = ({
 
   // How many moves have been sent to be graded. An answer to any but the last of
   // them is about a move the player has already moved on from.
-  let gradesAsked = 0;
+  let assessmentsAsked = 0;
 
   /**
-   * Send a move a player has just made to be graded, where teaching is on and
+   * Send a move a player has just made to be assessed, where teaching is on and
    * there is an engine to send it to. The answer comes back later, so this
-   * returns long before there is a grade to show — and the grade the player was
+   * returns long before there is a verdict to show — and the one the player was
    * looking at goes now rather than then, because it was about the move before
    * this one.
    *
    * Only the moves a player makes come through here. The computer's own arrive
-   * by another road, and grading them would teach nobody anything.
+   * by another road, and assessing them would teach nobody anything.
    */
-  const grade = (about: Game, move: Move) => {
-    if (gradeMove === undefined || !teaching.on) return;
+  const assess = (about: Game, move: Move) => {
+    if (assessMove === undefined || !teaching.on) return;
 
     const asked = gamesStarted;
-    gradesAsked += 1;
-    const question = gradesAsked;
-    teaching = { ...teaching, grading: true, grade: undefined };
+    assessmentsAsked += 1;
+    const question = assessmentsAsked;
+    teaching = { ...teaching, assessing: true, assessment: undefined };
 
-    const graded = (answer: Grade | undefined) => {
+    const graded = (answer: Assessment | undefined) => {
       if (asked !== gamesStarted) return; // another game is being played now
-      if (question !== gradesAsked) return; // and another move has been played since
+      if (question !== assessmentsAsked) return; // and another move has been played since
 
       // A search that fails and a move there was nothing to say about come to
-      // the same thing: the player is left with no grade. So does an answer to a
+      // the same thing: the player is left with no assessment. So does an answer to a
       // question they have withdrawn by switching teaching off while it was
       // being worked out.
-      teaching = { ...teaching, grading: false, grade: teaching.on ? answer : undefined };
+      teaching = { ...teaching, assessing: false, assessment: teaching.on ? answer : undefined };
       publish();
     };
 
-    void gradeMove(about, move).then(graded, () => graded(undefined));
+    void assessMove(about, move).then(graded, () => graded(undefined));
   };
 
   // A game the computer opens is under way from the moment it is created.
@@ -598,7 +620,7 @@ export const createGameSession = ({
       // The computer is asked before the engine is: the two think in the same
       // thread, and the move somebody is waiting for goes first.
       think();
-      if (played) grade(about, played);
+      if (played) assess(about, played);
       publish();
     },
 
@@ -617,14 +639,14 @@ export const createGameSession = ({
       };
       // A hint asked for in the game just thrown away says nothing about this
       // one, and neither does the answer to it, which may still be on its way.
-      // Nor does a grade: the move it was about is not in this game.
+      // Nor does an assessment: the move it was about is not in this game.
       teaching = {
         ...teaching,
         on: taughtIn(next.opponentSide, chosenTeaching),
         hint: undefined,
         hinting: false,
-        grade: undefined,
-        grading: false,
+        assessment: undefined,
+        assessing: false,
       };
       think();
       publish();
@@ -643,13 +665,13 @@ export const createGameSession = ({
       chosenTeaching = on;
       if (on === teaching.on) return;
 
-      // Teaching switched off takes its hint and its grade with it, so switching
+      // Teaching switched off takes its hint and its assessment with it, so switching
       // it back on is a clean slate rather than what they turned away from.
       teaching = {
         ...teaching,
         on,
         hint: on ? teaching.hint : undefined,
-        grade: on ? teaching.grade : undefined,
+        assessment: on ? teaching.assessment : undefined,
       };
       publish();
     },

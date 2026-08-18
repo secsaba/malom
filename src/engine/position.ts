@@ -121,3 +121,47 @@ export const capturableFrom = (position: Position, side: Side): readonly PointId
 
   return outsideMills.length > 0 ? outsideMills : pieces;
 };
+
+/** Whether this side holds all three points of a line. */
+const isMill = (position: Position, line: Line, side: Side): boolean =>
+  line.every((point) => position.get(point) === side);
+
+/** The lines this side holds all three points of. */
+export const millsOf = (position: Position, side: Side): readonly Line[] =>
+  LINES.filter((line) => isMill(position, line, side));
+
+/** The lines this side holds two points of, with the third empty — one move from a mill. */
+export const potentialMillsOf = (position: Position, side: Side): readonly Line[] =>
+  LINES.filter((line) => {
+    const held = line.filter((point) => position.get(point) === side);
+
+    return held.length === 2 && line.some((point) => !position.has(point));
+  });
+
+/** The empty point a potential mill would be closed on. */
+export const closingPointOf = (position: Position, line: Line): PointId | undefined =>
+  line.find((point) => !position.has(point));
+
+/**
+ * The pieces of this side standing on two potential mills at once, which the
+ * opponent cannot block both of.
+ *
+ * Each point lies on exactly two lines, so a piece on two potential mills is one
+ * fork and never more. The two lines meet only at that piece, so the points that
+ * would close them are different ones and cannot both be taken in one move.
+ */
+export const forksOf = (position: Position, side: Side): readonly PointId[] => {
+  const potential = potentialMillsOf(position, side);
+
+  return pointsHeldBy(position, side).filter(
+    (point) => potential.filter((line) => (line as readonly PointId[]).includes(point)).length === 2,
+  );
+};
+
+/**
+ * The lines this side could still fill: those with no opponent piece anywhere on
+ * them. A side with none of these can never close another mill, whatever it
+ * plays.
+ */
+export const openLinesFor = (position: Position, side: Side): readonly Line[] =>
+  LINES.filter((line) => line.every((point) => position.get(point) !== opponentOf(side)));

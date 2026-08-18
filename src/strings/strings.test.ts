@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { DIFFICULTIES } from "../opponent/difficulty";
 import { GRADES } from "../teaching/grade";
+import { PATTERNS } from "../teaching/patterns";
 import { hu } from "./hu";
 import { strings } from "./index";
 
@@ -56,6 +57,30 @@ describe("the strings module", () => {
       "Erős",
       "Mester",
     ]);
+  });
+
+  /**
+   * ADR-0003: a reason is only ever generated from a pattern the engine
+   * positively detected. A pattern with no sentence would be one the interface
+   * could not say, and a sentence with no pattern would be one nothing detected.
+   */
+  it("has a sentence for every pattern the engine can detect, and no others", () => {
+    expect(Object.keys(hu.teaching.reason.pattern).sort()).toEqual([...PATTERNS].sort());
+  });
+
+  it("words the patterns with the terms the glossary settles on", () => {
+    const { pattern } = hu.teaching.reason;
+    const said = Object.values(pattern).join(" ").toLowerCase();
+
+    expect(pattern["fork-created"]).toContain("Kettős fenyegetés");
+    expect(pattern["fork-handed"]).toContain("Kettős fenyegetés");
+    expect(pattern["running-mill-opened"]).toContain("Csikicsuki");
+    expect(pattern["mill-blocked"]).toContain("nyitott malmát");
+    expect(pattern["mill-closed"]).toContain("levehette"); // levesz, and never üt
+
+    // kettős malom is a Hungarian phrase for closing two mills at once, which is
+    // not what a fork is; the glossary rules it out by name.
+    expect(said).not.toContain("kettős malom");
   });
 
   it("never reaches for ütés, which belongs to chess and draughts rather than to malom", () => {

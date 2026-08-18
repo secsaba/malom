@@ -96,6 +96,49 @@ export const hu = {
       mistake: "Hiba",
       blunder: "Súlyos hiba",
     },
+    /**
+     * The one line that stands beside the grade and says why. Every sentence
+     * here answers to a pattern the engine positively detected (ADR-0003), so
+     * there is exactly one of them per pattern and no way to word a verdict the
+     * engine cannot back up.
+     *
+     * The terms are the glossary's: kettős fenyegetés for a fork and never
+     * kettős malom, which means something else; levétel for a capture and never
+     * ütés, which belongs to chess; csikicsuki for a mill being run.
+     */
+    reason: {
+      /** Keyed by the pattern the engine detected, praise first. */
+      pattern: {
+        "opponent-mill-less": "Az ellenfélnek egyetlen vonalon sem maradt esélye malmot zárni.",
+        "fork-created": "Kettős fenyegetést épített: az ellenfél csak az egyiket tudja elzárni.",
+        "running-mill-opened": "Csikicsuki: a malmot minden második lépésben újra zárhatja.",
+        "mill-blocked": "Idejében elzárta az ellenfél nyitott malmát.",
+        "mill-closed": "Bezárta a malmot, és levehette az ellenfél egyik bábuját.",
+        "intersection-taken":
+          "Elfoglalta az egyik kereszteződést: ezek a tábla legértékesebb csomópontjai.",
+        "wrong-piece-captured": "Rossz bábut vett le: az ellenfél nyitott malma állva maradt.",
+        "mill-let-through": "Átengedte az ellenfél malmát: a következő lépésben bezárhatja.",
+        "fork-handed": "Kettős fenyegetéshez juttatta az ellenfelet.",
+        "mill-missed": "Malmot zárhatott volna, és kihagyta.",
+        "mill-broken-for-nothing":
+          "Feleslegesen bontotta meg a malmát: az ellenfél elfoglalhatja az elhagyott csomópontot.",
+        "piece-left-blockable":
+          "Olyan csomópontra lépett, ahol az ellenfél beszoríthatja a bábut.",
+      },
+      /**
+       * Where nothing was detected. The move the engine would have played
+       * follows in coordinates, which are notation rather than language and so
+       * are the one visible thing that does not come from here.
+       *
+       * It says what the engine would have played and not what it preferred: a
+       * move within a point of the engine's own is graded Legjobb, so a player
+       * can be told they played the best move and be shown a different one, and
+       * "inkább" would claim a preference the evaluation does not support.
+       */
+      prefers: "A gép ezt lépte volna:",
+      /** Where nothing was detected and the move played is the engine's own. */
+      agrees: "A gép is ezt lépte volna.",
+    },
   },
   /** Starting a game: who is playing it, and which side the player takes. */
   setup: {

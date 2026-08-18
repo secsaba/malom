@@ -26,7 +26,7 @@ import {
   type Players,
   createGameSession,
 } from "../session/game-session";
-import { createGrader } from "../teaching/grade";
+import { createAssessor } from "../teaching/assessment";
 import { createHint } from "../teaching/hint";
 
 export type UseGameSession = {
@@ -49,7 +49,7 @@ export const useGameSession = (): UseGameSession => {
     return createGameSession({
       chooseMove: createOpponent(runSearch),
       chooseHint: createHint(runSearch),
-      gradeMove: createGrader(runSearch),
+      assessMove: createAssessor(runSearch),
     });
   });
   const state = useSyncExternalStore(session.subscribe, () => session.state);

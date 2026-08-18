@@ -123,6 +123,18 @@ test("grades the move the player has just made", async ({ page }) => {
     await page.getByTestId("grade-verdict").innerText(),
   );
 
+  // ADR-0003: the reason beside it is one the strings module holds — a sentence
+  // for a pattern the engine detected, or the fallback naming the move it would
+  // have played. Which of them it is is the engine's own business; that it is
+  // never a sentence invented for the occasion is not.
+  const said = await page.getByTestId("grade-reason").innerText();
+  const catalogued: readonly string[] = [
+    ...Object.values(strings.teaching.reason.pattern),
+    strings.teaching.reason.agrees,
+  ];
+
+  expect(catalogued.includes(said) || said.startsWith(strings.teaching.reason.prefers)).toBe(true);
+
   await teaching.uncheck();
 
   await expect(grade).toHaveCount(0);

@@ -14,9 +14,17 @@
  * writing it in, or the next person cannot tell your reasoning from the noise.
  */
 
-import { LINES, type Line, type PointId, neighboursOf } from "../engine/board";
-import { type Game, type Phase, fliesIn, roomAround } from "../engine/game";
-import { type Position, SIDES, type Side, opponentOf, pointsHeldBy } from "../engine/position";
+import { neighboursOf } from "../engine/board";
+import { type Game, type Phase, fliesIn, roomAround, runningMillsOf } from "../engine/game";
+import {
+  SIDES,
+  type Side,
+  forksOf,
+  millsOf,
+  opponentOf,
+  pointsHeldBy,
+  potentialMillsOf,
+} from "../engine/position";
 
 /**
  * What an evaluation is made of. Each is counted for one side, and the score is
@@ -130,63 +138,24 @@ export const DEFAULT_WEIGHTS: Weights = {
   },
 };
 
-/** Whether a line is a mill this side holds. */
-const isMill = (position: Position, line: Line, side: Side): boolean =>
-  line.every((point) => position.get(point) === side);
-
-/** The lines this side holds two points of, with the third empty. */
-const potentialMillsOf = (position: Position, side: Side): readonly Line[] =>
-  LINES.filter((line) => {
-    const held = line.filter((point) => position.get(point) === side);
-
-    return held.length === 2 && line.some((point) => !position.has(point));
-  });
-
 /**
- * The mills this side can run: a closed mill with a piece that can step out to an
- * empty point beside it and step back next move, closing the mill again and
- * earning another capture every second move.
- *
- * The step back only works while the opponent cannot take the point that was
- * left, so the piece stepping out must have no opponent piece next to it — and a
- * side that flies reaches every point, which is why an opponent down to three
- * pieces ends the running of mills altogether.
+ * How much of each term one side has. What a mill, a potential mill, a fork and
+ * a running mill are is the rules' own business and is asked of them rather than
+ * worked out again here: the evaluation counts those shapes, and teaching names
+ * them, so a second copy of any of them could drift from the one the player is
+ * told about.
  */
-const runningMillsOf = (game: Game, side: Side): number => {
-  const { position } = game;
-  const opponent = opponentOf(side);
-  if (fliesIn(game, opponent)) return 0;
-
-  return LINES.filter((line) => isMill(position, line, side)).filter((line) =>
-    line.some(
-      (member) =>
-        // Every empty neighbour is off the mill's own line: the other two points
-        // of a mill are held by this very side, so neither of them is empty.
-        neighboursOf(member).some((next) => !position.has(next)) &&
-        neighboursOf(member).every((next) => position.get(next) !== opponent),
-    ),
-  ).length;
-};
-
-/** How much of each term one side has. */
 const tallyFor = (game: Game, side: Side): Tally => {
   const { position } = game;
   const held = pointsHeldBy(position, side);
-  const potential = potentialMillsOf(position, side);
   const room = held.map((point) => roomAround(game, point));
 
   return {
     material: held.length + game.piecesInHand[side],
-    mills: LINES.filter((line) => isMill(position, line, side)).length,
-    runningMills: runningMillsOf(game, side),
-    potentialMills: potential.length,
-    // Each point lies on exactly two lines, so a piece on two potential mills is
-    // one fork and never more. The two lines meet only at that piece, so the
-    // points that would close them are different ones and cannot both be blocked.
-    forks: held.filter(
-      (point) =>
-        potential.filter((line) => (line as readonly PointId[]).includes(point)).length === 2,
-    ).length,
+    mills: millsOf(position, side).length,
+    runningMills: runningMillsOf(game, side).length,
+    potentialMills: potentialMillsOf(position, side).length,
+    forks: forksOf(position, side).length,
     blocked: room.filter((points) => points.length === 0).length,
     mobility: room.reduce((total, points) => total + points.length, 0),
     degree: held.reduce((total, point) => total + neighboursOf(point).length, 0),

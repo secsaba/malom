@@ -76,6 +76,7 @@ export const App = () => {
         hintOffered={state.hintOffered}
         hinting={state.hinting}
         grade={state.grade}
+        reason={state.reason}
         onTeach={teach}
         onAskForHint={askForHint}
       />

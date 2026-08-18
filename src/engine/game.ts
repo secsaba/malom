@@ -16,7 +16,7 @@
  * answer. Both belong to a game going by, which is what a `Game` is.
  */
 
-import { POINTS, type PointId } from "./board";
+import { type Line, POINTS, type PointId, neighboursOf } from "./board";
 import {
   EMPTY_POSITION,
   type Ending,
@@ -28,6 +28,7 @@ import {
   emptyPoints,
   endingAgainst,
   flies,
+  millsOf,
   millsThrough,
   movablePointsOf,
   opponentOf,
@@ -153,6 +154,36 @@ export const roomAround = (game: Game, point: PointId): readonly PointId[] => {
   return game.placing
     ? slidesFrom(game.position, point)
     : destinationsFrom(game.position, point);
+};
+
+/**
+ * The mills this side can run — the csikicsuki: a closed mill with a piece that
+ * can step out to an empty point beside it and step back next move, closing the
+ * mill again and earning another capture every second move.
+ *
+ * The step back only works while the opponent cannot take the point that was
+ * left, so the piece stepping out must have no opponent piece next to it — and a
+ * side that flies reaches every point, which is why an opponent down to three
+ * pieces ends the running of mills altogether.
+ *
+ * It lives here rather than in `position.ts` because whether the opponent flies
+ * is a question about the game rather than about the board: three pieces mean
+ * nothing while pieces are still being placed.
+ */
+export const runningMillsOf = (game: Game, side: Side): readonly Line[] => {
+  const { position } = game;
+  const opponent = opponentOf(side);
+  if (fliesIn(game, opponent)) return [];
+
+  return millsOf(position, side).filter((line) =>
+    line.some(
+      (member) =>
+        // Every empty neighbour is off the mill's own line: the other two points
+        // of a mill are held by this very side, so neither of them is empty.
+        neighboursOf(member).some((next) => !position.has(next)) &&
+        neighboursOf(member).every((next) => position.get(next) !== opponent),
+    ),
+  );
 };
 
 /**

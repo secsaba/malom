@@ -186,14 +186,19 @@ _Hungarian_: none — nothing in the interface words it; only the grade it caps 
 _Avoid_: hopeless position, dead lost, resignable — and _lost game_, which is a game with a result rather than a position still being played
 
 **Pattern**:
-A named tactical feature the engine can positively detect — a fork created, a mill let through, a piece left blocked. Patterns are the only permitted source of a reason.
+A named tactical feature the engine can positively detect — a fork created, a mill let through, a piece left blocked. Patterns are the only permitted source of a reason. The catalogue of them is closed and ordered, and it has two halves: **praise**, what a move did well, and **criticism**, what it did badly. Which half a move is told about follows its grade, because a sentence praising a blunder teaches a learner to stop reading.
 _Hungarian_: mintázat
-_Avoid_: motif, insight, concept
+_Avoid_: motif, insight, concept — and for the two halves, positive and negative, which read as a sign rather than as what is said
 
 **Reason**:
 The plain-language sentence explaining a grade, generated from the patterns that fired. Where no pattern fires, the reason says only what the evaluation supports.
 _Hungarian_: indoklás
 _Avoid_: explanation, commentary, analysis
+
+**Assessment**:
+Everything the engine has to say about one move: its grade, every pattern it detected in it, and the reason those come to. The three are worked out apart — the grade from the search, the patterns from the rules, the reason from the two of them — and are carried together because a move is what they are all about. The patterns are carried whole rather than only the one the reason names, because the summary at the end of a game counts the mistakes a player keeps making, and a criticism that went unsaid is still one they made.
+_Hungarian_: none — nothing in the interface words it; the grade and the reason it holds are each shown under their own name
+_Avoid_: analysis, verdict, review, feedback
 
 **Blunder warning**:
 The optional, off-by-default intervention that asks for confirmation before a player commits a move graded as a blunder.
