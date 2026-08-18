@@ -2172,3 +2172,346 @@ describe("the piece that came to rest last", () => {
     expect(session.state.lastArrival).toEqual({ to: "a1" }); // the first point the rules offer
   });
 });
+
+describe("the record of the game", () => {
+  /** What the move list shows, written the way a test can read it at a glance. */
+  const listed = (session: GameSession) =>
+    session.state.moves.map(({ by, move, grade }) => ({ by, move, grade }));
+
+  it("writes down every move played out, oldest first, and who played it", () => {
+    const session = createGameSession();
+
+    place(session, "a1", "g7", "d1");
+
+    expect(listed(session)).toEqual([
+      { by: "light", move: { to: "a1" }, grade: undefined },
+      { by: "dark", move: { to: "g7" }, grade: undefined },
+      { by: "light", move: { to: "d1" }, grade: undefined },
+    ]);
+  });
+
+  it("writes a move down whole, and not the halves it was assembled from", () => {
+    const session = createGameSession();
+    place(session, "a1", "a7", "d1", "d7");
+
+    place(session, "g1"); // closes a1-d1-g1
+
+    expect(session.state.moves).toHaveLength(4); // an arrival is half a move
+
+    capture(session, "a7");
+
+    expect(listed(session)[4]).toEqual({
+      by: "light",
+      move: { to: "g1", capture: "a7" },
+      grade: undefined,
+    });
+  });
+
+  it("writes down nothing for a piece picked up and put down again", () => {
+    const session = upToTheMovingPhase();
+
+    select(session, "b2");
+    select(session, "b2");
+
+    expect(session.state.moves).toHaveLength(18);
+  });
+
+  it("says where a piece came from as well as where it went once pieces move", () => {
+    const session = upToTheMovingPhase();
+
+    slide(session, "b2", "b4");
+
+    expect(listed(session)[18]).toEqual({
+      by: "light",
+      move: { from: "b2", to: "b4" },
+      grade: undefined,
+    });
+  });
+
+  it("writes down the computer's moves as well as the player's", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      players: { opponentSide: "light" },
+    });
+
+    await opponent.reply({ to: "a1" });
+    place(session, "g7");
+
+    expect(listed(session)).toEqual([
+      { by: "light", move: { to: "a1" }, grade: undefined },
+      { by: "dark", move: { to: "g7" }, grade: undefined },
+    ]);
+  });
+
+  /** The recording is not teaching's, in the way the history a takeback walks is not. */
+  it("is written down whether or not teaching is on", () => {
+    const session = createGameSession();
+
+    expect(session.state.teaching).toBe(false);
+
+    place(session, "a1");
+
+    expect(session.state.moves).toHaveLength(1);
+  });
+
+  it("holds the grade against the move it was about", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+
+    place(session, "a1");
+    await engine.reply("blunder");
+
+    expect(listed(session)[0]?.grade).toBe("blunder");
+  });
+
+  /**
+   * An answer about an earlier move is stale for the line in front of the player
+   * and is dropped there, but it is still what the engine made of that move — so
+   * the record keeps it, and a player looking back at the move is told it.
+   */
+  it("keeps a late answer against its own move rather than dropping it", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+
+    place(session, "a1", "g7");
+    await engine.reply("blunder"); // the answer about a1, arriving late
+
+    expect(session.state.grade).toBeUndefined(); // stale in front of the player
+    expect(listed(session)[0]?.grade).toBe("blunder");
+
+    await engine.reply("good");
+
+    expect(listed(session)[1]?.grade).toBe("good");
+  });
+
+  it("holds the grade of a move that was checked before it was played", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+    session.warnOfBlunders(true);
+
+    place(session, "a1");
+    await engine.reply("blunder");
+    session.playAnyway();
+
+    expect(listed(session)[0]?.grade).toBe("blunder");
+  });
+
+  it("takes a move out of the record when the move is taken back", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+
+    place(session, "a1", "g7");
+    session.takeBack();
+
+    expect(session.state.moves).toHaveLength(1);
+
+    await engine.reply("good"); // the answer about a1, which is still in the game
+
+    expect(listed(session)[0]?.grade).toBe("good");
+  });
+
+  it("drops the answer to a move a takeback took out of the game", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+
+    place(session, "a1");
+    session.takeBack();
+    await engine.reply("blunder");
+
+    expect(session.state.moves).toEqual([]);
+  });
+
+  it("is thrown away with the game it was written for", () => {
+    const session = createGameSession();
+    place(session, "a1", "g7");
+
+    session.start({});
+
+    expect(session.state.moves).toEqual([]);
+  });
+});
+
+describe("looking back at a move", () => {
+  /** Three placements, played by two people with teaching on. */
+  const played = () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+    place(session, "a1", "g7", "d1");
+
+    return { engine, session };
+  };
+
+  it("shows the position the move produced", () => {
+    const { session } = played();
+
+    session.review(0);
+
+    expect(session.state.reviewing).toBe(0);
+    expect(session.state.position.get("a1")).toBe("light");
+    expect(session.state.position.has("g7")).toBe(false);
+    expect(session.state.sideToMove).toBe("dark");
+    expect(session.state.piecesInHand).toEqual({ light: 8, dark: 9 });
+    expect(session.state.lastArrival).toEqual({ from: undefined, to: "a1" });
+  });
+
+  it("shows what the engine made of that move rather than of the last one", async () => {
+    const { engine, session } = played();
+    await engine.reply("blunder", ["mill-missed"]);
+    await engine.reply("good");
+    await engine.reply("best");
+
+    session.review(0);
+
+    expect(session.state.grade).toBe("blunder");
+    expect(session.state.reason).toEqual({ kind: "pattern", pattern: "mill-missed" });
+    expect(session.state.patterns).toEqual(["mill-missed"]);
+  });
+
+  it("offers nothing on the board it is showing, and ignores what the player taps", () => {
+    const { session } = played();
+
+    session.review(0);
+
+    expect(session.state.legalPoints).toEqual([]);
+
+    place(session, "d7");
+
+    expect(session.state.position.has("d7")).toBe(false);
+    expect(session.state.moves).toHaveLength(3);
+  });
+
+  it("withdraws the hint and the takeback while it stands", () => {
+    const engine = askedEngine();
+    const session = createGameSession({ chooseHint: engine.chooseHint });
+    session.teach(true);
+    place(session, "a1", "g7");
+
+    session.review(0);
+
+    expect(session.state.hintOffered).toBe(false);
+    expect(session.state.takebackOffered).toBe(false);
+
+    session.askForHint();
+    session.takeBack();
+
+    expect(engine.asked).toEqual([]);
+    expect(session.state.moves).toHaveLength(2);
+  });
+
+  it("leaves the game exactly where it stood, and comes back to it", () => {
+    const { session } = played();
+
+    session.review(0);
+    session.stopReviewing();
+
+    expect(session.state.reviewing).toBeUndefined();
+    expect(session.state.position.get("d1")).toBe("light");
+    expect(session.state.sideToMove).toBe("dark");
+    expect(session.state.legalPoints.length).toBeGreaterThan(0);
+  });
+
+  it("answers nothing about a move that was never played", () => {
+    const { session } = played();
+
+    session.review(3);
+
+    expect(session.state.reviewing).toBeUndefined();
+  });
+
+  /** The computer plays on while the player looks back: a move list only grows. */
+  it("stays on the move it was left on while the game moves on", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      players: { opponentSide: "dark" },
+    });
+    place(session, "a1");
+
+    session.review(0);
+    await opponent.reply({ to: "g7" });
+
+    expect(session.state.reviewing).toBe(0);
+    expect(session.state.position.has("g7")).toBe(false);
+    expect(session.state.moves).toHaveLength(2);
+  });
+
+  it("is put away with the game it was looking into", () => {
+    const { session } = played();
+    session.review(0);
+
+    session.start({});
+
+    expect(session.state.reviewing).toBeUndefined();
+  });
+});
+
+describe("the summary at the end of the game", () => {
+  /** Every move of a game, answered for in the order the moves were played. */
+  const gradeEvery = async (
+    engine: ReturnType<typeof askedAssessor>,
+    grades: readonly Grade[],
+  ) => {
+    for (const grade of grades) await engine.reply(grade, ["mill-missed"]);
+  };
+
+  it("is empty while there is still a game to play", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+
+    place(session, "a1");
+    await engine.reply("blunder");
+
+    expect(session.state.result).toBeUndefined();
+    expect(session.state.summary).toEqual([]);
+  });
+
+  it("counts the graded moves of each side once the game is over", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+
+    place(session, ...WALLED_IN); // light comes to move with nowhere to go
+    await gradeEvery(
+      engine,
+      WALLED_IN.map((_, move) => (move % 2 === 0 ? "mistake" : "good")),
+    );
+
+    expect(session.state.result).toEqual({ winner: "dark", ending: "blocked" });
+    expect(session.state.summary).toEqual([
+      {
+        side: "light",
+        outcome: "lost",
+        graded: 9,
+        counts: { best: 0, good: 0, inaccuracy: 0, mistake: 9, blunder: 0 },
+        weakness: "mill-missed",
+      },
+      {
+        side: "dark",
+        outcome: "won",
+        graded: 9,
+        counts: { best: 0, good: 9, inaccuracy: 0, mistake: 0, blunder: 0 },
+        weakness: "mill-missed",
+      },
+    ]);
+  });
+
+  it("is thrown away with the game it summed up", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+    place(session, ...WALLED_IN);
+    await gradeEvery(engine, WALLED_IN.map(() => "good"));
+
+    session.start({});
+
+    expect(session.state.summary).toEqual([]);
+  });
+});

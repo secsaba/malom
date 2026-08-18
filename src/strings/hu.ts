@@ -159,6 +159,56 @@ export const hu = {
       /** Where nothing was detected and the move played is the engine's own. */
       agrees: "A gép is ezt lépte volna.",
     },
+    /**
+     * The move list, and coming back to the game from a move looked back at.
+     * The moves themselves are coordinates, which are notation rather than
+     * language, so nothing here words one — and neither is a move numbered
+     * here: the list is numbered where it is drawn.
+     */
+    moveList: {
+      heading: "Lépéslista",
+      /** Back from a move being looked back at to the game itself. */
+      backToPlay: "Vissza a játékhoz",
+    },
+    /**
+     * The summary at the end of the game: how the game ended for this side, how
+     * its moves were graded, and the mistake it made most often.
+     *
+     * A draw is worded as a draw and never as a defeat, because it is not one —
+     * against Mester it is the result to play for, and that is what the second
+     * of the two drawn sentences says.
+     */
+    summary: {
+      heading: "Játszma összegzése",
+      /** Keyed by how the game ended for the side being summarised. */
+      outcome: {
+        won: "Megnyerte a játszmát.",
+        drawn: "Döntetlen: egyik fél sem tudta megnyerni.",
+        /** The draw shown where the opponent was the computer at full strength. */
+        drawnAgainstMaster: "Döntetlen: Mester ellen éppen ez a cél.",
+        lost: "Elvesztette a játszmát.",
+      },
+      /** What the five counts beside the grades add up to. */
+      graded: "Értékelt lépések",
+      /** What the criticism named beside it is. */
+      weakness: "Gyenge pont",
+      /** Where nothing of this side's play was criticised at all. */
+      noWeakness: "A gép nem talált visszatérő hibát.",
+      /**
+       * The weakness itself, keyed by the criticism the engine detected most
+       * often. They are named as things rather than as something done on one
+       * move, because that is what they are here: the sentences under a grade
+       * are about the move just played, and read wrong over a whole game.
+       */
+      criticism: {
+        "wrong-piece-captured": "Rossz bábu levétele",
+        "mill-let-through": "Átengedett malom",
+        "fork-handed": "Az ellenfélnek adott kettős fenyegetés",
+        "mill-missed": "Kihagyott malom",
+        "mill-broken-for-nothing": "Feleslegesen megbontott malom",
+        "piece-left-blockable": "Beszorítható helyre lépett bábu",
+      },
+    },
   },
   /** Starting a game: who is playing it, and which side the player takes. */
   setup: {

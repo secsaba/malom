@@ -6,8 +6,10 @@ import type { GameState, Intent, Players } from "../session/game-session";
 import { strings } from "../strings";
 import { Board } from "./Board";
 import { DifficultyChoice } from "./DifficultyChoice";
+import { MoveList } from "./MoveList";
 import { FIRST_GAME, type NextGame, Setup } from "./Setup";
 import { Status } from "./Status";
+import { Summary } from "./Summary";
 import { Teaching } from "./Teaching";
 import { useGameSession } from "./useGameSession";
 
@@ -47,6 +49,8 @@ export const App = () => {
     teach,
     askForHint,
     takeBack,
+    review,
+    stopReviewing,
     warnOfBlunders,
     playAnyway,
     thinkAgain,
@@ -63,6 +67,10 @@ export const App = () => {
   // player takes the side the computer has just played — which is the whole
   // point of one: the opening is a different game from each side of it.
   const rematchSide: Side | undefined = state.result && state.opponentSide;
+
+  // A draw against the computer at full strength is the result a learner is
+  // playing for, and the summary says so rather than wording it as a defeat.
+  const againstMaster = state.opponentSide !== undefined && state.difficulty === "master";
 
   return (
     <main className="app">
@@ -99,6 +107,19 @@ export const App = () => {
         onPlayAnyway={playAnyway}
         onThinkAgain={thinkAgain}
       />
+
+      {state.teaching && state.summary.length > 0 && (
+        <Summary summary={state.summary} againstMaster={againstMaster} />
+      )}
+
+      {state.teaching && state.moves.length > 0 && (
+        <MoveList
+          moves={state.moves}
+          reviewing={state.reviewing}
+          onReview={review}
+          onStopReviewing={stopReviewing}
+        />
+      )}
 
       {rematchSide && (
         <button

@@ -395,6 +395,173 @@ body {
   color: var(--page-ink-dim);
 }
 
+/*
+ * The move list: one column, scrolled rather than allowed to push the board off
+ * a phone. A game runs to a few dozen moves and the board is the thing the page
+ * is for, so the list is given a height it cannot grow past.
+ */
+.move-list {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 22rem;
+}
+
+.move-list__heading {
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: normal;
+  color: var(--page-ink-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.move-list__moves {
+  max-height: 14rem;
+  margin: 0;
+  padding: 0 0 0 2.5rem;
+  overflow-y: auto;
+}
+
+.move-list__move::marker {
+  color: var(--page-ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Each move is the way back into the position it produced, so the whole line is
+ * the control rather than a link inside it.
+ */
+.move-list__played {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--page-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.move-list__played:hover {
+  background: var(--point-selected-ink);
+}
+
+/* The move being looked back at is one the player has left switched on. */
+.move-list__played[aria-pressed="true"] {
+  border-color: var(--point-hint-ink);
+  background: var(--point-hint-ink);
+}
+
+.move-list__by {
+  width: 5rem;
+  color: var(--page-ink-dim);
+}
+
+.move-list__notation {
+  width: 5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The grade sits in the dim ink the rest of the page reads its asides in, and
+ * not on a scale of colour from good to bad: a colour is read before the word
+ * is, and a learner who has stopped reading the word has stopped learning.
+ */
+.move-list__grade {
+  color: var(--page-ink-dim);
+}
+
+/*
+ * The summary: one block per side the engine graded, each of them a sentence
+ * about how the game ended, the five counts, and the one thing to work on.
+ */
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  width: 100%;
+  max-width: 32rem;
+}
+
+.summary__heading {
+  flex-basis: 100%;
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: normal;
+  color: var(--page-ink-dim);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.summary__side {
+  flex: 1 1 13rem;
+  padding: 0.75rem;
+  border: 1px solid var(--page-ink-dim);
+  border-radius: 0.5rem;
+}
+
+.summary__who {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.summary__outcome {
+  margin: 0 0 0.5rem;
+}
+
+.summary__counts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0 0 0.5rem;
+}
+
+.summary__count {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--page-ink-dim);
+}
+
+.summary__count dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* What the five above add up to, ruled off from them. */
+.summary__count--all {
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--page-ink-dim);
+}
+
+/*
+ * The weakness takes two lines: what it is, and then the mistake itself, in the
+ * page's own ink rather than the dim one — it is the thing the summary is for.
+ */
+.summary__weakness {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.summary__weakness-heading {
+  color: var(--page-ink-dim);
+}
+
+.summary__weakness-name {
+  font-weight: 600;
+}
+
 .difficulty {
   display: flex;
   justify-content: center;

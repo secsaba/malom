@@ -210,6 +210,26 @@ Returning the game to the player's previous decision point so they can try a dif
 _Hungarian_: visszalépés
 _Avoid_: undo, rewind, retry
 
+**Move list**:
+Every move of the game in order, written in the notation a move is read out in and carrying the grade it earned. It is the record of the one game in front of the player, and it is written down whether or not teaching is on — what teaching gates is showing it, in the way it gates the offer of a takeback rather than the recording of one.
+_Hungarian_: lépéslista
+_Avoid_: history, log, transcript, scoresheet
+
+**Review**:
+Looking back at the position a move of this game produced, without leaving the game. The board shows what that move led to and nothing on it can be played; the game is exactly where the player left it the moment they come back to it. It is not a takeback: a takeback changes the game, and a review only looks at it.
+_Hungarian_: visszanézés _(coined)_
+_Avoid_: replay, rewind, browse, undo
+
+**Summary**:
+What a finished game came to for one side: how many of its moves fell in each grade, and its weakness. There is one per side the engine graded a move of, so two people sharing a device each read their own game and a player against the computer reads only their own. Its scope is the one game and nothing carries across games — a mistake the player has stopped making is not one to work on. A drawn game is summarised as drawn and never as a defeat: against Mester a draw is the result to play for.
+_Hungarian_: összegzés
+_Avoid_: report, statistics, post-mortem, review — the last of those naming looking back at a move
+
+**Weakness**:
+The criticism a side's moves fired most often over a game, which is the one thing the summary names to work on next. It is counted from every pattern the engine detected and not only the ones said out loud at the time, because a criticism that went unsaid on the move it happened on is still one the player made. Two that fired as often as each other are separated by the catalogue's own order.
+_Hungarian_: gyenge pont
+_Avoid_: flaw, error type, problem area, leak
+
 ## Measuring the engine
 
 Nothing in this section is ever shown to a player, so none of it has a Hungarian surface form. It is the language of the harnesses that settled the engine's numbers — the evaluation's weights and the grade's bands — and of the tests that keep them honest.

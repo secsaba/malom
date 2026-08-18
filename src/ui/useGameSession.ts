@@ -42,6 +42,10 @@ export type UseGameSession = {
   readonly askForHint: () => void;
   /** Take the last move back, to the player's own decision point. */
   readonly takeBack: () => void;
+  /** Look back at the position a move of this game produced. */
+  readonly review: (move: number) => void;
+  /** Come back to the game itself. */
+  readonly stopReviewing: () => void;
   /** Ask to be warned before a blunder, or stop asking. */
   readonly warnOfBlunders: (on: boolean) => void;
   /** Play the move the warning asked about. */
@@ -70,6 +74,8 @@ export const useGameSession = (): UseGameSession => {
     teach: session.teach,
     askForHint: session.askForHint,
     takeBack: session.takeBack,
+    review: session.review,
+    stopReviewing: session.stopReviewing,
     warnOfBlunders: session.warnOfBlunders,
     playAnyway: session.playAnyway,
     thinkAgain: session.thinkAgain,

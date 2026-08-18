@@ -49,14 +49,16 @@ import {
 } from "../engine/position";
 import { DEFAULT_DIFFICULTY, DIFFICULTIES, type Difficulty } from "../opponent/difficulty";
 import type { Assessment } from "../teaching/assessment";
-import type { Grade } from "../teaching/grade";
+import { GRADES, type Grade } from "../teaching/grade";
 import type { Pattern } from "../teaching/patterns";
 import type { Reason } from "../teaching/reason";
+import { type Summary, summariesOf } from "../teaching/summary";
 
-export type { Assessment, Difficulty, Draw, Ending, Grade, Pattern, Phase, Reason, Result };
-// The interface offers the difficulties the facade accepts, and asks the facade
-// for them rather than reaching past it to the opponent (ADR-0002).
-export { DIFFICULTIES };
+export type { Assessment, Difficulty, Draw, Ending, Grade, Pattern, Phase, Reason, Result, Summary };
+// The interface offers the difficulties the facade accepts and lays the summary
+// out in the five grades, and asks the facade for both rather than reaching past
+// it to the opponent or to teaching (ADR-0002).
+export { DIFFICULTIES, GRADES };
 
 /**
  * What the computer is asked when its turn comes: the game as it stands and how
@@ -228,6 +230,54 @@ type SecondThoughts = {
   readonly held: Held | undefined;
 };
 
+/**
+ * A move the game has played out, as the record keeps it: the move itself, the
+ * side that played it, the game it led to — which is the position a player
+ * looking back at it is shown — and what the engine made of it, once it has said.
+ */
+type Played = {
+  readonly move: Move;
+  readonly by: Side;
+  readonly game: Game;
+  readonly assessment: Assessment | undefined;
+};
+
+/**
+ * The record of the game: every move played out in it, oldest first, and the one
+ * the player has gone back to look at.
+ *
+ * It runs in step with {@link SecondThoughts.history}. Both are appended to
+ * exactly once per whole move and in the same two places, so the move at `n` is
+ * the move played from the state at `n`, and a takeback that leaves a prefix of
+ * the history behind leaves the same prefix of the moves with it.
+ *
+ * Like the history it is written down whether or not teaching is on: what
+ * teaching gates is the offer, not the recording, so a player who switches it on
+ * halfway through a game is shown the whole game rather than the half of it they
+ * were being taught in.
+ */
+type MoveList = {
+  readonly moves: readonly Played[];
+  /**
+   * Which move of the list the player is looking back at. Nothing, while they
+   * are watching the game itself — which is where a game starts and where every
+   * game they have not gone back into stays.
+   */
+  readonly reviewing: number | undefined;
+};
+
+/** A move as the move list shows it: what was played, by whom, and what it earned. */
+export type ListedMove = {
+  readonly move: Move;
+  readonly by: Side;
+  /**
+   * What the engine graded it, where there was teaching to ask and it had
+   * anything to say. The computer's own moves have none, and neither do the
+   * moves the rules left no choice about.
+   */
+  readonly grade: Grade | undefined;
+};
+
 /** Everything a player can see about the game: what is recorded, and what follows from it. */
 export type GameState = {
   readonly position: Position;
@@ -306,6 +356,28 @@ export type GameState = {
   /** Whether the player is being asked to stand by a move the engine calls a blunder. */
   readonly warned: boolean;
   /**
+   * Every move played out in the game, oldest first, each with the grade it
+   * earned. It is the game's own record and not teaching's, so it is there
+   * whether or not teaching is on; what a move is written down as is `src/ui`'s
+   * business, which is where the notation lives.
+   */
+  readonly moves: readonly ListedMove[];
+  /**
+   * Which move of that list the player is looking back at, where they are
+   * looking back at one. While they are, the board shows the position that move
+   * produced and nothing on it is theirs to act on.
+   */
+  readonly reviewing: number | undefined;
+  /**
+   * What the game came to, one summary per side the engine graded a move of.
+   * Empty until the game is over, and empty in a game nobody was taught in.
+   *
+   * Its scope is this game and no other: another game started throws it away
+   * with everything else, so nothing a player did before is counted against
+   * them now.
+   */
+  readonly summary: readonly Summary[];
+  /**
    * Where the last piece to move came to rest — the capture it may have earned
    * is not part of it — so the interface can bring it in from where it came
    * rather than have it appear. Nothing, in a game nobody has moved in yet.
@@ -315,6 +387,12 @@ export type GameState = {
 
 /** What the engine detected in a move it has nothing to say about. */
 const NOTHING_DETECTED: readonly Pattern[] = [];
+
+/** What a game still being played has come to. */
+const NOTHING_SUMMARISED: readonly Summary[] = [];
+
+/** The record a game starts with: no moves in it, and nothing to look back at. */
+const NOTHING_PLAYED: MoveList = { moves: [], reviewing: undefined };
 
 /** Whether the game is waiting on the computer rather than on the player. */
 const isOpponentToMove = (game: Game, opponentSide: Side | undefined): boolean =>
@@ -428,18 +506,57 @@ const takebackIsOffered = (
 ): boolean =>
   on && secondThoughts.held === undefined && takenBackTo(recorded, secondThoughts, playing) !== undefined;
 
+/** The move the player has gone back to look at, where they have gone back to one. */
+const reviewedIn = ({ moves, reviewing }: MoveList): Played | undefined =>
+  reviewing === undefined ? undefined : moves[reviewing];
+
+/**
+ * What the player sees instead while they are looking back at a move: the
+ * position it produced, the game as it stood there, and what the engine made of
+ * that move rather than of the last one played.
+ *
+ * Everything the live board offers is withdrawn, and it has to be: the game is
+ * somewhere else, so there is nothing on this board to pick up, to be hinted
+ * about or to take back. What is not withdrawn is the result — a player looks
+ * back at their game most of all once it is over, and taking the ending away
+ * while they read it would take the summary of it away with it.
+ */
+const lookingBackAt = (
+  { move, game, assessment }: Played,
+  taught: boolean,
+): Partial<GameState> => ({
+  position: game.position,
+  sideToMove: game.sideToMove,
+  phase: phaseOf(game),
+  piecesInHand: game.piecesInHand,
+  pendingCapture: false,
+  selection: undefined,
+  legalPoints: [],
+  hint: undefined,
+  hintOffered: false,
+  takebackOffered: false,
+  grade: taught ? assessment?.grade : undefined,
+  reason: taught ? assessment?.reason : undefined,
+  patterns: taught ? (assessment?.patterns ?? NOTHING_DETECTED) : NOTHING_DETECTED,
+  assessing: false,
+  lastArrival: { from: move.from, to: move.to },
+});
+
 // What the players see is spelled out rather than spread from what is recorded,
 // so that a state built from an earlier one cannot smuggle a stale set of legal
-// points through with it.
+// points through with it. The one thing laid over it is a move being looked back
+// at, and that is spelled out in full too.
 const stateOf = (
   recorded: Recorded,
   playing: Playing,
   teaching: Teaching,
   secondThoughts: SecondThoughts,
+  list: MoveList,
 ): GameState => {
   const { opponentSide, thinking, difficulty } = playing;
   const { held } = secondThoughts;
   const { game, selection, arrival, lastArrival } = recorded;
+  const reviewed = reviewedIn(list);
   const assessment = teaching.on ? teaching.assessment : undefined;
   // A piece that has arrived is on the board and out of its hand from the moment
   // it lands, so what the players see mid-move is the arrival, not the game the
@@ -477,7 +594,14 @@ const stateOf = (
     // with the player to answer for.
     checking: held !== undefined && held.assessment === undefined,
     warned: held?.assessment !== undefined,
+    moves: list.moves.map(({ move, by, assessment }) => ({ move, by, grade: assessment?.grade })),
+    reviewing: reviewed === undefined ? undefined : list.reviewing,
+    // A game still being played has come to nothing yet, so there is nothing to
+    // count. Counting it as the game went would be a running tally rather than a
+    // summary, and a player watching one climb is being graded twice per move.
+    summary: game.result === undefined ? NOTHING_SUMMARISED : summariesOf(game.result, list.moves),
     lastArrival,
+    ...(reviewed === undefined ? {} : lookingBackAt(reviewed, teaching.on)),
   };
 };
 
@@ -639,6 +763,18 @@ export type GameSession = {
    */
   readonly takeBack: () => void;
   /**
+   * Look back at the position a move of this game produced, naming the move by
+   * where it stands in the move list. The game itself is left exactly where it
+   * stood: nothing on the board being shown is the player's to act on, and
+   * everything comes back the moment they do.
+   *
+   * Asking about a move that was never played does nothing at all, and neither
+   * does asking while a move of the player's own is waiting on them.
+   */
+  readonly review: (move: number) => void;
+  /** Come back to the game itself, whether or not it was being looked away from. */
+  readonly stopReviewing: () => void;
+  /**
    * Ask to be warned before a blunder, or stop asking. It is off until the
    * player asks for it — a learner stopped at every move never has to think for
    * themselves — and, like teaching, it outlives the game it was asked for.
@@ -679,7 +815,8 @@ export const createGameSession = ({
     warns: false,
     held: undefined,
   };
-  let state = stateOf(recorded, playing, teaching, secondThoughts);
+  let list: MoveList = NOTHING_PLAYED;
+  let state = stateOf(recorded, playing, teaching, secondThoughts, list);
   const listeners = new Set<() => void>();
 
   // How many times the game in front of the player has been put aside — another
@@ -689,8 +826,37 @@ export const createGameSession = ({
   let putAside = 0;
 
   const publish = () => {
-    state = stateOf(recorded, playing, teaching, secondThoughts);
+    state = stateOf(recorded, playing, teaching, secondThoughts, list);
     for (const listener of listeners) listener();
+  };
+
+  /**
+   * A whole move goes into the record, alongside the state it was played from
+   * going into the history: the two are appended to together, here and in the
+   * computer's own answer, and nowhere else. That is what lets a takeback
+   * truncate the one by the length of the other.
+   */
+  const record = (move: Move, by: Side, game: Game, assessment: Assessment | undefined) => {
+    list = { ...list, moves: [...list.moves, { move, by, game, assessment }] };
+  };
+
+  /**
+   * Write what the engine said into the move it was said about, wherever that
+   * move now stands in the record. It is written by the move rather than by when
+   * the question was asked, because an answer that is stale for the line in
+   * front of the player is still true of the move it is about — and it is
+   * written only while that move is still the one standing there, so a takeback
+   * that took the move out of the game takes its answer with it.
+   */
+  const remember = (at: number, move: Move, assessment: Assessment | undefined): boolean => {
+    if (assessment === undefined || list.moves[at]?.move !== move) return false;
+
+    list = {
+      ...list,
+      moves: list.moves.map((played, index) => (index === at ? { ...played, assessment } : played)),
+    };
+
+    return true;
   };
 
   /**
@@ -715,6 +881,9 @@ export const createGameSession = ({
       if (move) {
         secondThoughts = { ...secondThoughts, history: [...secondThoughts.history, from] };
         recorded = afterChoosing(thought, move);
+        // Its moves are in the list as the player's are: a move list that showed
+        // one side of a game would be half a game to read back.
+        record(move, thought.sideToMove, recorded.game, undefined);
       }
       publish();
     };
@@ -745,11 +914,24 @@ export const createGameSession = ({
     const asked = putAside;
     assessmentsAsked += 1;
     const question = assessmentsAsked;
+    // Where the move stands in the record. It is already in it: a move is played
+    // before it is sent to be graded.
+    const at = list.moves.length - 1;
     teaching = { ...teaching, assessing: true, assessment: undefined };
 
     const graded = (answer: Assessment | undefined) => {
-      if (asked !== putAside) return; // the game has moved on without this answer
-      if (question !== assessmentsAsked) return; // and another move has been played since
+      // The record keeps the answer whichever of the guards below turn it away:
+      // what the engine made of a move is true of that move however much of the
+      // game has happened since. So an answer that is stale in front of the
+      // player still changes the move list, and is still published.
+      const remembered = remember(at, move, answer);
+
+      // The game has moved on without this answer, or another move has been
+      // played since and this one is about neither of them.
+      if (asked !== putAside || question !== assessmentsAsked) {
+        if (remembered) publish();
+        return;
+      }
 
       // A search that fails and a move there was nothing to say about come to
       // the same thing: the player is left with no assessment. So does an answer to a
@@ -766,8 +948,12 @@ export const createGameSession = ({
    * A whole move is played out: the state it was played from goes into the
    * history, and the game moves on.
    */
-  const play = (from: Recorded, next: Recorded) => {
+  const play = (from: Recorded, next: Recorded, assessment?: Assessment | undefined) => {
     secondThoughts = { ...secondThoughts, history: [...secondThoughts.history, from], held: undefined };
+    // A move checked before it was played arrives with what the engine made of
+    // it; one graded after it is played is written into the record when the
+    // answer comes back.
+    if (next.lastMove) record(next.lastMove, from.game.sideToMove, next.game, assessment);
     recorded = next;
     // The computer is asked before the engine is: the two think in the same
     // thread, and the move somebody is waiting for goes first.
@@ -779,7 +965,7 @@ export const createGameSession = ({
     const { held } = secondThoughts;
     if (held === undefined) return;
 
-    play(held.from, held.next);
+    play(held.from, held.next, held.assessment);
     teaching = { ...teaching, assessing: false, assessment: held.assessment };
   };
 
@@ -831,7 +1017,7 @@ export const createGameSession = ({
       // while the answer was on its way — by teaching or the warning itself
       // being switched off, either of which plays a move rather than taking it
       // away from the player who committed to it.
-      if (held !== undefined) play(held.from, held.next);
+      if (held !== undefined) play(held.from, held.next, assessment);
       teaching = {
         ...teaching,
         assessing: false,
@@ -856,6 +1042,8 @@ export const createGameSession = ({
       // A move waiting on the player is the only thing there is for them to
       // answer, and it is not answered by tapping the board.
       if (secondThoughts.held !== undefined) return;
+      // Neither is the board being looked back at the board the game is on.
+      if (list.reviewing !== undefined) return;
       if (isOpponentToMove(recorded.game, playing.opponentSide)) return;
 
       const next = nextRecorded(recorded, intent);
@@ -910,6 +1098,10 @@ export const createGameSession = ({
       // is a move nobody will ever play. Whether the player asked to be warned is
       // not a game's own, and stays where they put it, as the difficulty does.
       secondThoughts = { ...secondThoughts, history: [], startedFrom: NEW_SESSION, held: undefined };
+      // Nothing of the game just thrown away is a move of this one, so the
+      // record goes with it — which is the whole of the scope a summary has: a
+      // weakness is what the player did in the game in front of them.
+      list = NOTHING_PLAYED;
       // A hint asked for in the game just thrown away says nothing about this
       // one, and neither does the answer to it, which may still be on its way.
       // Nor does an assessment: the move it was about is not in this game.
@@ -955,7 +1147,7 @@ export const createGameSession = ({
     },
 
     askForHint: () => {
-      if (chooseHint === undefined) return;
+      if (chooseHint === undefined || list.reviewing !== undefined) return;
       if (teaching.hinting || !hintIsOffered(recorded, playing, teaching, secondThoughts)) return;
 
       const asked = putAside;
@@ -983,12 +1175,17 @@ export const createGameSession = ({
 
     takeBack: () => {
       if (!teaching.on || secondThoughts.held !== undefined) return;
+      if (list.reviewing !== undefined) return;
 
       const back = takenBackTo(recorded, secondThoughts, playing);
       if (back === undefined) return;
 
       putAside += 1;
       secondThoughts = { ...secondThoughts, history: back.earlier };
+      // The record runs in step with the history, so the moves that go are the
+      // ones whose starting states went — none of them, where what was taken
+      // back was half a move.
+      list = { moves: list.moves.slice(0, back.earlier.length), reviewing: undefined };
       recorded = back.to;
       // A move the computer was still thinking about is not played: the position
       // it was asked about is one nobody is looking at any more.
@@ -997,6 +1194,23 @@ export const createGameSession = ({
       // would be a verdict on a move that is no longer in the game, over a board
       // that is waiting for the player to make another one.
       teaching = { ...teaching, hinting: false, assessment: undefined, assessing: false };
+      publish();
+    },
+
+    review: (move) => {
+      // A move waiting on the player is answered by standing by it or thinking
+      // again, and not by looking somewhere else.
+      if (secondThoughts.held !== undefined) return;
+      if (list.moves[move] === undefined || move === list.reviewing) return;
+
+      list = { ...list, reviewing: move };
+      publish();
+    },
+
+    stopReviewing: () => {
+      if (list.reviewing === undefined) return;
+
+      list = { ...list, reviewing: undefined };
       publish();
     },
 

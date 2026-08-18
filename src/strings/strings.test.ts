@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { DIFFICULTIES } from "../opponent/difficulty";
 import { GRADES } from "../teaching/grade";
-import { PATTERNS } from "../teaching/patterns";
+import { CRITICISM, PATTERNS } from "../teaching/patterns";
 import { hu } from "./hu";
 import { strings } from "./index";
 
@@ -38,6 +38,8 @@ describe("the strings module", () => {
     expect(hu.teaching.toggle).toBe("Tanulómód");
     expect(hu.teaching.hint).toBe("Tipp kérése");
     expect(hu.teaching.gradeHeading).toBe("Értékelés");
+    expect(hu.teaching.moveList.heading).toBe("Lépéslista");
+    expect(hu.teaching.summary.weakness).toBe("Gyenge pont");
   });
 
   it("names the five grades as the glossary names them, best first", () => {
@@ -68,6 +70,28 @@ describe("the strings module", () => {
     expect(Object.keys(hu.teaching.reason.pattern).sort()).toEqual([...PATTERNS].sort());
   });
 
+  /**
+   * The summary names a weakness only where the engine detected the criticism it
+   * is named after (ADR-0003), so the two lists are the same list — and the
+   * praise has no name here, because nothing a player did well is a weakness.
+   */
+  it("has a name for every criticism the summary can name as a weakness, and no others", () => {
+    expect(Object.keys(hu.teaching.summary.criticism).sort()).toEqual([...CRITICISM].sort());
+  });
+
+  /** The acceptance criterion: a draw is the target result against Mester. */
+  it("words a draw as a draw and never as a defeat", () => {
+    const { outcome } = hu.teaching.summary;
+
+    expect(outcome.drawn).toContain("Döntetlen");
+    expect(outcome.drawnAgainstMaster).toContain("Döntetlen");
+    expect(outcome.drawnAgainstMaster).toContain("Mester");
+    expect(`${outcome.drawn} ${outcome.drawnAgainstMaster}`.toLowerCase()).not.toMatch(
+      /veszt|vereség/u,
+    );
+    expect(outcome.lost.toLowerCase()).toMatch(/veszt/u); // which is what the loss says
+  });
+
   it("words the patterns with the terms the glossary settles on", () => {
     const { pattern } = hu.teaching.reason;
     const said = Object.values(pattern).join(" ").toLowerCase();
@@ -81,6 +105,13 @@ describe("the strings module", () => {
     // kettős malom is a Hungarian phrase for closing two mills at once, which is
     // not what a fork is; the glossary rules it out by name.
     expect(said).not.toContain("kettős malom");
+
+    // The weakness is the same criticism under a name of its own, so it answers
+    // to the same glossary.
+    const { criticism } = hu.teaching.summary;
+    expect(criticism["fork-handed"]).toContain("kettős fenyegetés");
+    expect(criticism["wrong-piece-captured"]).toContain("levétel");
+    expect(Object.values(criticism).join(" ").toLowerCase()).not.toContain("kettős malom");
   });
 
   it("never reaches for ütés, which belongs to chess and draughts rather than to malom", () => {
