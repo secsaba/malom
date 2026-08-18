@@ -176,7 +176,7 @@ How much worse the played move is than the engine's preferred move. The grade is
 _Avoid_: delta, centipawn loss, error margin
 
 **Band**:
-The stretch of eval loss a grade covers. The bands are what turn a number into one of the five words, and they are provisional until they have been calibrated against played games rather than picked by intuition.
+The stretch of eval loss a grade covers. The bands are what turn a number into one of the five words. There is a set of them for each phase rather than one set for the game, because the evaluation's units are not the same size in all three — a piece is worth 8 while pieces are being placed and 300 while they fly — so one set read in all three would mean three different scales wearing the same five words. Each set was placed against a corpus of played games rather than picked by intuition.
 _Hungarian_: none — nothing in the interface words it; only the grade it produces is shown
 _Avoid_: threshold, bucket, tier, cutoff
 
@@ -205,9 +205,9 @@ Returning the game to the player's previous decision point so they can try a dif
 _Hungarian_: visszalépés
 _Avoid_: undo, rewind, retry
 
-## Tuning the evaluation
+## Measuring the engine
 
-Nothing in this section is ever shown to a player, so none of it has a Hungarian surface form. It is the language of the harness that settled the evaluation's numbers and of the tests that keep them honest.
+Nothing in this section is ever shown to a player, so none of it has a Hungarian surface form. It is the language of the harnesses that settled the engine's numbers — the evaluation's weights and the grade's bands — and of the tests that keep them honest.
 
 **Weight set**:
 The whole table of what each evaluation term is worth in each phase — eight terms, three phases, one number each. A weight set is the unit that is measured and shipped: single weights are not compared, because the terms are counted against each other and a number only means something beside the rest of its table.
@@ -236,3 +236,7 @@ _Avoid_: score, record, results table
 **Gauntlet**:
 The tuning run itself: several candidate weight sets each played, over the same openings, against the set that currently ships. The winner is committed as the default and the table is kept, so the next person to change a weight can see what the last change was measured against.
 _Avoid_: sweep, grid search, tournament
+
+**Corpus**:
+The played moves a number is settled against: every move one difficulty made over a run of self-play games, each weighed by the engine at full strength exactly as the grader weighs it. It is what a band is placed on, in the way a match is what a weight set is measured by — and it is drawn from the weakest difficulty, because the numbers it settles are read to a novice.
+_Avoid_: dataset, sample, training set

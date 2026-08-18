@@ -198,7 +198,7 @@ const rowOf = (name: string, scoreline: Scoreline, seconds: number): string => {
  * One test per candidate rather than one for the gauntlet, for two reasons: a
  * row is printed as its match ends instead of every row appearing at the end of
  * a run that takes half an hour, and a candidate can be run on its own —
- * `pnpm tune -- -t material-heavier` — which is also how a whole gauntlet is
+ * `pnpm tune -t material-heavier` — which is also how a whole gauntlet is
  * spread over the cores of a machine, one process per candidate, rather than
  * played out one match at a time.
  */

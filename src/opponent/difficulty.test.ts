@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ScoredMove } from "../ai/search";
 import { POINTS } from "../engine/board";
-import type { Phase } from "../engine/game";
+import { PHASES } from "../engine/game";
 import {
   DEFAULT_DIFFICULTY,
   DIFFICULTIES,
@@ -13,8 +13,6 @@ import {
   NEAR_BEST_MARGIN,
   moveAtDifficulty,
 } from "./difficulty";
-
-const PHASES = ["placing", "moving", "flying"] as const satisfies readonly Phase[];
 
 /**
  * A source of numbers that answers with what the test wrote down, in order, and

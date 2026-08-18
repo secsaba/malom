@@ -166,5 +166,5 @@ Both numbers were measured before they were written down, and the thresholds wer
 One practical note: a whole gauntlet played one match at a time is half an hour. Each candidate is its own test, so a machine with cores to spare can run them at once, one process each:
 
 ```sh
-pnpm tune -- -t material-heavier    # and so on, in parallel
+pnpm tune -t material-heavier    # and so on, in parallel
 ```

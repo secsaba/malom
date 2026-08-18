@@ -2,7 +2,7 @@
  * Mester against Mester: the measurements behind the awkward half of
  * `docs/tuning/weights.md`.
  *
- *     pnpm tune -- -t mirror
+ *     pnpm tune -t mirror
  *
  * Malom is a draw with perfect play, so ticket #9 asked for a sanity check —
  * Mester against Mester should draw reliably, and an engine that beats a copy of

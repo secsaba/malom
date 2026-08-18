@@ -22,15 +22,15 @@ pnpm dev         # the site on http://localhost:5173/malom/
 | `pnpm test`      | The fast suite (Vitest) — everything that needs no browser        |
 | `pnpm e2e`       | The browser suite (Playwright) against the production build       |
 | `pnpm test:slow` | The slow suite (Vitest) — the engine's strength, played out       |
-| `pnpm tune`      | The weight-tuning gauntlet — minutes of self-play, and a table    |
+| `pnpm tune`      | The tuning harnesses — minutes of self-play, and their tables     |
 | `pnpm build`     | Typecheck, then the production build into `dist/`                 |
 | `pnpm preview`   | Serve `dist/` on http://localhost:4173/malom/                     |
 
 CI runs the first four on every push and pull request, inside this same dev shell. A green run on `main` deploys `dist/` to GitHub Pages.
 
-The last two play games, at the depths the opponent really plays at, so both are minutes rather than milliseconds. `pnpm test:slow` asserts that Mester still beats Kezdő by a wide margin and still scores the empty board as level, and runs in CI on `main` rather than on every pull request. `pnpm tune` is not a check at all: it plays candidate weight sets off against each other and prints the tables that decide them, and is run by hand when the evaluation is being changed.
+The last two play games, at the depths the opponent really plays at, so both are minutes rather than milliseconds. `pnpm test:slow` asserts that Mester still beats Kezdő by a wide margin and still scores the empty board as level, and runs in CI on `main` rather than on every pull request. `pnpm tune` is not a check at all: it plays games and prints the tables that settle a number, and is run by hand when one of them is being changed. It holds two harnesses, and either can be run on its own — `pnpm tune -t grades`, `pnpm tune -t mirror`. The gauntlet plays candidate weight sets off against each other; the calibration plays a corpus of novice games and reads the grade's bands off what those moves lost.
 
-Both are worth reading [`docs/tuning/weights.md`](docs/tuning/weights.md) before touching — it records the run that settled the current weights, and why the solved-game draw the engine cannot hold is documented there rather than asserted here.
+Both are worth reading [`docs/tuning/weights.md`](docs/tuning/weights.md) before touching — it records the run that settled the current weights, and why the solved-game draw the engine cannot hold is documented there rather than asserted here. [`docs/tuning/grades.md`](docs/tuning/grades.md) does the same for the grade's bands.
 
 `pnpm e2e` needs a browser the first time — see [Playwright browsers](#playwright-browsers).
 

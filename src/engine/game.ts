@@ -37,10 +37,14 @@ import {
 } from "./position";
 
 /**
- * The stage the game is in, as the side to move plays it: flying is one player's
- * state rather than the whole game's, so the two sides can be in different ones.
+ * The three stages, in the order a game passes through them. Flying is one
+ * player's state rather than the whole game's, so the two sides can be in
+ * different ones.
  */
-export type Phase = "placing" | "moving" | "flying";
+export const PHASES = ["placing", "moving", "flying"] as const;
+
+/** The stage the game is in, as the side to move plays it. */
+export type Phase = (typeof PHASES)[number];
 
 /**
  * What drew a game neither side could win: the same position for the third time,
