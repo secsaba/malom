@@ -53,8 +53,23 @@ import { GRADES, type Grade } from "../teaching/grade";
 import type { Pattern } from "../teaching/patterns";
 import type { Reason } from "../teaching/reason";
 import { type Summary, summariesOf } from "../teaching/summary";
+import { type SavedGame, type SavedMove, type SavedSettings, playedBack } from "./saved-game";
 
-export type { Assessment, Difficulty, Draw, Ending, Grade, Pattern, Phase, Reason, Result, Summary };
+export type {
+  Assessment,
+  Difficulty,
+  Draw,
+  Ending,
+  Grade,
+  Pattern,
+  Phase,
+  Reason,
+  Result,
+  SavedGame,
+  SavedMove,
+  SavedSettings,
+  Summary,
+};
 // The interface offers the difficulties the facade accepts and lays the summary
 // out in the five grades, and asks the facade for both rather than reaching past
 // it to the opponent or to teaching (ADR-0002).
@@ -109,6 +124,21 @@ export type GameSessionOptions = {
   readonly players?: Players | undefined;
   /** How strongly the computer plays to begin with. */
   readonly difficulty?: Difficulty | undefined;
+  /**
+   * What the player has said about teaching, where they have said either way.
+   * Without it nobody has said anything, and who is playing answers for them.
+   */
+  readonly teaching?: boolean | undefined;
+  /** Whether a move is checked for a blunder before it is played. */
+  readonly warnsOfBlunders?: boolean | undefined;
+  /**
+   * A game to go on with rather than a new one: the moves of a game read back
+   * out of storage, which are played again from the start to arrive where it was
+   * left. Where it is given it says who was playing, so {@link Players} is not
+   * asked as well; where its moves are not moves the rules allow, it is turned
+   * away whole and the session starts a new game.
+   */
+  readonly saved?: SavedGame | undefined;
 };
 
 /**
@@ -722,6 +752,20 @@ const nextRecorded = (recorded: Recorded, intent: Intent): Recorded => {
 export type GameSession = {
   readonly state: GameState;
   /**
+   * The game as storage should keep it, so that a reload does not cost the
+   * player the game in front of them. It is the moves and who was playing, and
+   * reading it back plays them again (see `./saved-game`).
+   *
+   * Where it goes is not the session's business (ADR-0002): `src/ui` writes it
+   * down, and hands it back through {@link GameSessionOptions.saved}.
+   */
+  readonly saved: SavedGame;
+  /**
+   * The settings, which outlive the game they were set during — what to hand
+   * back to the session a later visit starts.
+   */
+  readonly settings: SavedSettings;
+  /**
    * Play an intent. An illegal one leaves the state exactly as it was, and so
    * does any of them while the computer is the side to move.
    */
@@ -794,29 +838,62 @@ export const createGameSession = ({
   assessMove,
   players = {},
   difficulty = DEFAULT_DIFFICULTY,
+  teaching: chosen,
+  warnsOfBlunders = false,
+  saved,
 }: GameSessionOptions = {}): GameSession => {
+  // A game read back out of storage is played again from its first move, which
+  // is what gives back the history a takeback walks and the record the summary
+  // counts. One that cannot be played again — a move the rules do not allow, in
+  // a game somebody has edited — is not read back at all, and the player is
+  // handed a new one instead of a board they may not be able to move on.
+  const restored = saved === undefined ? undefined : playedBack(saved);
+  const opponentSide = restored === undefined ? players.opponentSide : saved?.opponentSide;
+
   let recorded = NEW_SESSION;
+  let restoredHistory: readonly Recorded[] = [];
+  let restoredMoves: readonly Played[] = [];
+
+  // The game is walked forward exactly as playing it walks it: each move goes
+  // into the record alongside the state it was played from going into the
+  // history, which is what keeps the two in step and a takeback honest.
+  for (const { move, by, game, assessment } of restored ?? []) {
+    restoredHistory = [...restoredHistory, recorded];
+    restoredMoves = [...restoredMoves, { move, by, game, assessment }];
+    recorded = {
+      game,
+      selection: undefined,
+      arrival: undefined,
+      lastArrival: { from: move.from, to: move.to },
+      lastMove: move,
+    };
+  }
+
   // Whether the player has said either way about teaching. Until they have, who
   // is playing answers for them, which is why this is not simply a boolean: a
   // player who switched it on in a hotseat game means it, and a player who has
   // never touched it means nothing at all.
-  let chosenTeaching: boolean | undefined;
-  let playing: Playing = { opponentSide: players.opponentSide, thinking: false, difficulty };
+  let chosenTeaching: boolean | undefined = chosen;
+  let playing: Playing = { opponentSide, thinking: false, difficulty };
   let teaching: Teaching = {
-    on: taughtIn(players.opponentSide, chosenTeaching),
+    on: taughtIn(opponentSide, chosenTeaching),
     hasEngine: chooseHint !== undefined,
     hint: undefined,
     hinting: false,
+    // A move graded while the page was being closed is a grade nobody ever saw
+    // and nobody gets back: the record keeps what the engine said about the
+    // moves it answered for, and a move it never answered for is read back
+    // ungraded, exactly as a move played before teaching was switched on is.
     assessment: undefined,
     assessing: false,
   };
   let secondThoughts: SecondThoughts = {
-    history: [],
-    startedFrom: NEW_SESSION,
-    warns: false,
+    history: restoredHistory,
+    startedFrom: recorded,
+    warns: warnsOfBlunders,
     held: undefined,
   };
-  let list: MoveList = NOTHING_PLAYED;
+  let list: MoveList = { moves: restoredMoves, reviewing: undefined };
   let state = stateOf(recorded, playing, teaching, secondThoughts, list);
   const listeners = new Set<() => void>();
 
@@ -1058,6 +1135,25 @@ export const createGameSession = ({
       return state;
     },
 
+    get saved() {
+      // Half a move is left out: a piece picked up, a piece that has landed with
+      // the capture it earned still owed, and a move held for the player to
+      // stand by are none of them in the record, so a reload puts the player
+      // back at the start of the turn they were in the middle of.
+      return {
+        opponentSide: playing.opponentSide,
+        moves: list.moves.map(({ move, assessment }) => ({ move, assessment })),
+      };
+    },
+
+    get settings() {
+      return {
+        difficulty: playing.difficulty,
+        teaching: chosenTeaching,
+        warnsOfBlunders: secondThoughts.warns,
+      };
+    },
+
     apply: (intent) => {
       // A move waiting on the player is the only thing there is for them to
       // answer, and it is not answered by tapping the board.
@@ -1146,9 +1242,15 @@ export const createGameSession = ({
 
     teach: (on) => {
       // Said either way, and so said for every game after this one — even where
-      // the answer is the one who is playing would have given anyway.
+      // the answer is the one who is playing would have given anyway. That case
+      // changes nothing about the game and is still published, because the
+      // choice outlives the game and has to reach whoever is writing it down.
+      const said = chosenTeaching !== on;
       chosenTeaching = on;
-      if (on === teaching.on) return;
+      if (on === teaching.on) {
+        if (said) publish();
+        return;
+      }
 
       // A move held for the player to answer for is played rather than dropped:
       // they committed to it, and switching teaching off asks not to be checked

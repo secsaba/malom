@@ -230,6 +230,18 @@ The criticism a side's moves fired most often over a game, which is the one thin
 _Hungarian_: gyenge pont
 _Avoid_: flaw, error type, problem area, leak
 
+## Coming back
+
+**Saved game**:
+The game in progress as storage keeps it between visits: which side the computer was playing, if it was playing, and every whole move of the game in order with what the engine made of each. It is written down as its moves rather than as its board, because a board is not enough to come back to — the repetition and quiet-move counts, the history a Takeback walks and the Move list a Summary is counted from are all in the moves — so reading one back means playing them again, and one whose moves are not moves the rules allow is turned away whole rather than restored in part. Half a move is not in it: a reload puts the player back at the start of the turn they were in the middle of, which costs them the taps and nothing else.
+_Hungarian_: none — nothing in the interface names it, and a game comes back without being announced
+_Avoid_: save, snapshot, checkpoint, autosave, session
+
+**Settings**:
+The choices that outlive the game they were made in: the Difficulty, whether Teaching mode is on, whether a Blunder warning is asked for, and whether the board is labelled with its Coordinates. They are kept apart from the Saved game and for longer — starting another game throws the game away and leaves every one of them exactly where the player put it. What is remembered about teaching is what the player said rather than whether it was on, because a player who has never touched it is answered for by who is playing, and a player who has touched it means it.
+_Hungarian_: none — nothing in the interface groups them; each is shown under its own name
+_Avoid_: preferences, options, configuration, profile
+
 ## Measuring the engine
 
 Nothing in this section is ever shown to a player, so none of it has a Hungarian surface form. It is the language of the harnesses that settled the engine's numbers — the evaluation's weights and the grade's bands — and of the tests that keep them honest.

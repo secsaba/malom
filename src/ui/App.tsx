@@ -11,6 +11,7 @@ import { FIRST_GAME, type NextGame, Setup } from "./Setup";
 import { Status } from "./Status";
 import { Summary } from "./Summary";
 import { Teaching } from "./Teaching";
+import { remember, savedSettings } from "./storage";
 import { useGameSession } from "./useGameSession";
 
 /**
@@ -38,9 +39,18 @@ const intentFor = (game: GameState, point: PointId): Intent => {
 const playersOf = ({ against, humanSide }: NextGame): Players =>
   against === "computer" ? { opponentSide: opponentOf(humanSide) } : {};
 
+/**
+ * What the setup panel starts on: whatever the game in front of the player is.
+ * A game read back out of storage would otherwise be sat under a panel saying
+ * the next game is a hotseat one, which reads as though the reload had thrown
+ * the computer opponent away.
+ */
+const setupFor = (opponentSide: Side | undefined): NextGame =>
+  opponentSide === undefined
+    ? FIRST_GAME
+    : { against: "computer", humanSide: opponentOf(opponentSide) };
+
 export const App = () => {
-  const [showCoordinates, setShowCoordinates] = useState(false);
-  const [next, setNext] = useState<NextGame>(FIRST_GAME);
   const {
     state,
     apply,
@@ -55,8 +65,18 @@ export const App = () => {
     playAnyway,
     thinkAgain,
   } = useGameSession();
+  const [showCoordinates, setShowCoordinates] = useState(() => savedSettings().showCoordinates);
+  const [next, setNext] = useState<NextGame>(() => setupFor(state.opponentSide));
 
   const select = (point: PointId) => apply(intentFor(state, point));
+
+  // The board's own setting rather than the game's, so it is the interface that
+  // writes it down; everything the session holds is written down by the session's
+  // own hook.
+  const showTheCoordinates = (show: boolean) => {
+    setShowCoordinates(show);
+    remember({ showCoordinates: show });
+  };
 
   const startGame = (chosen: NextGame) => {
     setNext(chosen);
@@ -141,7 +161,7 @@ export const App = () => {
           type="checkbox"
           data-testid="coordinates-toggle"
           checked={showCoordinates}
-          onChange={(event) => setShowCoordinates(event.target.checked)}
+          onChange={(event) => showTheCoordinates(event.target.checked)}
         />
         {strings.board.showCoordinates}
       </label>

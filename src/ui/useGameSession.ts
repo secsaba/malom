@@ -15,7 +15,7 @@
  * engine and nothing more.
  */
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { createOpponent } from "../opponent/opponent";
 import { createSearchThread } from "../opponent/search-thread";
@@ -28,6 +28,7 @@ import {
 } from "../session/game-session";
 import { createAssessor } from "../teaching/assessment";
 import { createHint } from "../teaching/hint";
+import { remember, rememberGame, savedGame, savedSettings } from "./storage";
 
 export type UseGameSession = {
   readonly state: GameState;
@@ -57,14 +58,29 @@ export type UseGameSession = {
 export const useGameSession = (): UseGameSession => {
   const [session] = useState(() => {
     const runSearch = createSearchThread();
+    const { difficulty, teaching, warnsOfBlunders } = savedSettings();
 
+    // A setting nobody has ever chosen comes back as nothing, and the session's
+    // own default answers for it.
     return createGameSession({
       chooseMove: createOpponent(runSearch),
       chooseHint: createHint(runSearch),
       assessMove: createAssessor(runSearch),
+      difficulty,
+      teaching,
+      warnsOfBlunders,
+      saved: savedGame(),
     });
   });
   const state = useSyncExternalStore(session.subscribe, () => session.state);
+
+  // Everything the session publishes is written down, because everything it
+  // publishes is a thing an accidental reload would otherwise cost the player:
+  // the move just played, the difficulty just changed, the toggle just flicked.
+  useEffect(() => {
+    rememberGame(session.saved);
+    remember(session.settings);
+  }, [session, state]);
 
   return {
     state,

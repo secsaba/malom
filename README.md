@@ -43,12 +43,15 @@ src/
 ├── opponent/  the computer as a player: its four difficulties, and the thread it thinks in
 ├── teaching/  what the engine has to say about a move: the hint, the grade,
 │              the patterns it detected and the reason it gives for them
-├── session/   one game, played through intents — what the interface talks to
+├── session/   one game, played through intents — what the interface talks to,
+│              and the plain data storage keeps a game and the settings as
 ├── strings/   every user-facing string, Hungarian for now
 └── ui/        React components and their geometry
 ```
 
 `src/ui` talks to `src/session`, which turns taps into the whole moves `src/engine` plays; `src/ai` searches those same moves, so the move the computer chooses and the move a player taps out go through one set of rules rather than two. `src/teaching` asks that same search what it would play, at full strength whatever difficulty the computer is playing at, so the hint a player is given and the move the computer makes can never come from two different opinions ([ADR-0001](docs/adr/0001-one-engine-plays-hints-and-grades.md)). The sentence beside a grade is generated only from a pattern the engine positively detected in the position — never from a plausible-sounding story it cannot substantiate ([ADR-0003](docs/adr/0003-teaching-reasons-come-only-from-detected-patterns.md)); the catalogue of them is closed, and adding one means a detector plus a sentence per language. The dependency never runs the other way, and none of `src/engine`, `src/ai`, `src/opponent`, `src/teaching` or `src/session` may import React, touch the DOM, or read the strings module — that is [ADR-0002](docs/adr/0002-engine-has-no-ui-dependencies.md), and `pnpm lint` fails the build when it is broken. The rule lives in [`eslint.config.js`](eslint.config.js); [`tests/unit/engine-boundary.test.ts`](tests/unit/engine-boundary.test.ts) lints deliberately-bad fixtures to prove it still bites.
+
+A game and the settings survive a reload in the browser's own storage, which is the whole of this app's memory ([ADR-0004](docs/adr/0004-static-site-no-backend.md)). A game is written down as the moves played in it and read back by playing them again, so the rules rebuild the position, the draw counts, the move list and the history a takeback walks — and a stored game whose moves the rules do not allow is turned away rather than restored. `src/session/saved-game.ts` holds the shape and the replay as plain data; `src/ui/storage.ts` is the one place that touches storage.
 
 The same lint pass rejects user-facing text written into a component, so the strings module stays the one place text lives and the English translation stays a data change.
 

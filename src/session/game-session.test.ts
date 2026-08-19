@@ -149,6 +149,11 @@ const askedAssessor = () => {
   };
 };
 
+/** Every move of a game, answered for in the order the moves were played. */
+const gradeEvery = async (engine: ReturnType<typeof askedAssessor>, grades: readonly Grade[]) => {
+  for (const grade of grades) await engine.reply(grade, ["mill-missed"]);
+};
+
 /** An opponent that plays the first move the rules offer, as soon as it is asked. */
 const firstLegalMove: ChooseMove = (game) => Promise.resolve(legalMovesOf(game)[0]);
 
@@ -1032,8 +1037,27 @@ describe("teaching", () => {
     expect(told).toBe(1);
   });
 
-  it("leaves everything as it was when the player asks for what is already on", () => {
+  /**
+   * Off is where teaching starts for two people sharing a device, but nobody had
+   * said so: a player who says it has said it for every game after this one, and
+   * that has to reach whoever writes the settings down.
+   */
+  it("writes down a choice that changed nothing about the game", () => {
     const session = createGameSession();
+    let told = 0;
+    session.subscribe(() => {
+      told += 1;
+    });
+
+    session.teach(false);
+
+    expect(session.settings.teaching).toBe(false);
+    expect(told).toBe(1);
+  });
+
+  it("leaves everything as it was when the player asks again for what they already asked for", () => {
+    const session = createGameSession();
+    session.teach(false);
     const before = session.state;
 
     session.teach(false);
@@ -2473,14 +2497,6 @@ describe("looking back at a move", () => {
 });
 
 describe("the summary at the end of the game", () => {
-  /** Every move of a game, answered for in the order the moves were played. */
-  const gradeEvery = async (
-    engine: ReturnType<typeof askedAssessor>,
-    grades: readonly Grade[],
-  ) => {
-    for (const grade of grades) await engine.reply(grade, ["mill-missed"]);
-  };
-
   it("is empty while there is still a game to play", async () => {
     const engine = askedAssessor();
     const session = createGameSession({ assessMove: engine.assessMove });
@@ -2533,5 +2549,176 @@ describe("the summary at the end of the game", () => {
     session.start({});
 
     expect(session.state.summary).toEqual([]);
+  });
+});
+
+describe("what a session hands to storage", () => {
+  it("gives back every whole move of the game, in order", () => {
+    const session = createGameSession();
+    place(session, "a1", "g7", "d1");
+
+    expect(session.saved).toEqual({
+      opponentSide: undefined,
+      moves: [
+        { move: { from: undefined, to: "a1", capture: undefined }, assessment: undefined },
+        { move: { from: undefined, to: "g7", capture: undefined }, assessment: undefined },
+        { move: { from: undefined, to: "d1", capture: undefined }, assessment: undefined },
+      ],
+    });
+  });
+
+  it("says who the computer was playing", () => {
+    const session = createGameSession({ players: { opponentSide: "dark" } });
+
+    expect(session.saved.opponentSide).toBe("dark");
+  });
+
+  it("gives back what the engine made of a move, and not only its grade", async () => {
+    const engine = askedAssessor();
+    const session = createGameSession({ assessMove: engine.assessMove });
+    session.teach(true);
+    place(session, "a1");
+    await engine.reply("mistake", ["mill-missed"]);
+
+    expect(session.saved.moves[0]?.assessment).toEqual(verdict("mistake", ["mill-missed"]));
+  });
+
+  it("keeps half a move out of it: nothing is saved until the move is played out", () => {
+    const session = upToTheMovingPhase();
+    select(session, "b2");
+
+    expect(session.saved.moves).toHaveLength(MILL_FREE_PLACING.length);
+  });
+
+  it("gives back the settings, which outlive the game", () => {
+    const session = createGameSession();
+    session.playAt("strong");
+    session.teach(true);
+    session.warnOfBlunders(true);
+
+    expect(session.settings).toEqual({ difficulty: "strong", teaching: true, warnsOfBlunders: true });
+  });
+
+  it("leaves teaching unsaid until the player says either way", () => {
+    expect(createGameSession().settings.teaching).toBeUndefined();
+    expect(createGameSession({ players: { opponentSide: "dark" } }).settings.teaching).toBeUndefined();
+  });
+
+  it("empties the game and leaves the settings alone when another game is started", () => {
+    const session = createGameSession();
+    session.playAt("master");
+    session.warnOfBlunders(true);
+    place(session, "a1", "g7");
+
+    session.start({});
+
+    expect(session.saved.moves).toEqual([]);
+    expect(session.settings).toEqual({ difficulty: "master", teaching: undefined, warnsOfBlunders: true });
+  });
+});
+
+describe("a game read back out of storage", () => {
+  it("stands exactly where it was left", () => {
+    const played = createGameSession();
+    place(played, ...MILL_FREE_PLACING);
+
+    const session = createGameSession({ saved: played.saved });
+
+    expect(session.state.position).toEqual(played.state.position);
+    expect(session.state.sideToMove).toBe(played.state.sideToMove);
+    expect(session.state.phase).toBe("moving");
+    expect(session.state.piecesInHand).toEqual({ light: 0, dark: 0 });
+    expect(session.state.lastArrival).toEqual({ from: undefined, to: "f2" });
+  });
+
+  it("brings the whole move list back with it, grades and all", async () => {
+    const engine = askedAssessor();
+    const played = createGameSession({ assessMove: engine.assessMove });
+    played.teach(true);
+    place(played, "a1", "g7");
+    await engine.reply("best");
+
+    const session = createGameSession({ saved: played.saved, teaching: true });
+
+    expect(session.state.moves).toEqual([
+      { move: { from: undefined, to: "a1", capture: undefined }, by: "light", grade: "best" },
+      { move: { from: undefined, to: "g7", capture: undefined }, by: "dark", grade: undefined },
+    ]);
+  });
+
+  it("can be taken back, move by move, as if it had been played here", () => {
+    const played = createGameSession();
+    place(played, "a1", "g7", "d1");
+
+    const session = createGameSession({ saved: played.saved, teaching: true });
+    session.takeBack();
+
+    expect(session.state.position.has("d1")).toBe(false);
+    expect(session.state.sideToMove).toBe("light");
+    expect(session.state.moves).toHaveLength(2);
+  });
+
+  it("can be looked back through", () => {
+    const played = createGameSession();
+    place(played, "a1", "g7", "d1");
+
+    const session = createGameSession({ saved: played.saved, teaching: true });
+    session.review(0);
+
+    expect(session.state.position.size).toBe(1);
+    expect(session.state.reviewing).toBe(0);
+  });
+
+  it("sums up the game it read back, once that game is over", async () => {
+    const engine = askedAssessor();
+    const played = createGameSession({ assessMove: engine.assessMove });
+    played.teach(true);
+    place(played, ...WALLED_IN);
+    await gradeEvery(engine, WALLED_IN.map((_, move) => (move % 2 === 0 ? "blunder" : "best")));
+
+    const session = createGameSession({ saved: played.saved, teaching: true });
+
+    expect(session.state.result).toEqual({ winner: "dark", ending: "blocked" });
+    expect(session.state.summary).toEqual(played.state.summary);
+  });
+
+  it("asks the computer to play on where the game was left waiting for it", async () => {
+    const played = createGameSession();
+    place(played, "a1");
+
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      saved: { ...played.saved, opponentSide: "dark" },
+      chooseMove: opponent.chooseMove,
+    });
+
+    expect(opponent.asked).toHaveLength(1);
+
+    await opponent.reply({ to: "g7" });
+
+    expect(session.state.position.get("g7")).toBe("dark");
+    expect(session.state.moves).toHaveLength(2);
+  });
+
+  it("is a new game where the moves saved are not moves the rules allow", () => {
+    const session = createGameSession({
+      saved: { moves: [{ move: { to: "a1" } }, { move: { to: "a1" } }] },
+    });
+
+    expect(session.state.position.size).toBe(0);
+    expect(session.state.moves).toEqual([]);
+  });
+
+  it("takes the settings saved with it", () => {
+    const session = createGameSession({
+      saved: { moves: [] },
+      difficulty: "strong",
+      teaching: true,
+      warnsOfBlunders: true,
+    });
+
+    expect(session.state.difficulty).toBe("strong");
+    expect(session.state.teaching).toBe(true);
+    expect(session.state.warnsOfBlunders).toBe(true);
   });
 });
