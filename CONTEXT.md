@@ -100,7 +100,7 @@ _Avoid_: drop, landing, placement — the last of those being one kind of arriva
 
 **Selection**:
 The piece a player has picked up and not yet moved. Picking one up commits to nothing: tapping away from its destinations puts it down again, so a selection is part of the rules rather than of any one interface.
-_Hungarian_: none — nothing in the interface words it; the board shows it
+_Hungarian_: felvéve — the one word the board reads out for it, to a player who cannot see the ring it is shown with
 _Avoid_: active piece, held piece, highlight
 
 **Position**:

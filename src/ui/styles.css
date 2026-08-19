@@ -120,17 +120,18 @@ body {
 }
 
 /*
- * Where the piece that has been picked up may go: one solid red mark on a board
- * that is otherwise grey and cream. Ink and fill are the same colour on purpose
- * — a paler fill would separate from an unmarked point by hue alone, which is
- * the very thing the greys above exist to stop. Empty points are marked only
- * while a piece is picked up: during the placing phase every empty point is
- * legal, so marking them all would say nothing.
+ * Where the piece that has been picked up may go: the outline of the piece that
+ * would land there, dashed in the same ink and the same dashes as the pieces it
+ * may be played onto above. The two are one mark saying one thing — this is
+ * yours to choose — and what tells them apart is what stands inside the ring
+ * rather than the ring itself.
  */
-.board[data-selection] .board__points circle[data-legal]:not([data-occupant]) {
-  fill: var(--point-legal-ink);
+.board__destinations circle {
+  fill: none;
   stroke: var(--point-legal-ink);
+  stroke-dasharray: 10 8;
   stroke-width: 6;
+  pointer-events: none;
 }
 
 /* The piece that has been picked up: a solid ring, thicker than any other. */
@@ -141,10 +142,31 @@ body {
 }
 
 /*
+ * Where the last move came to rest: a small ring inside the piece, at a radius
+ * nothing else on the board uses. It is drawn in whichever of the board's two
+ * inks the dome beneath it is not, so it reads on a cream piece and on a
+ * near-black one without either of them being a colour anybody has to tell from
+ * another. The animation below says the same thing while it runs; this is what
+ * is left once it has, and all there is for a player who asked for no movement.
+ */
+.board__last-move circle {
+  fill: none;
+  stroke: var(--board-line-ink);
+  stroke-width: 4;
+  pointer-events: none;
+}
+
+.board__last-move circle[data-piece="dark"] {
+  stroke: var(--board-ground);
+}
+
+/*
  * The piece that moved last, brought in from where it came from rather than
  * found where it landed — which is what makes the computer's move something the
- * player watches happen. The travel is set on the piece itself, in the units the
- * board is drawn in.
+ * player watches happen. The travel is set on whatever carries the arrival, in
+ * the units the board is drawn in: the piece, and the ring drawn inside it, so
+ * that the two come in together rather than the mark waiting at the destination
+ * for the piece to reach it.
  */
 @keyframes piece-moved {
   from {
@@ -159,11 +181,11 @@ body {
   }
 }
 
-.board__points circle[data-arrived="moved"] {
+.board [data-arrived="moved"] {
   animation: piece-moved 240ms ease-out;
 }
 
-.board__points circle[data-arrived="placed"] {
+.board [data-arrived="placed"] {
   transform-box: fill-box;
   transform-origin: center;
   animation: piece-placed 240ms ease-out;
@@ -187,9 +209,27 @@ body {
   pointer-events: none;
 }
 
-.board__targets circle {
+/*
+ * The browser's own focus ring is turned off here rather than only where the
+ * keyboard is: it is drawn as a rectangle around the shape's box whether or not
+ * the shape is one, and on a board of circles it reads as a mark of the game's.
+ */
+.board__targets rect {
   fill: transparent;
+  outline: none;
   cursor: pointer;
+}
+
+/*
+ * The point the keyboard is on, drawn as the square that takes the tap: it fills
+ * the board's own step, so the mark sits midway between this point and the ones
+ * around it, and it is the only square on a board of rings — which is what keeps
+ * it from being read as one of them. `outline` is what a focus ring usually is,
+ * but it is not reliably drawn on SVG shapes, so this one is a stroke.
+ */
+.board__targets rect:focus-visible {
+  stroke: var(--coordinate-ink);
+  stroke-width: 4;
 }
 
 .board__coordinates text {
@@ -656,7 +696,7 @@ body {
  * as it can manage.
  */
 @media (prefers-reduced-motion: reduce) {
-  .board__points circle[data-arrived],
+  .board [data-arrived],
   .status__thinking {
     animation: none;
   }

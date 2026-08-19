@@ -45,8 +45,25 @@ export const PIECE_RADIUS = 34;
  */
 export const HINT_RADIUS = 46;
 
-/** How much of the board around a point takes a tap meant for it. */
-export const TARGET_RADIUS = STEP / 2;
+/**
+ * The ring inside the piece that moved last, marking where the move came to
+ * rest. It goes inside rather than around it because everything around a point
+ * is already spoken for — the marks the game leaves at the piece's own radius
+ * and the hint outside them — and because it is the one mark that has to survive
+ * a player who has asked for no animation: without it the last move is told only
+ * by the movement, and a board that has stopped moving stops saying it.
+ */
+export const LAST_MOVE_RADIUS = 14;
+
+/**
+ * How much of the board around a point takes a tap meant for it: a square of one
+ * whole step, so the targets tile the board and leave no gap between two points
+ * for a tap to fall down. It is square rather than round for the same reason the
+ * ring it is drawn as when the keyboard is on it is: nothing else on the board is
+ * a square, so the point the keyboard has reached cannot be read as a state the
+ * game has put the point in.
+ */
+export const TARGET_SIZE = STEP;
 
 export type Centre = { readonly x: number; readonly y: number };
 

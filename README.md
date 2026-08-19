@@ -53,6 +53,8 @@ src/
 
 A game and the settings survive a reload in the browser's own storage, which is the whole of this app's memory ([ADR-0004](docs/adr/0004-static-site-no-backend.md)). A game is written down as the moves played in it and read back by playing them again, so the rules rebuild the position, the draw counts, the move list and the history a takeback walks — and a stored game whose moves the rules do not allow is turned away rather than restored. `src/session/saved-game.ts` holds the shape and the replay as plain data; `src/ui/storage.ts` is the one place that touches storage.
 
+Each of the board's 24 points is a button rather than a shape with a click handler: it takes focus, it answers Enter and Space, and it announces its coordinate and its state. Every state also carries a shape and not only a colour, the two sides are told apart by lightness rather than by hue, and nothing is said by movement alone — that is [ADR-0006](docs/adr/0006-every-point-is-a-control-with-a-shape.md), and later interface work maintains it rather than re-adding it.
+
 The same lint pass rejects user-facing text written into a component, so the strings module stays the one place text lives and the English translation stays a data change.
 
 ## Development environment

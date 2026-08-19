@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { type Locator, expect, test } from "@playwright/test";
 
 import { LINES, POINTS } from "../../src/engine/board";
 import { strings } from "../../src/strings";
@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("renders the empty board", async ({ page }) => {
-  await expect(page.getByRole("img", { name: strings.board.label })).toBeVisible();
+  await expect(page.getByRole("group", { name: strings.board.label })).toBeVisible();
 
   await expect(page.getByTestId("point")).toHaveCount(POINTS.length);
   await expect(page.getByTestId("line")).toHaveCount(LINES.length);
@@ -59,6 +59,52 @@ test("marks the piece that moved last with the travel that brought it in", async
   await expect(pointAt(page, "b4")).toHaveAttribute("data-arrived", "moved");
   await expect(pointAt(page, "b4")).toHaveAttribute("style", /--arrived-x:.*px/);
   await expect(pointAt(page, "b4")).toHaveAttribute("style", /--arrived-y:.*px/);
+});
+
+/**
+ * Colour is what the board says a state in, and it is never the only thing it
+ * says it in: every state a point can be in carries a shape of its own — a
+ * dashed ring, a solid one, a ring inside the piece — so a player who cannot
+ * tell two of the inks apart can still tell the states apart.
+ */
+test("tells the states of a point apart by shape as well as by colour", async ({ page }) => {
+  const dashesOf = (locator: Locator) =>
+    locator.evaluate((element) => getComputedStyle(element).strokeDasharray);
+
+  await tap(page, ...MILL_FREE_PLACING, "b2"); // and pick a piece up
+
+  // where it may go: the dashed outline of the piece that would land there
+  const destination = page.locator(`[data-destination="b4"]`);
+  await expect(destination).toHaveCount(1);
+  expect(await dashesOf(destination)).not.toBe("none");
+
+  // the piece picked up, told from it by a ring that is solid rather than dashed
+  expect(await dashesOf(pointAt(page, "b2"))).toBe("none");
+
+  await tap(page, "b4");
+
+  // and where the move came to rest, marked inside the piece that made it
+  await expect(page.getByTestId("last-move").locator("circle")).toHaveCount(1);
+});
+
+/**
+ * Movement is the lesser half of what the board says about the last move, and a
+ * player who has asked their system for as little of it as it can manage is
+ * shown the other half rather than nothing.
+ */
+test("runs no animation for a player who asked for none, and marks the last move anyway", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+
+  await tap(page, "a1");
+
+  const animation = await pointAt(page, "a1").evaluate(
+    (element) => getComputedStyle(element).animationName,
+  );
+  expect(animation).toBe("none");
+
+  await expect(page.getByTestId("last-move").locator("circle")).toHaveCount(1);
 });
 
 test("speaks Hungarian, down to the browser tab", async ({ page }) => {

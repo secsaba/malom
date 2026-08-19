@@ -39,11 +39,17 @@ const Ended = ({ result }: { readonly result: Result }) =>
  * computer is thinking. Once the game is over, who won and what ended it stand
  * where the turn used to — a finished game has nobody to move.
  *
+ * At a glance is not the only way it is read. A player working the board by
+ * keyboard is not looking at this block when a mill of theirs closes and a
+ * capture falls due, so it announces its own changes rather than waiting to be
+ * found. Politely: the game is turn-based and nothing here is urgent enough to
+ * cut across what the board has just said.
+ *
  * Every word of it is the strings module's; the game session hands over the
  * phase, the side and the result as values (ADR-0002).
  */
 export const Status = ({ game }: StatusProps) => (
-  <section className="status" data-testid="status">
+  <section className="status" data-testid="status" aria-live="polite">
     <p className="status__phase" data-testid="phase">
       {strings.game.phase[game.phase]}
     </p>

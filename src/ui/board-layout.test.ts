@@ -5,8 +5,11 @@ import {
   BOARD_SIZE,
   COORDINATE_LABELS,
   HINT_RADIUS,
+  LAST_MOVE_RADIUS,
   LINE_SEGMENTS,
   PIECE_RADIUS,
+  POINT_RADIUS,
+  TARGET_SIZE,
   centreOf,
 } from "./board-layout";
 
@@ -72,24 +75,41 @@ describe("line segments", () => {
   });
 });
 
-describe("the ring a hint is marked with", () => {
-  /** How close together the two nearest points on the board are. */
-  const closestPoints = Math.min(
-    ...POINTS.flatMap((point) =>
-      POINTS.filter((other) => other !== point).map((other) => {
-        const here = centreOf(point);
-        const there = centreOf(other);
-        return Math.hypot(here.x - there.x, here.y - there.y);
-      }),
-    ),
-  );
+/** How close together the two nearest points on the board are. */
+const closestPoints = Math.min(
+  ...POINTS.flatMap((point) =>
+    POINTS.filter((other) => other !== point).map((other) => {
+      const here = centreOf(point);
+      const there = centreOf(other);
+      return Math.hypot(here.x - there.x, here.y - there.y);
+    }),
+  ),
+);
 
+describe("the ring a hint is marked with", () => {
   it("goes round the outside of whatever stands on the point", () => {
     expect(HINT_RADIUS).toBeGreaterThan(PIECE_RADIUS);
   });
 
   it("stays clear of the point next door, so two hinted points read as two", () => {
     expect(HINT_RADIUS * 2).toBeLessThan(closestPoints);
+  });
+});
+
+describe("the square that takes a tap", () => {
+  it("reaches wider than the piece standing on the point, so a fingertip can miss", () => {
+    expect(TARGET_SIZE / 2).toBeGreaterThan(PIECE_RADIUS);
+  });
+
+  it("takes no tap meant for the point next door", () => {
+    expect(TARGET_SIZE).toBeLessThanOrEqual(closestPoints);
+  });
+});
+
+describe("the ring the last move is marked with", () => {
+  it("sits inside the piece it marks, where nothing else on the board is drawn", () => {
+    expect(LAST_MOVE_RADIUS).toBeLessThan(PIECE_RADIUS);
+    expect(LAST_MOVE_RADIUS).toBeLessThan(POINT_RADIUS);
   });
 });
 

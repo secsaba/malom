@@ -10,6 +10,37 @@ export const hu = {
   board: {
     label: "Malomtábla",
     showCoordinates: "Koordináták mutatása",
+    /**
+     * What a point is, read out to a player who cannot see the marks on it. The
+     * coordinate the announcement opens with is notation rather than language
+     * and comes from the board itself; everything said after it is here.
+     *
+     * The two sides are named as pieces rather than as "your own" and "the
+     * opponent's": two people share one device, so whose piece a bábu is
+     * changes with whose turn it is, and a point that answered differently
+     * depending on who was listening would be the one thing on the board that
+     * did.
+     */
+    point: {
+      empty: "üres",
+      /** The piece standing on the point, keyed by the side it belongs to. */
+      piece: {
+        light: "világos bábu",
+        dark: "sötét bábu",
+      },
+      /** A point the side to move may act on, whichever of the four ways it may. */
+      legal: "választható",
+      /** The piece the player has picked up and not yet moved. */
+      selected: "felvéve",
+      /** What the move the engine would play has this point doing. */
+      hint: {
+        from: "tipp: innen lép",
+        to: "tipp: ide lép",
+        capture: "tipp: ezt veszi le",
+      },
+      /** Where the piece that moved last came to rest. */
+      lastMove: "utolsó lépés",
+    },
   },
   game: {
     /** The phases, keyed by the value the game session reports. */
