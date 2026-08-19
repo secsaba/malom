@@ -6,8 +6,9 @@
  * Hungarian is the default and the source of truth; English is a translation of
  * it. That is a fact about the shape of this module and not only about the
  * order they were written in: {@link Strings} is Hungarian's own shape with the
- * words taken out of it, so a key added to `hu` is a key `en` fails to compile
- * without, and a key `en` grew on its own is one `hu` fails to compile with.
+ * words taken out of it, so a key added to `hu` is one `en` fails to compile
+ * without, and a key `en` grew on its own is one `en` fails to compile with.
+ * Hungarian cannot be broken from the English side at all: it is the shape.
  *
  * There is no module-level `strings` here, and that absence is load-bearing: a
  * component that reached for one would compile, lint, and then go on showing

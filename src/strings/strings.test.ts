@@ -106,6 +106,7 @@ describe("the Hungarian strings", () => {
     expect(hu.game.result.draw).toBe("Döntetlen");
     expect(hu.setup.against.computer).toBe("Gép");
     expect(hu.difficulty.legend).toBe("Nehézség");
+    expect(hu.language.legend).toBe("Nyelv");
     expect(hu.teaching.toggle).toBe("Tanulómód");
     expect(hu.teaching.hint).toBe("Tipp kérése");
     expect(hu.teaching.gradeHeading).toBe("Értékelés");
@@ -191,6 +192,7 @@ describe("the English strings", () => {
     expect(en.game.piecesInHand).toBe("Pieces in hand");
     expect(en.game.result.draw).toBe("Draw");
     expect(en.difficulty.legend).toBe("Difficulty");
+    expect(en.language.legend).toBe("Language");
     expect(en.teaching.toggle).toBe("Teaching mode");
     expect(en.teaching.takeback).toBe("Takeback");
     expect(en.teaching.gradeHeading).toBe("Grade");

@@ -125,7 +125,8 @@ export const en: Strings = {
     reason: {
       pattern: {
         "opponent-mill-less": "The opponent has no line left on which to close a mill.",
-        "fork-created": "You built a fork: the opponent can block only one of its two threats.",
+        "fork-created":
+          "You built a fork: the opponent can only block one of its two potential mills.",
         "running-mill-opened": "Running mill: you can close it again every second move.",
         "mill-blocked": "You blocked the opponent's potential mill in time.",
         "mill-closed": "You closed a mill and captured one of the opponent's pieces.",

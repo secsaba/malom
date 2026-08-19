@@ -247,6 +247,7 @@ _Avoid_: preferences, options, configuration, profile
 **Panel**:
 Everything the page shows beside the board: what teaching has to say about the game, the record of it, the Settings, and the game to play next. On a screen with room for both it stands next to the board; on a phone there is not, so it folds down to a handle at the foot of the screen and opens above it when the player asks — and gives the room back to the board when they are done with it, because folding is not scrolling: what the panel takes, it takes out of the board's size and hands back, rather than pushing the board off the screen. Three things are never in it: the board, whose turn it is, and the question a Blunder warning is put back with. The first two are what the game is played on, and the third is a question — one nobody can see is a game that reads as stuck.
 _Hungarian_: Részletek — the word on the handle, which is the only place the panel is named
+_English_: Details — the one term whose surface form is not its headword, for the same reason the Hungarian one is not: the handle is named for what is behind it rather than for the thing doing the folding
 _Avoid_: sidebar, drawer, tray, bottom sheet — the last of those naming the shape it takes on one screen rather than the thing itself; and _analysis panel_, which names half of what stands in it
 
 **Language**:
