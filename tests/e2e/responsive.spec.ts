@@ -1,10 +1,10 @@
 import { type Page, devices, expect, test } from "@playwright/test";
 
 import { POINTS, type PointId } from "../../src/engine/board";
-import { strings } from "../../src/strings";
 import { MILL_FREE_PLACING } from "../fixtures/games";
 import { BOARD_SIZE, TARGET_RADIUS } from "../../src/ui/board-layout";
 import { pointAt, touch } from "./board";
+import { strings } from "./strings";
 
 /**
  * How far the page could be scrolled in each direction. Both are nought on a

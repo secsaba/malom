@@ -2,7 +2,7 @@
 
 A web implementation of Nine Men's Morris built to turn a novice into a strong player: two people can play on one device, or one person can play the computer with a teaching mode that suggests moves and grades the ones already played.
 
-The canonical language below is **English** — it is the language of the code and of these docs. The default user interface language is **Hungarian**, so each term also records the Hungarian surface form used in the strings module. Those two must not drift: if a concept is renamed here, its Hungarian string is renamed with it.
+The canonical language below is **English** — it is the language of the code and of these docs. Hungarian is the default user interface language and the source of truth for its strings, so each term also records the Hungarian surface form used in the strings module. Those two must not drift: if a concept is renamed here, its Hungarian string is renamed with it. The interface can also be read in English, and there the headword itself is the surface form: an English string that calls a Fork a double threat has drifted just as far.
 
 Hungarian forms are taken from published Hungarian rule texts where one exists. The few marked _(coined)_ have no established Hungarian term and were invented for this project.
 
@@ -238,7 +238,7 @@ _Hungarian_: none — nothing in the interface names it, and a game comes back w
 _Avoid_: save, snapshot, checkpoint, autosave, session
 
 **Settings**:
-The choices that outlive the game they were made in: the Difficulty, whether Teaching mode is on, whether a Blunder warning is asked for, and whether the board is labelled with its Coordinates. They are kept apart from the Saved game and for longer — starting another game throws the game away and leaves every one of them exactly where the player put it. What is remembered about teaching is what the player said rather than whether it was on, because a player who has never touched it is answered for by who is playing, and a player who has touched it means it.
+The choices that outlive the game they were made in: the Difficulty, whether Teaching mode is on, whether a Blunder warning is asked for, whether the board is labelled with its Coordinates, and the Language it is all read in. They are kept apart from the Saved game and for longer — starting another game throws the game away and leaves every one of them exactly where the player put it. What is remembered about teaching is what the player said rather than whether it was on, because a player who has never touched it is answered for by who is playing, and a player who has touched it means it.
 _Hungarian_: none — nothing in the interface groups them; each is shown under its own name
 _Avoid_: preferences, options, configuration, profile
 
@@ -248,6 +248,11 @@ _Avoid_: preferences, options, configuration, profile
 Everything the page shows beside the board: what teaching has to say about the game, the record of it, the Settings, and the game to play next. On a screen with room for both it stands next to the board; on a phone there is not, so it folds down to a handle at the foot of the screen and opens above it when the player asks — and gives the room back to the board when they are done with it, because folding is not scrolling: what the panel takes, it takes out of the board's size and hands back, rather than pushing the board off the screen. Three things are never in it: the board, whose turn it is, and the question a Blunder warning is put back with. The first two are what the game is played on, and the third is a question — one nobody can see is a game that reads as stuck.
 _Hungarian_: Részletek — the word on the handle, which is the only place the panel is named
 _Avoid_: sidebar, drawer, tray, bottom sheet — the last of those naming the shape it takes on one screen rather than the thing itself; and _analysis panel_, which names half of what stands in it
+
+**Language**:
+Which of the two languages the interface is read in. It is a Setting and nothing more: the game, the moves and the engine's opinions are the same in either, and switching mid-game changes not one thing about the game. Hungarian is the default and the source of truth — every string is written there first and translated from there — so a concept with no Hungarian form has none in English either. The two language names are the one thing never translated: a player who has landed in a language they cannot read is looking for the word they know.
+_Hungarian_: nyelv (Magyar, English)
+_Avoid_: locale, translation, i18n — the first of those bringing dates, numbers and a region with it, none of which this app has an opinion about
 
 ## Measuring the engine
 

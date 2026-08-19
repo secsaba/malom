@@ -13,7 +13,7 @@
 import type { PointId } from "../engine/board";
 import type { Move } from "../engine/game";
 import type { Side } from "../engine/position";
-import { strings } from "../strings";
+import type { Strings } from "../strings";
 
 /** What a hinted move has a point doing. */
 export type HintRole = "from" | "to" | "capture";
@@ -64,7 +64,10 @@ export const BETWEEN = ", ";
  * whatever changed last, because a player hearing the same point twice has to
  * hear it the same way to hear the difference.
  */
-const wordsFor = ({ occupant, legal, selected, hint, lastMove }: PointState): readonly string[] => {
+const wordsFor = (
+  { occupant, legal, selected, hint, lastMove }: PointState,
+  strings: Strings,
+): readonly string[] => {
   const { point } = strings.board;
 
   return [
@@ -81,7 +84,12 @@ const wordsFor = ({ occupant, legal, selected, hint, lastMove }: PointState): re
  * because it is what tells this point from the other 23, and it is the one part
  * of the sentence that is notation rather than language — `a1` reads the same in
  * either — so it comes from the board and everything after it from the strings
- * module.
+ * given.
+ *
+ * The strings are a parameter rather than an import, because which language the
+ * board is read out in is the interface's answer and this module is pure: the
+ * board hands over the strings it is rendering with, and the same state can be
+ * announced in either language without rendering anything.
  */
-export const pointLabel = (point: PointId, state: PointState): string =>
-  [point, ...wordsFor(state)].join(BETWEEN);
+export const pointLabel = (point: PointId, state: PointState, strings: Strings): string =>
+  [point, ...wordsFor(state, strings)].join(BETWEEN);

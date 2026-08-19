@@ -1,4 +1,4 @@
-import { strings } from "../strings";
+import { useStrings } from "./language";
 
 type BlunderWarningProps = {
   /** Whether teaching is on. Nothing here is asked of a player who has not asked to be taught. */
@@ -32,34 +32,38 @@ export const BlunderWarning = ({
   warned,
   onPlayAnyway,
   onThinkAgain,
-}: BlunderWarningProps) => (
-  <>
-    {teaching && checking && (
-      <p className="blunder-check" data-testid="checking">
-        {strings.teaching.warning.checking}
-      </p>
-    )}
+}: BlunderWarningProps) => {
+  const strings = useStrings();
 
-    {teaching && warned && (
-      <p className="blunder-warning" data-testid="warning">
-        <span className="blunder-warning__asks">{strings.teaching.warning.asks}</span>
-        <button
-          type="button"
-          className="teaching__button"
-          data-testid="play-anyway"
-          onClick={onPlayAnyway}
-        >
-          {strings.teaching.warning.playAnyway}
-        </button>
-        <button
-          type="button"
-          className="teaching__button"
-          data-testid="think-again"
-          onClick={onThinkAgain}
-        >
-          {strings.teaching.warning.thinkAgain}
-        </button>
-      </p>
-    )}
-  </>
-);
+  return (
+    <>
+      {teaching && checking && (
+        <p className="blunder-check" data-testid="checking">
+          {strings.teaching.warning.checking}
+        </p>
+      )}
+
+      {teaching && warned && (
+        <p className="blunder-warning" data-testid="warning">
+          <span className="blunder-warning__asks">{strings.teaching.warning.asks}</span>
+          <button
+            type="button"
+            className="teaching__button"
+            data-testid="play-anyway"
+            onClick={onPlayAnyway}
+          >
+            {strings.teaching.warning.playAnyway}
+          </button>
+          <button
+            type="button"
+            className="teaching__button"
+            data-testid="think-again"
+            onClick={onThinkAgain}
+          >
+            {strings.teaching.warning.thinkAgain}
+          </button>
+        </p>
+      )}
+    </>
+  );
+};

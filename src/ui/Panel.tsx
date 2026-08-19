@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from "react";
 
-import { strings } from "../strings";
+import { useStrings } from "./language";
 
 type PanelProps = {
   /** Everything the page shows beside the board. */
@@ -33,6 +33,7 @@ const CONTENTS = "panel-contents";
  * with the panel open would come back with the board half the size it was left.
  */
 export const Panel = ({ children }: PanelProps) => {
+  const strings = useStrings();
   const [expanded, setExpanded] = useState(false);
 
   return (

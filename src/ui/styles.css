@@ -775,13 +775,21 @@ body {
   font-weight: 600;
 }
 
-.difficulty {
+/*
+ * The two choices made from a row of radios — how strongly the computer plays,
+ * and which language the interface is read in. They are drawn as one control
+ * because they are one control: a legend over a handful of named options that
+ * takes effect the moment it is touched.
+ */
+.difficulty,
+.language {
   display: flex;
   justify-content: center;
   width: 100%;
 }
 
-.difficulty__choice {
+.difficulty__choice,
+.language__choice {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -793,13 +801,15 @@ body {
   border-radius: 0.5rem;
 }
 
-.difficulty__choice legend {
+.difficulty__choice legend,
+.language__choice legend {
   padding: 0 0.35rem;
   color: var(--page-ink-dim);
   font-size: 0.875rem;
 }
 
-.difficulty__option {
+.difficulty__option,
+.language__option {
   display: flex;
   align-items: center;
   gap: 0.35rem;

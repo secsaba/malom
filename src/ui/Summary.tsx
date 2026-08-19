@@ -1,5 +1,6 @@
 import { GRADES, type Summary as SideSummary } from "../session/game-session";
-import { strings } from "../strings";
+import type { Strings } from "../strings";
+import { useStrings } from "./language";
 
 type SummaryProps = {
   /** What the game came to, one per side the engine graded a move of. */
@@ -20,7 +21,7 @@ type SummaryProps = {
  * who changed difficulty mid-game is taken at their last word, which is the same
  * reading the rest of the interface gives that setting.
  */
-const resultOf = ({ result }: SideSummary, againstMaster: boolean): string =>
+const resultOf = ({ result }: SideSummary, againstMaster: boolean, strings: Strings): string =>
   result === "drawn" && againstMaster
     ? strings.teaching.summary.result.drawnAgainstMaster
     : strings.teaching.summary.result[result];
@@ -41,51 +42,57 @@ const resultOf = ({ result }: SideSummary, againstMaster: boolean): string =>
  * game, so the criticisms have names of their own here — but they are the same
  * criticisms the engine detected, and nothing is named that it did not (ADR-0003).
  */
-export const Summary = ({ summary, againstMaster }: SummaryProps) => (
-  <section className="summary" data-testid="summary">
-    <h2 className="summary__heading">{strings.teaching.summary.heading}</h2>
+export const Summary = ({ summary, againstMaster }: SummaryProps) => {
+  const strings = useStrings();
 
-    {summary.map((side) => (
-      <article
-        key={side.side}
-        className="summary__side"
-        data-testid="summary-side"
-        data-side={side.side}
-      >
-        <h3 className="summary__who">{strings.game.side[side.side]}</h3>
+  return (
+    <section className="summary" data-testid="summary">
+      <h2 className="summary__heading">{strings.teaching.summary.heading}</h2>
 
-        <p className="summary__result" data-testid="side-result" data-result={side.result}>
-          {resultOf(side, againstMaster)}
-        </p>
+      {summary.map((side) => (
+        <article
+          key={side.side}
+          className="summary__side"
+          data-testid="summary-side"
+          data-side={side.side}
+        >
+          <h3 className="summary__who">{strings.game.side[side.side]}</h3>
 
-        <dl className="summary__counts">
-          {GRADES.map((grade) => (
-            <div key={grade} className="summary__count">
-              <dt>{strings.teaching.grade[grade]}</dt>
-              <dd data-testid="grade-count" data-grade={grade}>
-                {side.counts[grade]}
-              </dd>
+          <p className="summary__result" data-testid="side-result" data-result={side.result}>
+            {resultOf(side, againstMaster, strings)}
+          </p>
+
+          <dl className="summary__counts">
+            {GRADES.map((grade) => (
+              <div key={grade} className="summary__count">
+                <dt>{strings.teaching.grade[grade]}</dt>
+                <dd data-testid="grade-count" data-grade={grade}>
+                  {side.counts[grade]}
+                </dd>
+              </div>
+            ))}
+            <div className="summary__count summary__count--all">
+              <dt>{strings.teaching.summary.graded}</dt>
+              <dd data-testid="graded-count">{side.graded}</dd>
             </div>
-          ))}
-          <div className="summary__count summary__count--all">
-            <dt>{strings.teaching.summary.graded}</dt>
-            <dd data-testid="graded-count">{side.graded}</dd>
-          </div>
-        </dl>
+          </dl>
 
-        <p className="summary__weakness" data-testid="weakness" data-weakness={side.weakness}>
-          {side.weakness ? (
-            <>
-              <span className="summary__weakness-heading">{strings.teaching.summary.weakness}</span>
-              <span className="summary__weakness-name">
-                {strings.teaching.summary.criticism[side.weakness]}
-              </span>
-            </>
-          ) : (
-            strings.teaching.summary.noWeakness
-          )}
-        </p>
-      </article>
-    ))}
-  </section>
-);
+          <p className="summary__weakness" data-testid="weakness" data-weakness={side.weakness}>
+            {side.weakness ? (
+              <>
+                <span className="summary__weakness-heading">
+                  {strings.teaching.summary.weakness}
+                </span>
+                <span className="summary__weakness-name">
+                  {strings.teaching.summary.criticism[side.weakness]}
+                </span>
+              </>
+            ) : (
+              strings.teaching.summary.noWeakness
+            )}
+          </p>
+        </article>
+      ))}
+    </section>
+  );
+};

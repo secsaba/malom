@@ -5,9 +5,9 @@ import type { PointId } from "../../src/engine/board";
 import { type Game, type Move, afterMove, legalMovesOf } from "../../src/engine/game";
 import type { Side } from "../../src/engine/position";
 import { DEFAULT_DIFFICULTY, DIFFICULTIES, type Difficulty } from "../../src/opponent/difficulty";
-import { strings } from "../../src/strings";
 import { gameOf } from "../fixtures/games";
 import { pointAt, tap } from "./board";
+import { strings } from "./strings";
 
 /**
  * Start a game against the computer, with the player on this side and the

@@ -1,5 +1,6 @@
 import type { Grade, Reason } from "../session/game-session";
-import { strings } from "../strings";
+import type { Strings } from "../strings";
+import { useStrings } from "./language";
 import { notationOf } from "./move-notation";
 
 /**
@@ -7,7 +8,7 @@ import { notationOf } from "./move-notation";
  * positively detected or to its honest fallback (ADR-0003); there is no branch
  * that words a verdict out of the grade alone.
  */
-const sentenceFor = (reason: Reason): string => {
+const sentenceFor = (reason: Reason, strings: Strings): string => {
   switch (reason.kind) {
     case "pattern":
       return strings.teaching.reason.pattern[reason.pattern];
@@ -68,7 +69,8 @@ type TeachingProps = {
  *
  * The reason is the sentence under the verdict, and it is worded here rather
  * than behind the boundary: the engine hands back the pattern it detected and
- * this is where it is said out loud in Hungarian (ADR-0002).
+ * this is where it is said out loud, in whichever language the player is
+ * reading (ADR-0002).
  */
 export const Teaching = ({
   teaching,
@@ -82,66 +84,70 @@ export const Teaching = ({
   onAskForHint,
   onTakeBack,
   onWarnOfBlunders,
-}: TeachingProps) => (
-  <section className="teaching" data-testid="teaching">
-    <label className="teaching__toggle">
-      <input
-        type="checkbox"
-        data-testid="teaching-toggle"
-        checked={teaching}
-        onChange={(event) => onTeach(event.target.checked)}
-      />
-      {strings.teaching.toggle}
-    </label>
+}: TeachingProps) => {
+  const strings = useStrings();
 
-    {teaching && (
-      <button
-        type="button"
-        className="teaching__button"
-        data-testid="hint"
-        disabled={!hintOffered || hinting}
-        onClick={onAskForHint}
-      >
-        {strings.teaching.hint}
-      </button>
-    )}
-
-    {teaching && (
-      <button
-        type="button"
-        className="teaching__button"
-        data-testid="takeback"
-        disabled={!takebackOffered}
-        onClick={onTakeBack}
-      >
-        {strings.teaching.takeback}
-      </button>
-    )}
-
-    {teaching && (
+  return (
+    <section className="teaching" data-testid="teaching">
       <label className="teaching__toggle">
         <input
           type="checkbox"
-          data-testid="warning-toggle"
-          checked={warnsOfBlunders}
-          onChange={(event) => onWarnOfBlunders(event.target.checked)}
+          data-testid="teaching-toggle"
+          checked={teaching}
+          onChange={(event) => onTeach(event.target.checked)}
         />
-        {strings.teaching.warning.toggle}
+        {strings.teaching.toggle}
       </label>
-    )}
 
-    {teaching && grade && (
-      <p className="teaching__grade" data-testid="grade" data-grade={grade}>
-        <span className="teaching__grade-heading">{strings.teaching.gradeHeading}</span>
-        <span className="teaching__grade-verdict" data-testid="grade-verdict">
-          {strings.teaching.grade[grade]}
-        </span>
-        {reason && (
-          <span className="teaching__grade-reason" data-testid="grade-reason">
-            {sentenceFor(reason)}
+      {teaching && (
+        <button
+          type="button"
+          className="teaching__button"
+          data-testid="hint"
+          disabled={!hintOffered || hinting}
+          onClick={onAskForHint}
+        >
+          {strings.teaching.hint}
+        </button>
+      )}
+
+      {teaching && (
+        <button
+          type="button"
+          className="teaching__button"
+          data-testid="takeback"
+          disabled={!takebackOffered}
+          onClick={onTakeBack}
+        >
+          {strings.teaching.takeback}
+        </button>
+      )}
+
+      {teaching && (
+        <label className="teaching__toggle">
+          <input
+            type="checkbox"
+            data-testid="warning-toggle"
+            checked={warnsOfBlunders}
+            onChange={(event) => onWarnOfBlunders(event.target.checked)}
+          />
+          {strings.teaching.warning.toggle}
+        </label>
+      )}
+
+      {teaching && grade && (
+        <p className="teaching__grade" data-testid="grade" data-grade={grade}>
+          <span className="teaching__grade-heading">{strings.teaching.gradeHeading}</span>
+          <span className="teaching__grade-verdict" data-testid="grade-verdict">
+            {strings.teaching.grade[grade]}
           </span>
-        )}
-      </p>
-    )}
-  </section>
-);
+          {reason && (
+            <span className="teaching__grade-reason" data-testid="grade-reason">
+              {sentenceFor(reason, strings)}
+            </span>
+          )}
+        </p>
+      )}
+    </section>
+  );
+};

@@ -1,9 +1,9 @@
 import { type Locator, expect, test } from "@playwright/test";
 
 import { LINES, POINTS } from "../../src/engine/board";
-import { strings } from "../../src/strings";
 import { MILL_FREE_PLACING } from "../fixtures/games";
 import { pointAt, tap } from "./board";
+import { strings } from "./strings";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("./");

@@ -11,8 +11,8 @@ import { hu } from "./src/strings/hu.ts";
  * The browser tab is a visible string too, so it comes from the strings module
  * rather than being spelled out in index.html. It is injected at build time, so
  * the tab never shows a placeholder first — which also means it is always the
- * Hungarian title. A language switch (#19) will have to set `document.title`
- * itself.
+ * Hungarian title. `src/ui/language` moves it from there once the app has read
+ * the language the player left the interface in.
  */
 const appTitle = (): Plugin => ({
   name: "malom:app-title",

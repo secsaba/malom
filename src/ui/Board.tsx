@@ -3,7 +3,6 @@ import { Fragment, type CSSProperties, type KeyboardEvent } from "react";
 import { POINTS, type PointId } from "../engine/board";
 import type { Arrival, Move } from "../engine/game";
 import type { Position } from "../engine/position";
-import { strings } from "../strings";
 import {
   BOARD_SIZE,
   COORDINATE_LABELS,
@@ -17,6 +16,7 @@ import {
   TARGET_RADIUS,
   centreOf,
 } from "./board-layout";
+import { useStrings } from "./language";
 import { type PointState, hintedAt, pointLabel } from "./point-state";
 
 type BoardProps = {
@@ -99,6 +99,8 @@ export const Board = ({
   showCoordinates,
   onSelect,
 }: BoardProps) => {
+  const strings = useStrings();
+
   const stateOf = (point: PointId): PointState => ({
     occupant: position.get(point),
     legal: legalPoints.includes(point),
@@ -313,7 +315,7 @@ export const Board = ({
               data-target={point}
               role="button"
               tabIndex={IN_TAB_ORDER}
-              aria-label={pointLabel(point, state)}
+              aria-label={pointLabel(point, state, strings)}
               cx={centre.x}
               cy={centre.y}
               r={TARGET_RADIUS}

@@ -3,11 +3,13 @@ import { useState } from "react";
 import type { PointId } from "../engine/board";
 import { type Side, opponentOf } from "../engine/position";
 import type { GameState, Intent, Players } from "../session/game-session";
-import { strings } from "../strings";
+import { type Language, stringsFor } from "../strings";
 import { BlunderWarning } from "./BlunderWarning";
 import { Board } from "./Board";
 import { DifficultyChoice } from "./DifficultyChoice";
+import { LanguageChoice } from "./LanguageChoice";
 import { MoveList } from "./MoveList";
+import { LanguageProvider } from "./language";
 import { Panel } from "./Panel";
 import { FIRST_GAME, type NextGame, Setup } from "./Setup";
 import { Status } from "./Status";
@@ -68,7 +70,13 @@ export const App = () => {
     thinkAgain,
   } = useGameSession();
   const [showCoordinates, setShowCoordinates] = useState(() => rememberedSettings().showCoordinates);
+  const [language, setLanguage] = useState(() => rememberedSettings().language);
   const [next, setNext] = useState<NextGame>(() => setupFor(state.opponentSide));
+
+  // The one component that reads the strings without the hook, because it is
+  // the one that knows which language they are: everything below it is handed
+  // the answer through the provider.
+  const strings = stringsFor(language);
 
   const select = (point: PointId) => apply(intentFor(state, point));
 
@@ -78,6 +86,13 @@ export const App = () => {
   const chooseCoordinates = (show: boolean) => {
     setShowCoordinates(show);
     remember({ showCoordinates: show });
+  };
+
+  // As is the language, and for the same reason: which language a player reads
+  // is the interface's business and no part of the game.
+  const chooseLanguage = (chosen: Language) => {
+    setLanguage(chosen);
+    remember({ language: chosen });
   };
 
   const startGame = (chosen: NextGame) => {
@@ -95,88 +110,92 @@ export const App = () => {
   const againstMaster = state.opponentSide !== undefined && state.difficulty === "master";
 
   return (
-    <main className="app">
-      <div className="app__play">
-        <header className="app__header">
-          <h1>{strings.app.title}</h1>
-        </header>
+    <LanguageProvider language={language}>
+      <main className="app">
+        <div className="app__play">
+          <header className="app__header">
+            <h1>{strings.app.title}</h1>
+          </header>
 
-        <div className="app__board">
-          <Board
-            position={state.position}
-            legalPoints={state.legalPoints}
-            selection={state.selection}
-            arrival={state.lastArrival}
-            hint={state.hint}
-            showCoordinates={showCoordinates}
-            onSelect={select}
+          <div className="app__board">
+            <Board
+              position={state.position}
+              legalPoints={state.legalPoints}
+              selection={state.selection}
+              arrival={state.lastArrival}
+              hint={state.hint}
+              showCoordinates={showCoordinates}
+              onSelect={select}
+            />
+          </div>
+
+          <Status game={state} />
+
+          <BlunderWarning
+            teaching={state.teaching}
+            checking={state.checking}
+            warned={state.warned}
+            onPlayAnyway={playAnyway}
+            onThinkAgain={thinkAgain}
           />
         </div>
 
-        <Status game={state} />
-
-        <BlunderWarning
-          teaching={state.teaching}
-          checking={state.checking}
-          warned={state.warned}
-          onPlayAnyway={playAnyway}
-          onThinkAgain={thinkAgain}
-        />
-      </div>
-
-      <Panel>
-        <Teaching
-          teaching={state.teaching}
-          hintOffered={state.hintOffered}
-          hinting={state.hinting}
-          takebackOffered={state.takebackOffered}
-          warnsOfBlunders={state.warnsOfBlunders}
-          grade={state.grade}
-          reason={state.reason}
-          onTeach={teach}
-          onAskForHint={askForHint}
-          onTakeBack={takeBack}
-          onWarnOfBlunders={warnOfBlunders}
-        />
-
-        {state.teaching && state.summary.length > 0 && (
-          <Summary summary={state.summary} againstMaster={againstMaster} />
-        )}
-
-        {state.teaching && state.moves.length > 0 && (
-          <MoveList
-            moves={state.moves}
-            reviewing={state.reviewing}
-            onReview={review}
-            onStopReviewing={stopReviewing}
+        <Panel>
+          <Teaching
+            teaching={state.teaching}
+            hintOffered={state.hintOffered}
+            hinting={state.hinting}
+            takebackOffered={state.takebackOffered}
+            warnsOfBlunders={state.warnsOfBlunders}
+            grade={state.grade}
+            reason={state.reason}
+            onTeach={teach}
+            onAskForHint={askForHint}
+            onTakeBack={takeBack}
+            onWarnOfBlunders={warnOfBlunders}
           />
-        )}
 
-        {rematchSide && (
-          <button
-            type="button"
-            className="rematch"
-            data-testid="rematch"
-            onClick={() => startGame({ against: "computer", humanSide: rematchSide })}
-          >
-            {strings.setup.rematch}
-          </button>
-        )}
+          {state.teaching && state.summary.length > 0 && (
+            <Summary summary={state.summary} againstMaster={againstMaster} />
+          )}
 
-        <DifficultyChoice difficulty={state.difficulty} onChoose={playAt} />
+          {state.teaching && state.moves.length > 0 && (
+            <MoveList
+              moves={state.moves}
+              reviewing={state.reviewing}
+              onReview={review}
+              onStopReviewing={stopReviewing}
+            />
+          )}
 
-        <Setup next={next} onChoose={setNext} onStart={() => startGame(next)} />
+          {rematchSide && (
+            <button
+              type="button"
+              className="rematch"
+              data-testid="rematch"
+              onClick={() => startGame({ against: "computer", humanSide: rematchSide })}
+            >
+              {strings.setup.rematch}
+            </button>
+          )}
 
-        <label className="app__toggle">
-          <input
-            type="checkbox"
-            data-testid="coordinates-toggle"
-            checked={showCoordinates}
-            onChange={(event) => chooseCoordinates(event.target.checked)}
-          />
-          {strings.board.showCoordinates}
-        </label>
-      </Panel>
-    </main>
+          <DifficultyChoice difficulty={state.difficulty} onChoose={playAt} />
+
+          <Setup next={next} onChoose={setNext} onStart={() => startGame(next)} />
+
+          <label className="app__toggle">
+            <input
+              type="checkbox"
+              data-testid="coordinates-toggle"
+              checked={showCoordinates}
+              onChange={(event) => chooseCoordinates(event.target.checked)}
+            />
+            {strings.board.showCoordinates}
+          </label>
+
+          <LanguageChoice language={language} onChoose={chooseLanguage} />
+        </Panel>
+      </main>
+    </LanguageProvider>
   );
 };

@@ -1,5 +1,5 @@
 import type { ListedMove } from "../session/game-session";
-import { strings } from "../strings";
+import { useStrings } from "./language";
 import { notationOf } from "./move-notation";
 
 type MoveListProps = {
@@ -29,40 +29,44 @@ type MoveListProps = {
  * — it is a control the player has left switched on, and the way back to the
  * game sits under the column where they will look for it.
  */
-export const MoveList = ({ moves, reviewing, onReview, onStopReviewing }: MoveListProps) => (
-  <section className="move-list" data-testid="move-list">
-    <h2 className="move-list__heading">{strings.teaching.moveList.heading}</h2>
+export const MoveList = ({ moves, reviewing, onReview, onStopReviewing }: MoveListProps) => {
+  const strings = useStrings();
 
-    <ol className="move-list__moves">
-      {moves.map(({ move, by, grade }, played) => (
-        <li key={played} className="move-list__move">
-          <button
-            type="button"
-            className="move-list__played"
-            data-testid="played-move"
-            data-side={by}
-            data-grade={grade}
-            aria-pressed={played === reviewing}
-            onClick={() => onReview(played)}
-          >
-            <span className="move-list__by">{strings.game.side[by]}</span>
-            {/* Coordinates are notation rather than language (CONTEXT.md). */}
-            <span className="move-list__notation">{notationOf(move)}</span>
-            {grade && <span className="move-list__grade">{strings.teaching.grade[grade]}</span>}
-          </button>
-        </li>
-      ))}
-    </ol>
+  return (
+    <section className="move-list" data-testid="move-list">
+      <h2 className="move-list__heading">{strings.teaching.moveList.heading}</h2>
 
-    {reviewing !== undefined && (
-      <button
-        type="button"
-        className="teaching__button"
-        data-testid="back-to-play"
-        onClick={onStopReviewing}
-      >
-        {strings.teaching.moveList.backToPlay}
-      </button>
-    )}
-  </section>
-);
+      <ol className="move-list__moves">
+        {moves.map(({ move, by, grade }, played) => (
+          <li key={played} className="move-list__move">
+            <button
+              type="button"
+              className="move-list__played"
+              data-testid="played-move"
+              data-side={by}
+              data-grade={grade}
+              aria-pressed={played === reviewing}
+              onClick={() => onReview(played)}
+            >
+              <span className="move-list__by">{strings.game.side[by]}</span>
+              {/* Coordinates are notation rather than language (CONTEXT.md). */}
+              <span className="move-list__notation">{notationOf(move)}</span>
+              {grade && <span className="move-list__grade">{strings.teaching.grade[grade]}</span>}
+            </button>
+          </li>
+        ))}
+      </ol>
+
+      {reviewing !== undefined && (
+        <button
+          type="button"
+          className="teaching__button"
+          data-testid="back-to-play"
+          onClick={onStopReviewing}
+        >
+          {strings.teaching.moveList.backToPlay}
+        </button>
+      )}
+    </section>
+  );
+};

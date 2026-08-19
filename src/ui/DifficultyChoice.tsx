@@ -1,5 +1,5 @@
 import { DIFFICULTIES, type Difficulty } from "../session/game-session";
-import { strings } from "../strings";
+import { useStrings } from "./language";
 
 type DifficultyChoiceProps = {
   /** The difficulty the computer is playing at now. */
@@ -16,23 +16,27 @@ type DifficultyChoiceProps = {
  * are in the middle of. It is shown whoever is playing, because it is what the
  * next game against the computer will be played at as well as this one.
  */
-export const DifficultyChoice = ({ difficulty, onChoose }: DifficultyChoiceProps) => (
-  <section className="difficulty" data-testid="difficulty">
-    <fieldset className="difficulty__choice">
-      <legend>{strings.difficulty.legend}</legend>
-      {DIFFICULTIES.map((offered) => (
-        <label key={offered} className="difficulty__option">
-          <input
-            type="radio"
-            name="difficulty"
-            value={offered}
-            data-testid={`difficulty-${offered}`}
-            checked={difficulty === offered}
-            onChange={() => onChoose(offered)}
-          />
-          {strings.difficulty[offered]}
-        </label>
-      ))}
-    </fieldset>
-  </section>
-);
+export const DifficultyChoice = ({ difficulty, onChoose }: DifficultyChoiceProps) => {
+  const strings = useStrings();
+
+  return (
+    <section className="difficulty" data-testid="difficulty">
+      <fieldset className="difficulty__choice">
+        <legend>{strings.difficulty.legend}</legend>
+        {DIFFICULTIES.map((offered) => (
+          <label key={offered} className="difficulty__option">
+            <input
+              type="radio"
+              name="difficulty"
+              value={offered}
+              data-testid={`difficulty-${offered}`}
+              checked={difficulty === offered}
+              onChange={() => onChoose(offered)}
+            />
+            {strings.difficulty[offered]}
+          </label>
+        ))}
+      </fieldset>
+    </section>
+  );
+};

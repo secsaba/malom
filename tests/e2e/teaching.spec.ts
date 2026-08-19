@@ -1,10 +1,10 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import type { PointId } from "../../src/engine/board";
-import { strings } from "../../src/strings";
 import { GRADES } from "../../src/teaching/grade";
 import { MILL_FREE_PLACING } from "../fixtures/games";
 import { pointAt, tap } from "./board";
+import { strings } from "./strings";
 
 /** How a point is drawn now: what a state of the game leaves on it. */
 const inkOf = (point: Locator) =>

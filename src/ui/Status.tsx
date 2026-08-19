@@ -1,6 +1,6 @@
 import { SIDES, opponentOf } from "../engine/position";
 import type { GameState, Result } from "../session/game-session";
-import { strings } from "../strings";
+import { useStrings } from "./language";
 
 type StatusProps = {
   /** What the game session says the game looks like now. */
@@ -12,8 +12,10 @@ type StatusProps = {
  * lost which says why, or — a draw having neither a winner nor an ending, which
  * is a thing only a loser is left in — that it was drawn and what drew it.
  */
-const Ended = ({ result }: { readonly result: Result }) =>
-  "draw" in result ? (
+const Ended = ({ result }: { readonly result: Result }) => {
+  const strings = useStrings();
+
+  return "draw" in result ? (
     <>
       <p className="status__result status__result--drawn" data-testid="result">
         {strings.game.result.draw}
@@ -32,6 +34,7 @@ const Ended = ({ result }: { readonly result: Result }) =>
       </p>
     </>
   );
+};
 
 /**
  * What the players need to know at a glance: the phase, whose turn it is, how
@@ -48,46 +51,50 @@ const Ended = ({ result }: { readonly result: Result }) =>
  * Every word of it is the strings module's; the game session hands over the
  * phase, the side and the result as values (ADR-0002).
  */
-export const Status = ({ game }: StatusProps) => (
-  <section className="status" data-testid="status" aria-live="polite">
-    <p className="status__phase" data-testid="phase">
-      {strings.game.phase[game.phase]}
-    </p>
+export const Status = ({ game }: StatusProps) => {
+  const strings = useStrings();
 
-    {game.result ? (
-      <Ended result={game.result} />
-    ) : (
-      <p className="status__side-to-move" data-testid="side-to-move">
-        {strings.game.toMove[game.sideToMove]}
+  return (
+    <section className="status" data-testid="status" aria-live="polite">
+      <p className="status__phase" data-testid="phase">
+        {strings.game.phase[game.phase]}
       </p>
-    )}
 
-    {game.thinking && (
-      <p className="status__thinking" data-testid="thinking">
-        {strings.game.thinking}
-      </p>
-    )}
+      {game.result ? (
+        <Ended result={game.result} />
+      ) : (
+        <p className="status__side-to-move" data-testid="side-to-move">
+          {strings.game.toMove[game.sideToMove]}
+        </p>
+      )}
 
-    <h2 className="status__heading">{strings.game.piecesInHand}</h2>
-    {/*
-     * Out of the announcement: these change on every move, and a player who has
-     * just heard whose turn it is does not need the two counts read out after it.
-     */}
-    <dl className="status__hands" aria-live="off">
-      {SIDES.map((side) => (
-        <div key={side} className="status__hand">
-          <dt>{strings.game.side[side]}</dt>
-          <dd data-testid="in-hand" data-side={side}>
-            {game.piecesInHand[side]}
-          </dd>
-        </div>
-      ))}
-    </dl>
+      {game.thinking && (
+        <p className="status__thinking" data-testid="thinking">
+          {strings.game.thinking}
+        </p>
+      )}
 
-    {game.pendingCapture && (
-      <p className="status__capture" data-testid="capture-prompt">
-        {strings.game.capture}
-      </p>
-    )}
-  </section>
-);
+      <h2 className="status__heading">{strings.game.piecesInHand}</h2>
+      {/*
+       * Out of the announcement: these change on every move, and a player who has
+       * just heard whose turn it is does not need the two counts read out after it.
+       */}
+      <dl className="status__hands" aria-live="off">
+        {SIDES.map((side) => (
+          <div key={side} className="status__hand">
+            <dt>{strings.game.side[side]}</dt>
+            <dd data-testid="in-hand" data-side={side}>
+              {game.piecesInHand[side]}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      {game.pendingCapture && (
+        <p className="status__capture" data-testid="capture-prompt">
+          {strings.game.capture}
+        </p>
+      )}
+    </section>
+  );
+};

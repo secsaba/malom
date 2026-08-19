@@ -11,7 +11,7 @@
  *
  * It is pure TypeScript over plain data, like the engine (ADR-0002): it returns
  * the phase, the pending capture and the result as values, and `src/ui` words
- * them in Hungarian.
+ * them in whichever language the player is reading.
  *
  * The computer is one of the two players rather than a thing beside the game: a
  * session is given a side for it and a function to ask for its moves, and takes

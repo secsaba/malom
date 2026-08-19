@@ -13,8 +13,8 @@ import { type Page, expect, test } from "@playwright/test";
 
 import { DEFAULT_DIFFICULTY } from "../../src/opponent/difficulty";
 import { KEYS } from "../../src/ui/storage";
-import { strings } from "../../src/strings";
 import { pointAt, tap } from "./board";
+import { strings } from "./strings";
 
 /** Every grade the move list is showing, in the order the moves were played. */
 const gradesShown = (page: Page) =>
@@ -97,6 +97,7 @@ test("remembers every setting the player chose", async ({ page }) => {
   await page.getByLabel(strings.teaching.toggle).check();
   await page.getByLabel(strings.teaching.warning.toggle).check();
   await page.getByLabel(strings.board.showCoordinates).check();
+  await page.getByTestId("language-en").check();
 
   await page.reload();
 
@@ -105,6 +106,7 @@ test("remembers every setting the player chose", async ({ page }) => {
   await expect(page.getByTestId("warning-toggle")).toBeChecked();
   await expect(page.getByTestId("coordinates-toggle")).toBeChecked();
   await expect(page.getByTestId("coordinates")).toBeVisible();
+  await expect(page.getByTestId("language-en")).toBeChecked();
 });
 
 test("throws the stored game away when another is started, and keeps the settings", async ({

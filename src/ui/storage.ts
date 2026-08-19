@@ -25,6 +25,7 @@ import {
   savedGameIn,
   savedSettingsIn,
 } from "../session/saved-game";
+import { DEFAULT_LANGUAGE, type Language, languageIn } from "../strings";
 
 /**
  * What the two are kept under. They are named here rather than spelled out
@@ -35,13 +36,14 @@ export const KEYS = { settings: "malom.settings", game: "malom.game" } as const;
 
 /**
  * Every setting that survives a visit: the session's own, and the interface's
- * one — whether the board is labelled with its coordinates, which is the
- * interface's business and never the game's.
- *
- * A language switch (#19) adds itself here.
+ * two — whether the board is labelled with its coordinates, and which language
+ * it is read in. Both are the interface's business and never the game's, which
+ * is why they are here and not in {@link SavedSettings}: nothing behind the
+ * boundary may so much as name a language (ADR-0002).
  */
 export type Settings = SavedSettings & {
   readonly showCoordinates: boolean;
+  readonly language: Language;
 };
 
 const read = (key: string): unknown => {
@@ -80,11 +82,24 @@ const forget = (key: string) => {
 const showsCoordinates = (written: unknown): boolean =>
   isObject(written) && written.showCoordinates === true;
 
+/**
+ * The language the interface was left in. Anything that is not one of the
+ * languages this program offers comes back as the default, so a setting edited
+ * by hand into a language nobody has translated leaves the player reading
+ * Hungarian rather than reading keys.
+ */
+const languageOf = (written: unknown): Language =>
+  (isObject(written) ? languageIn(written.language) : undefined) ?? DEFAULT_LANGUAGE;
+
 /** The settings a previous visit left behind, each falling back to its default on its own. */
 export const rememberedSettings = (): Settings => {
   const written = read(KEYS.settings);
 
-  return { ...savedSettingsIn(written), showCoordinates: showsCoordinates(written) };
+  return {
+    ...savedSettingsIn(written),
+    showCoordinates: showsCoordinates(written),
+    language: languageOf(written),
+  };
 };
 
 /**

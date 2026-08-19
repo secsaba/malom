@@ -114,6 +114,19 @@ export const hu = {
     master: "Mester",
   },
   /**
+   * The language the interface is read in. The two names are not translated and
+   * are the same in both files on purpose: a player who has landed in a language
+   * they cannot read finds their own by looking for the word they know, and
+   * "Hungarian" is not that word for a Hungarian speaker.
+   */
+  language: {
+    legend: "Nyelv",
+    name: {
+      hu: "Magyar",
+      en: "English",
+    },
+  },
+  /**
    * Teaching: the setting itself, the button that asks the engine what it would
    * play, what it made of the move that was played, and the two second thoughts
    * a learner is allowed — a move taken back, and the warning before a blunder. The hint is worded as the

@@ -1,6 +1,6 @@
 # Malom
 
-Nine Men's Morris as a teaching instrument — a hotseat and computer opponent that grade your moves as you play, in Hungarian.
+Nine Men's Morris as a teaching instrument — a hotseat and computer opponent that grade your moves as you play, in Hungarian or English.
 
 What the game is and what its terms mean is in [`CONTEXT.md`](CONTEXT.md); the decisions behind the design are in [`docs/adr/`](docs/adr/).
 
@@ -45,7 +45,7 @@ src/
 │              the patterns it detected and the reason it gives for them
 ├── session/   one game, played through intents — what the interface talks to,
 │              and the plain data storage keeps a game and the settings as
-├── strings/   every user-facing string, Hungarian for now
+├── strings/   every user-facing string, in Hungarian and in English
 └── ui/        React components and their geometry
 ```
 
@@ -57,7 +57,7 @@ Each of the board's 24 points is a button rather than a shape with a click handl
 
 The page is one screen wherever the board fits on one. The board fills the width of a phone, is drawn to fit whatever height is left, and is never drawn below the size at which a point is still a fingertip wide — where the room runs out the page scrolls rather than the board shrinking out from under the finger; everything beside it — teaching, the move list, the summary, the settings — is the panel, which stands next to the board on a screen wide enough for two columns and folds down to a handle on one that is not. Whose turn it is and the question asked before a blunder stay out of it either way, because a question nobody can see is a game that reads as stuck. That is [ADR-0007](docs/adr/0007-the-page-is-one-screen.md), and `tests/e2e/responsive.spec.ts` holds it to it.
 
-The same lint pass rejects user-facing text written into a component, so the strings module stays the one place text lives and the English translation stays a data change.
+The same lint pass rejects user-facing text written into a component, so the strings module stays the one place text lives — which is what made the English translation a data change. Hungarian is the default and the source of truth: `src/strings/hu.ts` is where a string is written and the shape the English one is typed against, so a key added to one and forgotten in the other fails to compile before it fails a test. The language a player chose is a setting like any other and survives a reload; the page's own `lang` and the browser tab follow it, from `src/ui/language.tsx`.
 
 ## Development environment
 

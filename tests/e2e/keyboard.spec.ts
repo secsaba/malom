@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 import { POINTS } from "../../src/engine/board";
-import { strings } from "../../src/strings";
 import { BETWEEN } from "../../src/ui/point-state";
 import { MILL_FREE_PLACING } from "../fixtures/games";
 import { pointAt, press } from "./board";
+import { strings } from "./strings";
 
 const { point } = strings.board;
 
