@@ -141,11 +141,16 @@ test.describe("on a desktop", () => {
 
 /**
  * Every width the site says it supports, from the narrowest phone still sold to
- * a desktop window: none of them may put the page on a horizontal scrollbar.
+ * a desktop window: none of them may put the page on a horizontal scrollbar, and
+ * none of them may shrink the board until a point is smaller than the finger
+ * that has to hit it. 320px is where the second of those is tightest, because
+ * the board is the width of the screen and the points are 24 of them across it.
  */
 const WIDTHS = [320, 360, 393, 768, 1024, 1440] as const;
 
-test("scrolls sideways at no width at all", async ({ page }) => {
+test("scrolls sideways at no width, and keeps a target a fingertip wide at all of them", async ({
+  page,
+}) => {
   await page.goto("./");
 
   for (const width of WIDTHS) {
@@ -153,5 +158,12 @@ test("scrolls sideways at no width at all", async ({ page }) => {
 
     const { across } = await scrollableBy(page);
     expect(across, `${width}px`).toBe(0);
+
+    // Every point is drawn at one radius, so one of them answers for all 24.
+    const target = await page.locator(`[data-target="a1"]`).boundingBox();
+
+    expect(target, `${width}px`).not.toBeNull();
+    expect(target!.width, `${width}px`).toBeGreaterThanOrEqual(FINGERTIP);
+    expect(target!.height, `${width}px`).toBeGreaterThanOrEqual(FINGERTIP);
   }
 });
