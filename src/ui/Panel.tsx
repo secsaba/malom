@@ -1,11 +1,8 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { strings } from "../strings";
 
 type PanelProps = {
-  /** Whether the panel is open. On a screen wide enough for two columns it always is. */
-  readonly expanded: boolean;
-  readonly onExpand: (expanded: boolean) => void;
   /** Everything the page shows beside the board. */
   readonly children: ReactNode;
 };
@@ -29,24 +26,33 @@ const CONTENTS = "panel-contents";
  * The panel is the same panel either way, and a component that asked how wide
  * the window was would be a second opinion about that with its own way of being
  * wrong.
+ *
+ * Whether it is open is kept here rather than passed in, because nothing outside
+ * the panel reads it: it says which of two things the player is looking at now,
+ * and it is deliberately not written down — a phone that came back from a reload
+ * with the panel open would come back with the board half the size it was left.
  */
-export const Panel = ({ expanded, onExpand, children }: PanelProps) => (
-  <section className="panel" data-testid="panel" data-expanded={expanded ? "" : undefined}>
-    <button
-      type="button"
-      className="panel__handle"
-      data-testid="panel-handle"
-      aria-expanded={expanded}
-      aria-controls={CONTENTS}
-      onClick={() => onExpand(!expanded)}
-    >
-      {strings.panel.handle}
-      {/* Which way the handle goes: the one mark here that is not a word. */}
-      <span className="panel__chevron" aria-hidden="true" />
-    </button>
+export const Panel = ({ children }: PanelProps) => {
+  const [expanded, setExpanded] = useState(false);
 
-    <div className="panel__contents" id={CONTENTS} data-testid="panel-contents">
-      {children}
-    </div>
-  </section>
-);
+  return (
+    <section className="panel" data-testid="panel" data-expanded={expanded ? "" : undefined}>
+      <button
+        type="button"
+        className="panel__handle"
+        data-testid="panel-handle"
+        aria-expanded={expanded}
+        aria-controls={CONTENTS}
+        onClick={() => setExpanded(!expanded)}
+      >
+        {strings.panel.handle}
+        {/* Which way the handle goes: the one mark here that is not a word. */}
+        <span className="panel__chevron" aria-hidden="true" />
+      </button>
+
+      <div className="panel__contents" id={CONTENTS} data-testid="panel-contents">
+        {children}
+      </div>
+    </section>
+  );
+};

@@ -35,14 +35,14 @@ export const BlunderWarning = ({
 }: BlunderWarningProps) => (
   <>
     {teaching && checking && (
-      <p className="warning__checking" data-testid="checking">
+      <p className="blunder-check" data-testid="checking">
         {strings.teaching.warning.checking}
       </p>
     )}
 
     {teaching && warned && (
-      <p className="warning" data-testid="warning">
-        <span className="warning__asks">{strings.teaching.warning.asks}</span>
+      <p className="blunder-warning" data-testid="warning">
+        <span className="blunder-warning__asks">{strings.teaching.warning.asks}</span>
         <button
           type="button"
           className="teaching__button"

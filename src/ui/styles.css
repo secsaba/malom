@@ -23,16 +23,25 @@
   --point-hint-ink: #6b3fa0;
   --capture-ink: #e8875f;
   --result-ink: #f2e3c8;
-}
 
-/*
- * The gutter down each side of the page. The board is the one thing that ignores
- * it: a point has to be a fingertip wide, and on a phone the board is only as
- * wide as the screen — so on the narrowest screens the gutter comes out of the
- * board rather than out of the finger, and the board reaches both edges.
- */
-:root {
+  /*
+   * The gutter down each side of the page. The board is the one thing that
+   * ignores it: a point has to be a fingertip wide, and on a phone the board is
+   * only as wide as the screen — so on the narrowest screens the gutter comes
+   * out of the board rather than out of the finger, and the board reaches both
+   * edges.
+   */
   --gutter: 0.75rem;
+
+  /*
+   * The smallest the board is ever drawn. The board is 7.2 of its own steps
+   * across and a point takes one of them, so a 20rem board is the last one whose
+   * targets are still the 44px a fingertip needs — which makes this the width of
+   * the narrowest screen the site supports, and not a number of its own. The
+   * board is never drawn below it: where the room runs out the page scrolls
+   * instead, because a board too small to hit is worse than a board to scroll to.
+   */
+  --board-floor: 20rem;
 }
 
 * {
@@ -47,11 +56,17 @@ body {
 }
 
 /*
- * The page is one screen and never scrolls. The board is what the game is played
- * on, and a board that has to be scrolled back to is a board the player has
- * lost — so the page is exactly as tall as the viewport, and everything that
- * cannot fit shrinks or scrolls inside itself rather than pushing the board off
- * the bottom.
+ * The page is one screen. The board is what the game is played on, and a board
+ * that has to be scrolled back to is a board the player has lost — so the page
+ * is exactly as tall as the viewport, and everything that cannot fit shrinks or
+ * scrolls inside itself rather than pushing the board off the bottom.
+ *
+ * Exactly as tall, rather than at least: a definite height is what lets the board
+ * shrink when the panel opens and grow back when it closes. What it costs is a
+ * scroll of last resort here, for the screen so short that even the board's floor
+ * will not fit on it — a phone turned on its side is the case. Nothing is ever
+ * clipped, and nothing is unreachable; the page simply stops being one screen,
+ * which is the lesser of the two failures.
  *
  * The height is the viewport's dynamic one, which is the room a phone actually
  * leaves once its address bar has had its share; `100vh` is the fallback for a
@@ -62,7 +77,7 @@ body {
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  overflow: hidden;
+  overflow: auto;
 }
 
 /*
@@ -85,17 +100,20 @@ body {
  * once everything that cannot shrink has had its share. The board draws itself
  * to fit inside that, so the room the panel takes when it opens comes out of the
  * board and goes back to it when the panel closes.
+ *
+ * The floor is where that stops. Height taken off the board is width taken off
+ * every one of its 24 targets, and a target below a fingertip is a board the
+ * player cannot play — so the board keeps its floor and the page scrolls instead.
  */
 .app__board {
   display: flex;
   flex: 1 1 auto;
   justify-content: center;
   width: 100%;
-  min-height: 0;
+  min-height: var(--board-floor);
 }
 
 .app__header {
-  padding: 0 var(--gutter);
   text-align: center;
 }
 
@@ -489,11 +507,14 @@ body {
 }
 
 /*
- * Every button teaching offers — the hint, the takeback, and the two answers to
- * the warning — is drawn the same way, bordered like the other buttons on the
- * page rather than in the hint's own ink, which is chosen to carry on a cream
- * board and is too dark to outline a control on this one. What ties the hint's
- * button to the hint is the ring it produces on the board.
+ * The bordered button the page offers a choice with, wherever it offers one: the
+ * hint and the takeback here, the two answers to the blunder warning beside the
+ * board, and the way back from a move being looked back at. It keeps teaching's
+ * name because teaching is where it was drawn first and where most of them are,
+ * and it is bordered like the other buttons on the page rather than drawn in the
+ * hint's own ink, which is chosen to carry on a cream board and is too dark to
+ * outline a control on this one. What ties the hint's button to the hint is the
+ * ring it produces on the board.
  */
 .teaching__button {
   padding: 0.4rem 0.9rem;
@@ -525,7 +546,7 @@ body {
  * rather than in the panel, because a panel the player has folded away is
  * exactly where a line nobody can see would go.
  */
-.warning__checking {
+.blunder-check {
   margin: 0;
   padding: 0 var(--gutter);
   text-align: center;
@@ -537,7 +558,7 @@ body {
  * is being asked something, so it sits under the board where they are looking
  * and not among the settings, where an answer would read as another one.
  */
-.warning {
+.blunder-warning {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -547,7 +568,7 @@ body {
   padding: 0 var(--gutter);
 }
 
-.warning__asks {
+.blunder-warning__asks {
   flex-basis: 100%;
   text-align: center;
   font-weight: 600;

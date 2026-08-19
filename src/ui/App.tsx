@@ -69,10 +69,6 @@ export const App = () => {
   } = useGameSession();
   const [showCoordinates, setShowCoordinates] = useState(() => rememberedSettings().showCoordinates);
   const [next, setNext] = useState<NextGame>(() => setupFor(state.opponentSide));
-  // Folded away until the player asks for it, so that a phone opens on the board
-  // and nothing else. On a screen with room for two columns the stylesheet shows
-  // the panel whatever this says.
-  const [panelExpanded, setPanelExpanded] = useState(false);
 
   const select = (point: PointId) => apply(intentFor(state, point));
 
@@ -128,7 +124,7 @@ export const App = () => {
         />
       </div>
 
-      <Panel expanded={panelExpanded} onExpand={setPanelExpanded}>
+      <Panel>
         <Teaching
           teaching={state.teaching}
           hintOffered={state.hintOffered}
