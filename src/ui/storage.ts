@@ -21,6 +21,7 @@
 import {
   type SavedGame,
   type SavedSettings,
+  isObject,
   savedGameIn,
   savedSettingsIn,
 } from "../session/saved-game";
@@ -77,12 +78,10 @@ const forget = (key: string) => {
  * stays uncluttered while the shapes are still being learned.
  */
 const showsCoordinates = (written: unknown): boolean =>
-  typeof written === "object" &&
-  written !== null &&
-  (written as Record<string, unknown>).showCoordinates === true;
+  isObject(written) && written.showCoordinates === true;
 
 /** The settings a previous visit left behind, each falling back to its default on its own. */
-export const savedSettings = (): Settings => {
+export const rememberedSettings = (): Settings => {
   const written = read(KEYS.settings);
 
   return { ...savedSettingsIn(written), showCoordinates: showsCoordinates(written) };
@@ -94,11 +93,11 @@ export const savedSettings = (): Settings => {
  * other's on its way past.
  */
 export const remember = (settings: Partial<Settings>) => {
-  write(KEYS.settings, { ...savedSettings(), ...settings });
+  write(KEYS.settings, { ...rememberedSettings(), ...settings });
 };
 
 /** The game a previous visit left behind, where it left one this program can read. */
-export const savedGame = (): SavedGame | undefined => savedGameIn(read(KEYS.game));
+export const rememberedGame = (): SavedGame | undefined => savedGameIn(read(KEYS.game));
 
 /**
  * Write the game down — or take it out of storage, where there is nothing in it

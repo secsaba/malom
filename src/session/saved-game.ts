@@ -70,7 +70,13 @@ export type SavedSettings = {
   readonly warnsOfBlunders: boolean | undefined;
 };
 
-const isObject = (raw: unknown): raw is Readonly<Record<string, unknown>> =>
+/**
+ * Whether the raw JSON is something with fields to read off it. It is exported
+ * because `src/ui` reads a setting of its own off the same JSON, and a second,
+ * differently careful copy of this is exactly the thing that would let one of the
+ * two through something the other turns away.
+ */
+export const isObject = (raw: unknown): raw is Readonly<Record<string, unknown>> =>
   typeof raw === "object" && raw !== null && !Array.isArray(raw);
 
 /** The value where it is one of the ones this program knows, and nothing where it is not. */

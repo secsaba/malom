@@ -686,18 +686,25 @@ const afterCapturing = (game: Game, arrival: Arrival, point: PointId): Recorded 
 };
 
 /**
- * The move the computer chose, played out whole — the capture it earned
- * included. A player assembles a move out of taps and can put a piece back down
- * in the middle of it; the computer arrives at one already decided, so there is
- * no half of it for anyone to see.
+ * Where a whole move leaves the game, with no half of it left over: nothing
+ * picked up and no capture owed, because the move arrived already decided. The
+ * game passed is the one the move led to rather than the one it was played in.
  */
-const afterChoosing = (game: Game, move: Move): Recorded => ({
-  game: afterMove(game, move),
+const restedAt = (after: Game, move: Move): Recorded => ({
+  game: after,
   selection: undefined,
   arrival: undefined,
   lastArrival: { from: move.from, to: move.to },
   lastMove: move,
 });
+
+/**
+ * The move the computer chose, played out whole — the capture it earned
+ * included. A player assembles a move out of taps and can put a piece back down
+ * in the middle of it; the computer arrives at one already decided, so there is
+ * no half of it for anyone to see.
+ */
+const afterChoosing = (game: Game, move: Move): Recorded => restedAt(afterMove(game, move), move);
 
 /**
  * Picking a piece up, or putting the one already picked up back down: only a
@@ -851,22 +858,16 @@ export const createGameSession = ({
   const opponentSide = restored === undefined ? players.opponentSide : saved?.opponentSide;
 
   let recorded = NEW_SESSION;
-  let restoredHistory: readonly Recorded[] = [];
-  let restoredMoves: readonly Played[] = [];
+  const restoredHistory: Recorded[] = [];
+  const restoredMoves: Played[] = [];
 
   // The game is walked forward exactly as playing it walks it: each move goes
   // into the record alongside the state it was played from going into the
   // history, which is what keeps the two in step and a takeback honest.
   for (const { move, by, game, assessment } of restored ?? []) {
-    restoredHistory = [...restoredHistory, recorded];
-    restoredMoves = [...restoredMoves, { move, by, game, assessment }];
-    recorded = {
-      game,
-      selection: undefined,
-      arrival: undefined,
-      lastArrival: { from: move.from, to: move.to },
-      lastMove: move,
-    };
+    restoredHistory.push(recorded);
+    restoredMoves.push({ move, by, game, assessment });
+    recorded = restedAt(game, move);
   }
 
   // Whether the player has said either way about teaching. Until they have, who

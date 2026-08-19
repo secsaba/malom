@@ -11,7 +11,7 @@ import { FIRST_GAME, type NextGame, Setup } from "./Setup";
 import { Status } from "./Status";
 import { Summary } from "./Summary";
 import { Teaching } from "./Teaching";
-import { remember, savedSettings } from "./storage";
+import { remember, rememberedSettings } from "./storage";
 import { useGameSession } from "./useGameSession";
 
 /**
@@ -65,7 +65,7 @@ export const App = () => {
     playAnyway,
     thinkAgain,
   } = useGameSession();
-  const [showCoordinates, setShowCoordinates] = useState(() => savedSettings().showCoordinates);
+  const [showCoordinates, setShowCoordinates] = useState(() => rememberedSettings().showCoordinates);
   const [next, setNext] = useState<NextGame>(() => setupFor(state.opponentSide));
 
   const select = (point: PointId) => apply(intentFor(state, point));
@@ -73,7 +73,7 @@ export const App = () => {
   // The board's own setting rather than the game's, so it is the interface that
   // writes it down; everything the session holds is written down by the session's
   // own hook.
-  const showTheCoordinates = (show: boolean) => {
+  const chooseCoordinates = (show: boolean) => {
     setShowCoordinates(show);
     remember({ showCoordinates: show });
   };
@@ -161,7 +161,7 @@ export const App = () => {
           type="checkbox"
           data-testid="coordinates-toggle"
           checked={showCoordinates}
-          onChange={(event) => showTheCoordinates(event.target.checked)}
+          onChange={(event) => chooseCoordinates(event.target.checked)}
         />
         {strings.board.showCoordinates}
       </label>

@@ -28,7 +28,7 @@ import {
 } from "../session/game-session";
 import { createAssessor } from "../teaching/assessment";
 import { createHint } from "../teaching/hint";
-import { remember, rememberGame, savedGame, savedSettings } from "./storage";
+import { remember, rememberGame, rememberedGame, rememberedSettings } from "./storage";
 
 export type UseGameSession = {
   readonly state: GameState;
@@ -58,7 +58,7 @@ export type UseGameSession = {
 export const useGameSession = (): UseGameSession => {
   const [session] = useState(() => {
     const runSearch = createSearchThread();
-    const { difficulty, teaching, warnsOfBlunders } = savedSettings();
+    const { difficulty, teaching, warnsOfBlunders } = rememberedSettings();
 
     // A setting nobody has ever chosen comes back as nothing, and the session's
     // own default answers for it.
@@ -69,7 +69,7 @@ export const useGameSession = (): UseGameSession => {
       difficulty,
       teaching,
       warnsOfBlunders,
-      saved: savedGame(),
+      saved: rememberedGame(),
     });
   });
   const state = useSyncExternalStore(session.subscribe, () => session.state);

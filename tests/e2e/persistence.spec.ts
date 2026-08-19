@@ -43,6 +43,11 @@ test("brings the game back, with the moves played in it and their grades", async
   await expect(played.first()).toHaveAttribute("data-grade", /.+/, { timeout: 20_000 });
   await expect(played.nth(1)).toHaveAttribute("data-grade", /.+/, { timeout: 20_000 });
   const grades = await gradesShown(page);
+  // On the board is not yet in storage — the writing happens after the paint that
+  // put it there — and it is storage the reload reads.
+  await expect
+    .poll(() => page.evaluate((key) => localStorage.getItem(key), KEYS.game))
+    .toContain('"grade"');
 
   await page.reload();
 
@@ -115,6 +120,23 @@ test("throws the stored game away when another is started, and keeps the setting
   await expect(page.locator("[data-occupant]")).toHaveCount(0);
   await expect(page.getByTestId("difficulty-master")).toBeChecked();
   await expect(page.getByTestId("coordinates-toggle")).toBeChecked();
+});
+
+test("throws the stored game away when the next one is against the computer", async ({ page }) => {
+  await tap(page, "a1", "g7", "d1");
+
+  await page.getByTestId("against-computer").check();
+  await page.getByTestId("side-dark").check(); // the computer takes light, and opens
+  await page.getByTestId("start").click();
+
+  await expect(page.locator("[data-occupant]")).toHaveCount(1, { timeout: 20_000 });
+
+  await page.reload();
+
+  // The computer's opening move and nothing else: no part of the game it replaced
+  // came back with it.
+  await expect(page.locator("[data-occupant]")).toHaveCount(1);
+  await expect(page.getByTestId("played-move")).toHaveCount(1);
 });
 
 test.describe("storage holding something this program never wrote", () => {
