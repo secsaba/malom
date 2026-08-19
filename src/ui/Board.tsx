@@ -1,4 +1,4 @@
-import type { CSSProperties, KeyboardEvent } from "react";
+import { Fragment, type CSSProperties, type KeyboardEvent } from "react";
 
 import { POINTS, type PointId } from "../engine/board";
 import type { Arrival, Move } from "../engine/game";
@@ -7,12 +7,13 @@ import { strings } from "../strings";
 import {
   BOARD_SIZE,
   COORDINATE_LABELS,
+  FOCUS_SIZE,
   HINT_RADIUS,
   LAST_MOVE_RADIUS,
   LINE_SEGMENTS,
   PIECE_RADIUS,
   POINT_RADIUS,
-  TARGET_SIZE,
+  TARGET_RADIUS,
   centreOf,
 } from "./board-layout";
 import { type PointState, hintedAt, pointLabel } from "./point-state";
@@ -73,11 +74,14 @@ const PLAY_KEYS = ["Enter", " "];
  * technology, because everything else the board draws is one of those states
  * said again in ink.
  *
- * Every mark and every word comes off the same {@link PointState}, so the board
- * cannot show something it does not say — and each of the states carries a shape
- * of its own rather than only a colour: a dashed ring on a point that may be
- * acted on, a solid one round the piece picked up, the hint's own ring outside
- * them all, and a small ring inside the piece that moved last.
+ * Every group below is drawn off the one list of states worked out at the top,
+ * and every name is worded from the same entry of it, so no mark is derived a
+ * second time and no mark can come to disagree with what the point says it is.
+ * Each of the states carries a shape of its own rather than only a colour: a
+ * dashed ring on a point that may be acted on, a solid one round the piece
+ * picked up, the hint's own ring outside them all, and a small ring inside the
+ * piece that moved last — and, for the point the keyboard has reached rather
+ * than for any state of the game, a square.
  *
  * The piece that moved last also carries the mark the animation runs off, so
  * that a move the player did not make — the computer's — is something they watch
@@ -102,21 +106,22 @@ export const Board = ({
     lastMove: arrival?.to === point,
   });
 
+  const board = POINTS.map((point) => ({
+    point,
+    state: stateOf(point),
+    centre: centreOf(point),
+  }));
+
   // Where the picked-up piece may go, drawn as the outline of the piece that
   // would land there. Empty points are outlined only while a piece is picked up:
   // during the placing phase every empty point is legal, so outlining them all
-  // would say nothing.
+  // would say nothing — which is why the announcement and the ink part company
+  // there, and only there.
   const destinations =
-    selection === undefined
-      ? []
-      : POINTS.filter((point) => legalPoints.includes(point) && !position.get(point));
+    selection === undefined ? [] : board.filter(({ state }) => state.legal && !state.occupant);
 
-  // The square that takes a tap meant for this point, placed by its corner
-  // because that is how SVG places a rectangle.
-  const targetAt = (point: PointId) => {
-    const { x, y } = centreOf(point);
-    return { x: x - TARGET_SIZE / 2, y: y - TARGET_SIZE / 2 };
-  };
+  const hinted = board.filter(({ state }) => state.hint !== undefined);
+  const arrived = board.filter(({ state }) => state.lastMove);
 
   const play = (event: KeyboardEvent, point: PointId) => {
     if (!PLAY_KEYS.includes(event.key)) return;
@@ -131,7 +136,6 @@ export const Board = ({
     <svg
       className="board"
       data-testid="board"
-      data-selection={selection}
       viewBox={`0 0 ${BOARD_SIZE} ${BOARD_SIZE}`}
       role="group"
       aria-label={strings.board.label}
@@ -191,36 +195,37 @@ export const Board = ({
       </g>
 
       <g className="board__points" aria-hidden="true">
-        {POINTS.map((point) => {
-          const { x, y } = centreOf(point);
-          const state = stateOf(point);
-          const arrived = state.lastMove ? arrival : undefined;
-
-          return (
-            <circle
-              key={point}
-              data-testid="point"
-              data-point={point}
-              data-occupant={state.occupant}
-              data-legal={state.legal ? "" : undefined}
-              data-selected={state.selected ? "" : undefined}
-              data-hint={state.hint}
-              data-arrived={arrived && (arrived.from ? "moved" : "placed")}
-              style={arrived?.from ? travelledFrom(arrived.from, point) : undefined}
-              cx={x}
-              cy={y}
-              r={state.occupant ? PIECE_RADIUS : POINT_RADIUS}
-            />
-          );
-        })}
+        {board.map(({ point, state, centre }) => (
+          <circle
+            key={point}
+            data-testid="point"
+            data-point={point}
+            data-occupant={state.occupant}
+            data-legal={state.legal ? "" : undefined}
+            data-selected={state.selected ? "" : undefined}
+            data-hint={state.hint}
+            data-arrived={state.lastMove ? (arrival?.from ? "moved" : "placed") : undefined}
+            style={
+              state.lastMove && arrival?.from ? travelledFrom(arrival.from, point) : undefined
+            }
+            cx={centre.x}
+            cy={centre.y}
+            r={state.occupant ? PIECE_RADIUS : POINT_RADIUS}
+          />
+        ))}
       </g>
 
       {destinations.length > 0 && (
         <g className="board__destinations" data-testid="destinations" aria-hidden="true">
-          {destinations.map((point) => {
-            const { x, y } = centreOf(point);
-            return <circle key={point} data-destination={point} cx={x} cy={y} r={PIECE_RADIUS} />;
-          })}
+          {destinations.map(({ point, centre }) => (
+            <circle
+              key={point}
+              data-destination={point}
+              cx={centre.x}
+              cy={centre.y}
+              r={PIECE_RADIUS}
+            />
+          ))}
         </g>
       )}
 
@@ -231,16 +236,19 @@ export const Board = ({
        * that it travels in with the piece rather than waiting at the destination
        * for it.
        */}
-      {arrival && (
+      {arrived.length > 0 && (
         <g className="board__last-move" data-testid="last-move" aria-hidden="true">
-          <circle
-            data-piece={position.get(arrival.to)}
-            data-arrived={arrival.from ? "moved" : "placed"}
-            style={arrival.from ? travelledFrom(arrival.from, arrival.to) : undefined}
-            cx={centreOf(arrival.to).x}
-            cy={centreOf(arrival.to).y}
-            r={LAST_MOVE_RADIUS}
-          />
+          {arrived.map(({ point, state, centre }) => (
+            <circle
+              key={point}
+              data-piece={state.occupant}
+              data-arrived={arrival?.from ? "moved" : "placed"}
+              style={arrival?.from ? travelledFrom(arrival.from, point) : undefined}
+              cx={centre.x}
+              cy={centre.y}
+              r={LAST_MOVE_RADIUS}
+            />
+          ))}
         </g>
       )}
 
@@ -251,17 +259,17 @@ export const Board = ({
        * looks like one — and the hint is drawn outside it, which is what stops the
        * board saying two things at once about the same circle.
        */}
-      {hint && (
+      {hinted.length > 0 && (
         <g className="board__hints" data-testid="hints" aria-hidden="true">
-          {POINTS.map((point) => {
-            const role = hintedAt(hint, point);
-            if (!role) return undefined;
-
-            const { x, y } = centreOf(point);
-            return (
-              <circle key={point} data-hint={role} cx={x} cy={y} r={HINT_RADIUS} />
-            );
-          })}
+          {hinted.map(({ point, state, centre }) => (
+            <circle
+              key={point}
+              data-hint={state.hint}
+              cx={centre.x}
+              cy={centre.y}
+              r={HINT_RADIUS}
+            />
+          ))}
         </g>
       )}
 
@@ -275,25 +283,36 @@ export const Board = ({
         </g>
       )}
 
+      {/*
+       * The control for each point, and — drawn straight after it, so the
+       * stylesheet can reach it from the control's own focus — the square that
+       * marks the point the keyboard has got to. The square takes no taps: the
+       * circle before it is the whole of what a pointer touches, and it is the
+       * same circle it was before the board could be played without one.
+       */}
       <g className="board__targets">
-        {POINTS.map((point) => {
-          const { x, y } = targetAt(point);
-          return (
-            <rect
-              key={point}
+        {board.map(({ point, state, centre }) => (
+          <Fragment key={point}>
+            <circle
               data-target={point}
               role="button"
               tabIndex={IN_TAB_ORDER}
-              aria-label={pointLabel(point, stateOf(point))}
-              x={x}
-              y={y}
-              width={TARGET_SIZE}
-              height={TARGET_SIZE}
+              aria-label={pointLabel(point, state)}
+              cx={centre.x}
+              cy={centre.y}
+              r={TARGET_RADIUS}
               onClick={() => onSelect(point)}
               onKeyDown={(event) => play(event, point)}
             />
-          );
-        })}
+            <rect
+              aria-hidden="true"
+              x={centre.x - FOCUS_SIZE / 2}
+              y={centre.y - FOCUS_SIZE / 2}
+              width={FOCUS_SIZE}
+              height={FOCUS_SIZE}
+            />
+          </Fragment>
+        ))}
       </g>
     </svg>
   );

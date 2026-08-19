@@ -110,27 +110,21 @@ body {
 }
 
 /*
- * A piece the side to move may act on: one it may capture, or one it may pick
- * up and move.
+ * A point the side to move may act on: a piece it may capture, a piece it may
+ * pick up and move, or — while one is picked up — a point that piece may go to,
+ * drawn as the outline of the piece that would land there. One mark saying one
+ * thing, so it is written once; what tells the two apart is what stands inside
+ * the ring rather than the ring itself.
  */
-.board__points circle[data-occupant][data-legal] {
+.board__points circle[data-occupant][data-legal],
+.board__destinations circle {
   stroke: var(--point-legal-ink);
   stroke-dasharray: 10 8;
   stroke-width: 6;
 }
 
-/*
- * Where the piece that has been picked up may go: the outline of the piece that
- * would land there, dashed in the same ink and the same dashes as the pieces it
- * may be played onto above. The two are one mark saying one thing — this is
- * yours to choose — and what tells them apart is what stands inside the ring
- * rather than the ring itself.
- */
 .board__destinations circle {
   fill: none;
-  stroke: var(--point-legal-ink);
-  stroke-dasharray: 10 8;
-  stroke-width: 6;
   pointer-events: none;
 }
 
@@ -211,23 +205,30 @@ body {
 
 /*
  * The browser's own focus ring is turned off here rather than only where the
- * keyboard is: it is drawn as a rectangle around the shape's box whether or not
- * the shape is one, and on a board of circles it reads as a mark of the game's.
+ * keyboard is: it is drawn around the shape's box whether or not the shape is
+ * one, and it is not reliably drawn on an SVG shape at all.
  */
-.board__targets rect {
+.board__targets circle {
   fill: transparent;
   outline: none;
   cursor: pointer;
 }
 
 /*
- * The point the keyboard is on, drawn as the square that takes the tap: it fills
- * the board's own step, so the mark sits midway between this point and the ones
- * around it, and it is the only square on a board of rings — which is what keeps
- * it from being read as one of them. `outline` is what a focus ring usually is,
- * but it is not reliably drawn on SVG shapes, so this one is a stroke.
+ * The square the board draws instead, round the point the keyboard has got to.
+ * It is the only square on a board of rings, which is what keeps it from being
+ * read as one of them — a ring here would sit a few units from the hint's and be
+ * told from it by colour alone. It is drawn by the square that follows each
+ * control rather than by the control itself, so that the point a pointer touches
+ * is exactly the circle it always was.
  */
-.board__targets rect:focus-visible {
+.board__targets rect {
+  fill: none;
+  stroke: none;
+  pointer-events: none;
+}
+
+.board__targets circle:focus-visible + rect {
   stroke: var(--coordinate-ink);
   stroke-width: 4;
 }

@@ -7,7 +7,7 @@ import type { Side } from "../../src/engine/position";
 import { DEFAULT_DIFFICULTY, DIFFICULTIES, type Difficulty } from "../../src/opponent/difficulty";
 import { strings } from "../../src/strings";
 import { gameOf } from "../fixtures/games";
-import { pointAt, tap } from "./taps";
+import { pointAt, tap } from "./board";
 
 /**
  * Start a game against the computer, with the player on this side and the

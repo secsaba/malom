@@ -55,15 +55,18 @@ export const HINT_RADIUS = 46;
  */
 export const LAST_MOVE_RADIUS = 14;
 
+/** How much of the board around a point takes a tap meant for it. */
+export const TARGET_RADIUS = STEP / 2;
+
 /**
- * How much of the board around a point takes a tap meant for it: a square of one
- * whole step, so the targets tile the board and leave no gap between two points
- * for a tap to fall down. It is square rather than round for the same reason the
- * ring it is drawn as when the keyboard is on it is: nothing else on the board is
- * a square, so the point the keyboard has reached cannot be read as a state the
- * game has put the point in.
+ * The square drawn round the point the keyboard has reached. It is a square
+ * because nothing else on the board is one: every mark the game leaves is a
+ * ring, and a ring here would sit within a few units of the hint's and be told
+ * from it by colour alone — which is the one thing the board must not need. It
+ * spans a whole step, so it meets the squares its neighbours would draw rather
+ * than overlapping them.
  */
-export const TARGET_SIZE = STEP;
+export const FOCUS_SIZE = STEP;
 
 export type Centre = { readonly x: number; readonly y: number };
 

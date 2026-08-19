@@ -9,7 +9,8 @@ import {
   LINE_SEGMENTS,
   PIECE_RADIUS,
   POINT_RADIUS,
-  TARGET_SIZE,
+  FOCUS_SIZE,
+  TARGET_RADIUS,
   centreOf,
 } from "./board-layout";
 
@@ -96,13 +97,23 @@ describe("the ring a hint is marked with", () => {
   });
 });
 
-describe("the square that takes a tap", () => {
+describe("the circle that takes a tap", () => {
   it("reaches wider than the piece standing on the point, so a fingertip can miss", () => {
-    expect(TARGET_SIZE / 2).toBeGreaterThan(PIECE_RADIUS);
+    expect(TARGET_RADIUS).toBeGreaterThan(PIECE_RADIUS);
   });
 
   it("takes no tap meant for the point next door", () => {
-    expect(TARGET_SIZE).toBeLessThanOrEqual(closestPoints);
+    expect(TARGET_RADIUS * 2).toBeLessThanOrEqual(closestPoints);
+  });
+});
+
+describe("the square the keyboard is marked with", () => {
+  it("goes round the outside of every ring the game leaves on a point", () => {
+    expect(FOCUS_SIZE / 2).toBeGreaterThan(HINT_RADIUS);
+  });
+
+  it("meets the square its neighbour would draw rather than overlapping it", () => {
+    expect(FOCUS_SIZE).toBeLessThanOrEqual(closestPoints);
   });
 });
 

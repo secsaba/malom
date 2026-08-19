@@ -4,8 +4,7 @@ import { POINTS } from "../../src/engine/board";
 import { strings } from "../../src/strings";
 import { BETWEEN } from "../../src/ui/point-state";
 import { MILL_FREE_PLACING } from "../fixtures/games";
-import { press } from "./keys";
-import { pointAt } from "./taps";
+import { pointAt, press } from "./board";
 
 const { point } = strings.board;
 
@@ -45,7 +44,7 @@ test("shows the keyboard where it is", async ({ page }) => {
 test("announces each point with its coordinate and what stands on it", async ({ page }) => {
   await expect(page.getByRole("button", { name: announced("a1", point.empty) })).toBeVisible();
 
-  await press(page, "a1");
+  await press(page, ["a1"]);
 
   await expect(
     page.getByRole("button", {
@@ -60,15 +59,23 @@ test("announces each point with its coordinate and what stands on it", async ({ 
  * fresh board, with nothing but Tab and Enter.
  */
 test("plays a move through to the capture it earns, without a pointer", async ({ page }) => {
-  await press(page, "a1", "a7", "d1", "d7", "g1"); // light closes a1-d1-g1
+  await press(page, ["a1", "a7", "d1", "d7", "g1"]); // light closes a1-d1-g1
 
   await expect(page.getByTestId("capture-prompt")).toHaveText(strings.game.capture);
   await expect(page.getByTestId("side-to-move")).toHaveText(strings.game.toMove.light);
 
-  await press(page, "a7"); // and takes a dark piece
+  await press(page, ["a7"]); // and takes a dark piece
 
   await expect(pointAt(page, "a7")).not.toHaveAttribute("data-occupant", /.*/);
   await expect(page.getByTestId("capture-prompt")).toHaveCount(0);
+  await expect(page.getByTestId("side-to-move")).toHaveText(strings.game.toMove.dark);
+});
+
+/** Space plays the point the keyboard is on, exactly as Enter does. */
+test("plays a point with the space bar too", async ({ page }) => {
+  await press(page, ["a1"], " ");
+
+  await expect(pointAt(page, "a1")).toHaveAttribute("data-occupant", "light");
   await expect(page.getByTestId("side-to-move")).toHaveText(strings.game.toMove.dark);
 });
 
@@ -77,11 +84,11 @@ test("plays a move through to the capture it earns, without a pointer", async ({
  * piece up, hearing that it has been picked up, and sending it somewhere.
  */
 test("picks a piece up and moves it, without a pointer", async ({ page }) => {
-  await press(page, ...MILL_FREE_PLACING);
+  await press(page, MILL_FREE_PLACING);
 
   await expect(page.getByTestId("phase")).toHaveText(strings.game.phase.moving);
 
-  await press(page, "b2"); // pick it up
+  await press(page, ["b2"]); // pick it up
 
   await expect(
     page.getByRole("button", { name: announced("b2", point.piece.light, point.selected) }),
@@ -90,7 +97,7 @@ test("picks a piece up and moves it, without a pointer", async ({ page }) => {
     page.getByRole("button", { name: announced("b4", point.empty, point.legal) }),
   ).toBeVisible();
 
-  await press(page, "b4"); // and send it
+  await press(page, ["b4"]); // and send it
 
   await expect(pointAt(page, "b2")).not.toHaveAttribute("data-occupant", /.*/);
   await expect(pointAt(page, "b4")).toHaveAttribute("data-occupant", "light");

@@ -1,7 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
 
 import { strings } from "../../src/strings";
-import { pointAt, tap } from "./taps";
+import { pointAt, tap } from "./board";
 
 const inHand = (page: Page, side: "light" | "dark") =>
   page.locator(`[data-testid="in-hand"][data-side="${side}"]`);

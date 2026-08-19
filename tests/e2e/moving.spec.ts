@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import { strings } from "../../src/strings";
 import { DARK_PICKINGS, MILL_FREE_PLACING, WALLED_IN } from "../fixtures/games";
-import { pointAt, tap } from "./taps";
+import { pointAt, tap } from "./board";
 
 test.beforeEach(async ({ page }) => {
   await page.goto("./");

@@ -2,7 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 
 import { strings } from "../../src/strings";
 import { MILL_FREE_PLACING, REPETITION_CYCLE, WALLED_IN } from "../fixtures/games";
-import { pointAt, tap } from "./taps";
+import { pointAt, tap } from "./board";
 
 /** The block of the summary about one side. */
 const summaryFor = (page: Page, side: "light" | "dark") =>

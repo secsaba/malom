@@ -69,7 +69,11 @@ export const Status = ({ game }: StatusProps) => (
     )}
 
     <h2 className="status__heading">{strings.game.piecesInHand}</h2>
-    <dl className="status__hands">
+    {/*
+     * Out of the announcement: these change on every move, and a player who has
+     * just heard whose turn it is does not need the two counts read out after it.
+     */}
+    <dl className="status__hands" aria-live="off">
       {SIDES.map((side) => (
         <div key={side} className="status__hand">
           <dt>{strings.game.side[side]}</dt>

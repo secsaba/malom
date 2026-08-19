@@ -14,7 +14,7 @@ import { type Page, expect, test } from "@playwright/test";
 import { DEFAULT_DIFFICULTY } from "../../src/opponent/difficulty";
 import { KEYS } from "../../src/ui/storage";
 import { strings } from "../../src/strings";
-import { pointAt, tap } from "./taps";
+import { pointAt, tap } from "./board";
 
 /** Every grade the move list is showing, in the order the moves were played. */
 const gradesShown = (page: Page) =>
