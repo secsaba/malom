@@ -58,3 +58,12 @@ export const press = async (
 
 /** The point as the board drew it, for the attributes it wears. */
 export const pointAt = (page: Page, point: PointId) => page.locator(`[data-point="${point}"]`);
+
+/**
+ * Tap each point in turn with a finger rather than with a pointer. It is the
+ * same two taps a move is played in either way — the piece, and then where it
+ * goes — and what this proves is that a touchscreen gets to make them.
+ */
+export const touch = async (page: Page, ...points: readonly PointId[]) => {
+  for (const point of points) await page.locator(`[data-target="${point}"]`).tap();
+};

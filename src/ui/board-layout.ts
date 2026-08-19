@@ -31,6 +31,15 @@ const MARGIN = (BOARD_SIZE - (FILES.length - 1) * STEP) / 2;
 /** How far outside the board the coordinate labels sit. */
 const LABEL_OFFSET = 40;
 
+/**
+ * The rounded corner of the ground the board is drawn on. The ground is a shape
+ * inside the drawing rather than the element's background, because the element
+ * is given whatever room the page has and the drawing centres itself inside it:
+ * a background would fill the room around the board as well as the board, and a
+ * slab of cream is not what is left over when a board runs out of room.
+ */
+export const GROUND_CORNER = 16;
+
 /** How big an empty point is drawn. */
 export const POINT_RADIUS = 18;
 

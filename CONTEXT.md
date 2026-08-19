@@ -242,6 +242,13 @@ The choices that outlive the game they were made in: the Difficulty, whether Tea
 _Hungarian_: none — nothing in the interface groups them; each is shown under its own name
 _Avoid_: preferences, options, configuration, profile
 
+## The screen
+
+**Panel**:
+Everything the page shows beside the board: what teaching has to say about the game, the record of it, and the Settings. On a screen with room for both it stands next to the board; on a phone there is not, so it folds down to a handle at the foot of the screen and opens above it when the player asks — and gives the room back to the board when they are done with it, because nothing on this page is ever scrolled away to make room for anything else. Three things are never in it: the board, whose turn it is, and the question a Blunder warning is put back with. The first two are what the game is played on, and the third is a question — one nobody can see is a game that reads as stuck.
+_Hungarian_: Részletek — the word on the handle, which is the only place the panel is named
+_Avoid_: sidebar, drawer, tray, bottom sheet — the last of those naming the shape it takes on one screen rather than the thing itself; and _analysis panel_, which names half of what stands in it
+
 ## Measuring the engine
 
 Nothing in this section is ever shown to a player, so none of it has a Hungarian surface form. It is the language of the harnesses that settled the engine's numbers — the evaluation's weights and the grade's bands — and of the tests that keep them honest.

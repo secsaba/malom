@@ -30,10 +30,6 @@ type TeachingProps = {
   readonly takebackOffered: boolean;
   /** Whether moves are checked before they are played. */
   readonly warnsOfBlunders: boolean;
-  /** Whether the move the player has committed to is being checked. */
-  readonly checking: boolean;
-  /** Whether the player is being asked to stand by a move the engine calls a blunder. */
-  readonly warned: boolean;
   /** What the engine made of the last move a player played, once it has said. */
   readonly grade: Grade | undefined;
   /** The one thing the player is told about that move beside the grade. */
@@ -42,8 +38,6 @@ type TeachingProps = {
   readonly onAskForHint: () => void;
   readonly onTakeBack: () => void;
   readonly onWarnOfBlunders: (on: boolean) => void;
-  readonly onPlayAnyway: () => void;
-  readonly onThinkAgain: () => void;
 };
 
 /**
@@ -61,15 +55,16 @@ type TeachingProps = {
  * the computer thinks.
  *
  * The warning's own toggle sits beside them rather than among the settings at
- * the foot of the page, because it is teaching's and belongs where a player
- * looking for what teaching offers will find it. It is off until they ask.
+ * the foot of the panel, because it is teaching's and belongs where a player
+ * looking for what teaching offers will find it. It is off until they ask. What
+ * the warning then does is {@link ./BlunderWarning.tsx}'s and not this block's:
+ * a question the player has to answer is not something to leave in a panel they
+ * can fold away.
  *
  * The grade comes and goes with the move it is about, and there is nothing in
  * its place while the engine works one out: a line reading that a grade is on
  * its way would put a word in front of the player on every move they make, which
- * is a lot of nothing to read. The check before a blunder is the exception, and
- * it has to be: the board is holding still and the move has not been played, so
- * without a line saying what is being waited for the page reads as stuck.
+ * is a lot of nothing to read.
  *
  * The reason is the sentence under the verdict, and it is worded here rather
  * than behind the boundary: the engine hands back the pattern it detected and
@@ -81,16 +76,12 @@ export const Teaching = ({
   hinting,
   takebackOffered,
   warnsOfBlunders,
-  checking,
-  warned,
   grade,
   reason,
   onTeach,
   onAskForHint,
   onTakeBack,
   onWarnOfBlunders,
-  onPlayAnyway,
-  onThinkAgain,
 }: TeachingProps) => (
   <section className="teaching" data-testid="teaching">
     <label className="teaching__toggle">
@@ -137,34 +128,6 @@ export const Teaching = ({
         />
         {strings.teaching.warning.toggle}
       </label>
-    )}
-
-    {teaching && checking && (
-      <p className="teaching__checking" data-testid="checking">
-        {strings.teaching.warning.checking}
-      </p>
-    )}
-
-    {teaching && warned && (
-      <p className="teaching__warning" data-testid="warning">
-        <span className="teaching__warning-asks">{strings.teaching.warning.asks}</span>
-        <button
-          type="button"
-          className="teaching__button"
-          data-testid="play-anyway"
-          onClick={onPlayAnyway}
-        >
-          {strings.teaching.warning.playAnyway}
-        </button>
-        <button
-          type="button"
-          className="teaching__button"
-          data-testid="think-again"
-          onClick={onThinkAgain}
-        >
-          {strings.teaching.warning.thinkAgain}
-        </button>
-      </p>
     )}
 
     {teaching && grade && (

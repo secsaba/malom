@@ -8,6 +8,7 @@ import {
   BOARD_SIZE,
   COORDINATE_LABELS,
   FOCUS_SIZE,
+  GROUND_CORNER,
   HINT_RADIUS,
   LAST_MOVE_RADIUS,
   LINE_SEGMENTS,
@@ -179,6 +180,21 @@ export const Board = ({
           />
         </filter>
       </defs>
+
+      {/*
+       * The ground the board stands on, drawn rather than set behind the
+       * element: the element is given whatever room the page has and the
+       * drawing centres itself in it, so a ground that was the background would
+       * spread into the room the board did not use.
+       */}
+      <rect
+        className="board__ground"
+        data-testid="board-ground"
+        aria-hidden="true"
+        width={BOARD_SIZE}
+        height={BOARD_SIZE}
+        rx={GROUND_CORNER}
+      />
 
       <g className="board__lines" aria-hidden="true">
         {LINE_SEGMENTS.map(({ line, from, to }) => (

@@ -7,6 +7,16 @@ export const hu = {
   app: {
     title: "Malom",
   },
+  /**
+   * The panel: what stands beside the board where there is room for both, and
+   * folds down to a handle on a phone where there is not. The handle is the one
+   * place the panel is named, and it is named for what is behind it rather than
+   * for the folding — a player looking for the grade on the move they have just
+   * played is looking for the details of the game and not for a drawer.
+   */
+  panel: {
+    handle: "Részletek",
+  },
   board: {
     label: "Malomtábla",
     showCoordinates: "Koordináták mutatása",

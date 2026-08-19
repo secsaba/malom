@@ -25,6 +25,16 @@
   --result-ink: #f2e3c8;
 }
 
+/*
+ * The gutter down each side of the page. The board is the one thing that ignores
+ * it: a point has to be a fingertip wide, and on a phone the board is only as
+ * wide as the screen — so on the narrowest screens the gutter comes out of the
+ * board rather than out of the finger, and the board reaches both edges.
+ */
+:root {
+  --gutter: 0.75rem;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -36,22 +46,62 @@ body {
   font-family: system-ui, sans-serif;
 }
 
+/*
+ * The page is one screen and never scrolls. The board is what the game is played
+ * on, and a board that has to be scrolled back to is a board the player has
+ * lost — so the page is exactly as tall as the viewport, and everything that
+ * cannot fit shrinks or scrolls inside itself rather than pushing the board off
+ * the bottom.
+ *
+ * The height is the viewport's dynamic one, which is the room a phone actually
+ * leaves once its address bar has had its share; `100vh` is the fallback for a
+ * browser that has never heard of it, and is the same number on a desktop.
+ */
 .app {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/*
+ * The board and what is being played on it: the two things that are never folded
+ * away. Below the phone's breakpoint they are the whole screen; above it they are
+ * the column beside the panel.
+ */
+.app__play {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
-  min-height: 100vh;
-  padding: 2rem 1rem;
+  gap: 0.75rem;
+  min-height: 0;
+  padding: var(--gutter) 0;
+}
+
+/*
+ * What the board is given: the width of the screen, and whatever height is left
+ * once everything that cannot shrink has had its share. The board draws itself
+ * to fit inside that, so the room the panel takes when it opens comes out of the
+ * board and goes back to it when the panel closes.
+ */
+.app__board {
+  display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
 }
 
 .app__header {
+  padding: 0 var(--gutter);
   text-align: center;
 }
 
 .app__header h1 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.5rem;
   letter-spacing: 0.05em;
 }
 
@@ -62,16 +112,111 @@ body {
 
 .app__toggle {
   display: flex;
+  align-self: center;
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
 }
 
-.board {
-  width: min(100%, 32rem);
-  height: auto;
-  background: var(--board-ground);
+/*
+ * The panel: everything the page shows beside the board. On a phone it is folded
+ * down to its handle, and opens above it into a share of the screen that the
+ * board gives up for as long as it is open — a share and not the leftovers,
+ * because the contents scroll inside themselves rather than growing until the
+ * board is pushed off the bottom.
+ */
+.panel {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 var(--gutter) var(--gutter);
+}
+
+/*
+ * The handle: a fingertip tall at the very least, and the width of the screen.
+ * It is the one control a player reaches for without looking, because it is the
+ * last thing above the bottom edge.
+ */
+.panel__handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--page-ink-dim);
   border-radius: 0.5rem;
+  background: transparent;
+  color: var(--page-ink);
+  font: inherit;
+  cursor: pointer;
+  user-select: none;
+}
+
+.panel__handle:hover {
+  background: var(--point-selected-ink);
+}
+
+/*
+ * Which way the handle goes: up while the panel is folded away, down once it is
+ * open. It is the one mark on the handle that is not a word, and it says only
+ * what `aria-expanded` says beside it — nothing is told by the chevron alone.
+ */
+.panel__chevron {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid currentcolor;
+  border-bottom: 2px solid currentcolor;
+  transform: rotate(-135deg);
+  transition: transform 160ms ease-out;
+}
+
+.panel[data-expanded] .panel__chevron {
+  transform: rotate(45deg);
+}
+
+/*
+ * Folded away until the handle is pressed — and folded away with `display: none`
+ * rather than merely put out of sight, because a control nobody can see is not
+ * one anybody should reach by pressing Tab.
+ */
+.panel__contents {
+  display: none;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-height: 0;
+  max-height: 50dvh;
+  padding: 1rem 0 0;
+  overflow-y: auto;
+}
+
+.panel[data-expanded] .panel__contents {
+  display: flex;
+}
+
+/*
+ * The board takes the whole of the box it is given and draws itself as large as
+ * it can inside it, centred — which is what makes one rule serve every screen:
+ * where the width runs out first the board fills it, and where the height does
+ * — a panel open under it, a phone turned on its side — the board comes out
+ * smaller with the room left over around it rather than under it.
+ *
+ * Nothing caps it in one column, because a column with nothing beside it has
+ * nothing to give the room to: a board that stopped at 32rem on a tablet would
+ * be a small board with empty screen around it. The cap belongs to the two-column
+ * layout, and is set there.
+ */
+.board {
+  width: 100%;
+  height: 100%;
+}
+
+/* The ground is a shape in the drawing, so it is the board's and not the box's. */
+.board__ground {
+  fill: var(--board-ground);
 }
 
 .board__lines line {
@@ -247,6 +392,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
+  padding: 0 var(--gutter);
   text-align: center;
 }
 
@@ -332,6 +478,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.75rem 1.5rem;
+  width: 100%;
 }
 
 .teaching__toggle {
@@ -374,31 +521,33 @@ body {
 
 /*
  * The move is checked but not played, so the board is holding still: this line
- * is what says the page is waiting rather than stuck.
+ * is what says the page is waiting rather than stuck. It stands with the board
+ * rather than in the panel, because a panel the player has folded away is
+ * exactly where a line nobody can see would go.
  */
-.teaching__checking {
-  flex-basis: 100%;
+.warning__checking {
   margin: 0;
+  padding: 0 var(--gutter);
   text-align: center;
   color: var(--page-ink-dim);
 }
 
 /*
- * The question a blunder is put back with, and the two answers to it, on a line
- * of their own: the player is being asked something, and an answer that shares a
- * line with the toggles reads as another setting.
+ * The question a blunder is put back with, and the two answers to it. The player
+ * is being asked something, so it sits under the board where they are looking
+ * and not among the settings, where an answer would read as another one.
  */
-.teaching__warning {
+.warning {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 0.5rem 0.75rem;
-  flex-basis: 100%;
   margin: 0;
+  padding: 0 var(--gutter);
 }
 
-.teaching__warning-asks {
+.warning__asks {
   flex-basis: 100%;
   text-align: center;
   font-weight: 600;
@@ -448,6 +597,7 @@ body {
   gap: 0.5rem;
   width: 100%;
   max-width: 22rem;
+  margin-inline: auto;
 }
 
 .move-list__heading {
@@ -530,6 +680,7 @@ body {
   gap: 1rem;
   width: 100%;
   max-width: 32rem;
+  margin-inline: auto;
 }
 
 .summary__heading {
@@ -606,6 +757,7 @@ body {
 .difficulty {
   display: flex;
   justify-content: center;
+  width: 100%;
 }
 
 .difficulty__choice {
@@ -639,7 +791,9 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.75rem 1.5rem;
+  width: 100%;
   max-width: 32rem;
+  margin-inline: auto;
 }
 
 .setup__heading {
@@ -687,9 +841,61 @@ body {
   cursor: pointer;
 }
 
+.rematch {
+  align-self: center;
+}
+
 .setup__start:hover,
 .rematch:hover {
   background: var(--point-selected-ink);
+}
+
+/*
+ * Room for two columns: the board keeps the left of the screen and the panel
+ * stands beside it, open, with the handle gone — a control that folds away what
+ * is already in front of the player has nothing left to do.
+ *
+ * The breakpoint is where the second column stops costing the board more than
+ * the panel gains. Below it, taking a panel's width out of the screen would
+ * leave the board narrower than a phone gives it, which is the wrong way round:
+ * a bigger screen has to mean a bigger board.
+ */
+@media (min-width: 60rem) {
+  .app {
+    flex-direction: row;
+    align-items: stretch;
+    gap: 2rem;
+    padding: 1.5rem;
+  }
+
+  .app__play {
+    flex: 1 1 auto;
+    padding: 0;
+  }
+
+  .app__header h1 {
+    font-size: 2rem;
+  }
+
+  /* Beside a panel the board stops growing, and the room goes to the panel. */
+  .board {
+    width: min(100%, 32rem);
+  }
+
+  .panel {
+    flex: 0 1 22rem;
+    padding: 0;
+  }
+
+  .panel__handle {
+    display: none;
+  }
+
+  .panel__contents {
+    display: flex;
+    max-height: none;
+    padding: 0;
+  }
 }
 
 /*
@@ -700,5 +906,9 @@ body {
   .board [data-arrived],
   .status__thinking {
     animation: none;
+  }
+
+  .panel__chevron {
+    transition: none;
   }
 }

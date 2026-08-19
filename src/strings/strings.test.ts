@@ -40,6 +40,7 @@ describe("the strings module", () => {
     expect(hu.teaching.gradeHeading).toBe("Értékelés");
     expect(hu.teaching.moveList.heading).toBe("Lépéslista");
     expect(hu.teaching.summary.weakness).toBe("Gyenge pont");
+    expect(hu.panel.handle).toBe("Részletek");
   });
 
   it("names the five grades as the glossary names them, best first", () => {
