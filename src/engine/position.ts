@@ -47,7 +47,8 @@ export const pointsHeldBy = (position: Position, side: Side): readonly PointId[]
 
 /** How few pieces a side is left with when it starts to fly, and when it has lost. */
 const PIECES_TO_FLY = 3;
-const PIECES_TO_LOSE = 2;
+/** The pieces a side is left with when it has lost: two cannot make a mill. */
+export const PIECES_TO_LOSE = 2;
 
 /** Whether this side is down to the three pieces that let it jump rather than slide. */
 export const flies = (position: Position, side: Side): boolean =>

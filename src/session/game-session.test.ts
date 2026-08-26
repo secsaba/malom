@@ -373,6 +373,117 @@ describe("capturing from a mill", () => {
   });
 });
 
+describe("what a capture leaves behind", () => {
+  /** Light closes a1-d1-g1 and is left owing a capture, with dark on a7 and d7. */
+  const upToTheOwedCapture = () => {
+    const session = createGameSession();
+
+    place(session, "a1", "a7", "d1", "d7", "g1");
+
+    return session;
+  };
+
+  it("has taken nothing off a board nothing has been taken off", () => {
+    const session = createGameSession();
+
+    expect(session.state.captured).toEqual({ light: 0, dark: 0 });
+    expect(session.state.lastCapture).toBeUndefined();
+  });
+
+  // A capture owed is not a capture taken: the piece is still standing on the
+  // board, and the board must not say otherwise while the player picks one.
+  it("says nothing while a capture is only owed", () => {
+    const session = upToTheOwedCapture();
+
+    expect(session.state.pendingCapture).toBe(true);
+    expect(session.state.lastCapture).toBeUndefined();
+    expect(session.state.captured).toEqual({ light: 0, dark: 0 });
+  });
+
+  it("records where the piece was taken from and whose it was", () => {
+    const session = upToTheOwedCapture();
+
+    capture(session, "a7");
+
+    expect(session.state.lastCapture).toEqual({ point: "a7", side: "dark" });
+  });
+
+  // The heap belongs to the side that lost the piece, not to the side that won
+  // it: what it measures is how much of that side is gone.
+  it("counts the piece against the side that lost it", () => {
+    const session = upToTheOwedCapture();
+
+    capture(session, "a7");
+
+    expect(session.state.captured).toEqual({ light: 0, dark: 1 });
+  });
+
+  // The mark lives exactly as long as the ring on the piece that moved: the two
+  // are halves of one move, and the next arrival replaces both.
+  it("forgets the capture as soon as the next piece arrives", () => {
+    const session = upToTheOwedCapture();
+
+    capture(session, "a7");
+    place(session, "b2");
+
+    expect(session.state.lastCapture).toBeUndefined();
+    expect(session.state.lastArrival).toEqual({ from: undefined, to: "b2" });
+    expect(session.state.captured).toEqual({ light: 0, dark: 1 });
+  });
+
+  it("counts what both sides have lost over a game they both take from", () => {
+    const session = createGameSession();
+
+    place(session, "a1", "a7", "d1", "d7", "g1");
+    capture(session, "a7"); // light takes a dark piece
+    place(session, "b6", "b2", "d6", "d2", "f6");
+    capture(session, "b2"); // dark takes a light piece
+
+    expect(session.state.captured).toEqual({ light: 1, dark: 1 });
+    expect(session.state.lastCapture).toEqual({ point: "b2", side: "light" });
+  });
+
+  // A takeback changes the game, so it changes what has been taken off it. The
+  // count is read off the board rather than tallied, so it has nothing of its
+  // own to wind back.
+  it("gives the piece back when the move that took it is taken back", () => {
+    const session = createGameSession({ teaching: true });
+
+    place(session, "a1", "a7", "d1", "d7", "g1");
+    capture(session, "a7");
+
+    expect(session.state.captured).toEqual({ light: 0, dark: 1 });
+
+    session.takeBack();
+
+    expect(session.state.captured).toEqual({ light: 0, dark: 0 });
+    expect(session.state.position.get("a7")).toBe("dark");
+  });
+
+  // A review only looks at the game, so the heaps show what they held then and
+  // the game is exactly where it was left the moment the player comes back.
+  it("shows what the heaps held at the move being looked back at", () => {
+    const session = createGameSession({ teaching: true });
+
+    place(session, "a1", "a7", "d1", "d7", "g1");
+    capture(session, "a7");
+    place(session, "b2");
+
+    const capturing = session.state.moves.length - 2; // the move the mill closed with
+
+    session.review(capturing - 1);
+    expect(session.state.captured).toEqual({ light: 0, dark: 0 });
+    expect(session.state.lastCapture).toBeUndefined();
+
+    session.review(capturing);
+    expect(session.state.captured).toEqual({ light: 0, dark: 1 });
+    expect(session.state.lastCapture).toEqual({ point: "a7", side: "dark" });
+
+    session.stopReviewing();
+    expect(session.state.captured).toEqual({ light: 0, dark: 1 });
+  });
+});
+
 describe("a placement closing two mills", () => {
   /** Light takes a1, d1, g4 and g7, so that g1 closes both a1-d1-g1 and g1-g4-g7. */
   const upToTheDoubleMill = () => {

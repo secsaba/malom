@@ -50,6 +50,16 @@ export const hu = {
       },
       /** Where the piece that moved last came to rest. */
       lastMove: "utolsó lépés",
+      /**
+       * A point the last move took a piece off, keyed by the side that lost it.
+       * The point itself is empty and says so first; this is what became of what
+       * stood on it, which is the half a player who cannot see the board would
+       * otherwise never be told.
+       */
+      captured: {
+        light: "innen vettek le világos bábut",
+        dark: "innen vettek le sötét bábut",
+      },
     },
   },
   game: {
@@ -71,6 +81,20 @@ export const hu = {
     },
     piecesInHand: "Le nem rakott bábuk",
     capture: "Malom! Vegye le az ellenfél egyik bábuját.",
+    /**
+     * The capture once it has been taken, read out where the mark on the board
+     * cannot be seen. The board said a capture was owed and never that one had
+     * happened, which left the whole of it to be seen rather than heard.
+     *
+     * The coordinate is filled in by the interface: it is notation rather than
+     * language and reads the same in either.
+     */
+    captured: {
+      light: "Levett világos bábu:",
+      dark: "Levett sötét bábu:",
+    },
+    /** How many pieces each side has lost, headed over the two heaps. */
+    capturedPieces: "Levett bábuk",
     /** Shown while the computer is choosing its move. */
     thinking: "A gép gondolkodik…",
     /**

@@ -2,11 +2,14 @@ import { Fragment, type CSSProperties, type KeyboardEvent } from "react";
 
 import { POINTS, type PointId } from "../engine/board";
 import type { Arrival, Move } from "../engine/game";
-import type { Position } from "../engine/position";
+import { SIDES, type Position, type Side } from "../engine/position";
+import type { Capture } from "../session/game-session";
 import {
   BOARD_SIZE,
+  type Centre,
   COORDINATE_LABELS,
   FOCUS_SIZE,
+  GHOST_RADIUS,
   GROUND_CORNER,
   HINT_RADIUS,
   LAST_MOVE_RADIUS,
@@ -14,7 +17,10 @@ import {
   PIECE_RADIUS,
   POINT_RADIUS,
   TARGET_RADIUS,
+  TROPHY_RADIUS,
   centreOf,
+  rackFor,
+  trophyAt,
 } from "./board-layout";
 import { useStrings } from "./language";
 import { type PointState, hintedAt, pointLabel } from "./point-state";
@@ -28,6 +34,10 @@ type BoardProps = {
   readonly selection: PointId | undefined;
   /** Where the last piece to move came to rest, so that it can arrive rather than appear. */
   readonly arrival: Arrival | undefined;
+  /** The piece that move took off the board, so that it can leave rather than vanish. */
+  readonly capture: Capture | undefined;
+  /** How many pieces each side has lost, which is what lies in the two heaps. */
+  readonly captured: Readonly<Record<Side, number>>;
   /** The move the engine prefers, where the player has asked to see it. */
   readonly hint: Move | undefined;
   /** Whether the file letters and rank digits are shown around the board. */
@@ -41,15 +51,15 @@ type BoardProps = {
  * bring it in: the board is drawn in the viewBox's units, so the distance is
  * measured in those and not in anything the screen knows about.
  */
-const travelledFrom = (from: PointId, to: PointId): CSSProperties => {
-  const start = centreOf(from);
-  const end = centreOf(to);
+const travelledFrom = (from: Centre, to: Centre): CSSProperties =>
+  ({
+    "--arrived-x": `${from.x - to.x}px`,
+    "--arrived-y": `${from.y - to.y}px`,
+  }) as CSSProperties;
 
-  return {
-    "--arrived-x": `${start.x - end.x}px`,
-    "--arrived-y": `${start.y - end.y}px`,
-  } as CSSProperties;
-};
+/** The same, for a piece that came in from a point: the two ends are both centres. */
+const travelledFromPoint = (from: PointId, to: PointId): CSSProperties =>
+  travelledFrom(centreOf(from), centreOf(to));
 
 /**
  * Every point is in the tab order, so all 24 are reached by Tab alone, in the
@@ -95,6 +105,8 @@ export const Board = ({
   legalPoints,
   selection,
   arrival,
+  capture,
+  captured,
   hint,
   showCoordinates,
   onSelect,
@@ -107,6 +119,7 @@ export const Board = ({
     selected: point === selection,
     hint: hintedAt(hint, point),
     lastMove: arrival?.to === point,
+    captured: capture?.point === point ? capture.side : undefined,
   });
 
   const board = POINTS.map((point) => ({
@@ -125,6 +138,27 @@ export const Board = ({
 
   const hinted = board.filter(({ state }) => state.hint !== undefined);
   const arrived = board.filter(({ state }) => state.lastMove);
+  const vacated = board.filter(({ state }) => state.captured !== undefined);
+
+  /*
+   * The two heaps: every piece a side has lost, lying in its own slot in the
+   * middle of the board. The one that has just been taken is the last of its
+   * heap, and it is the only one given anything to travel from — the rest have
+   * been lying there since the move that put them there.
+   */
+  const heaps = SIDES.flatMap((side) =>
+    Array.from({ length: captured[side] }, (_, nth) => {
+      const centre = trophyAt(side, nth);
+      const justTaken = capture?.side === side && nth === captured[side] - 1;
+
+      return {
+        key: `${side}-${nth}`,
+        side,
+        centre,
+        style: justTaken ? travelledFrom(centreOf(capture.point), centre) : undefined,
+      };
+    }),
+  );
 
   const play = (event: KeyboardEvent, point: PointId) => {
     if (!PLAY_KEYS.includes(event.key)) return;
@@ -212,6 +246,54 @@ export const Board = ({
         ))}
       </g>
 
+      {/*
+       * The two heaps of captured pieces, lying in the hole in the middle of the
+       * board — the one part of the drawing that holds nothing, and where the
+       * taken pieces go on a wooden board. Each heap is one side's own losses, so
+       * it answers how much of that side is gone and never how much it has won.
+       *
+       * Drawn before the points, so that a piece standing on the board and every
+       * mark the game leaves on it are over the heaps rather than under them: the
+       * heaps are what the game has finished with, and nothing being played is
+       * ever obscured by them.
+       */}
+      <g className="board__heaps" data-testid="heaps" aria-hidden="true">
+        {/*
+         * The rack each heap lies in, drawn whether or not anything is in it
+         * yet: a heap of one is then a rack with one piece in it rather than a
+         * disc at an arbitrary spot, and an empty pair of them says what the
+         * middle of the board is for before the first capture rather than after
+         * it.
+         */}
+        {SIDES.map((side) => {
+          const rack = rackFor(side);
+
+          return (
+            <rect
+              key={side}
+              data-rack={side}
+              x={rack.x}
+              y={rack.y}
+              width={rack.width}
+              height={rack.height}
+              rx={rack.corner}
+            />
+          );
+        })}
+
+        {heaps.map(({ key, side, centre, style }) => (
+            <circle
+              key={key}
+              data-trophy={side}
+              data-arrived={style ? "taken" : undefined}
+              style={style}
+              cx={centre.x}
+            cy={centre.y}
+            r={TROPHY_RADIUS}
+          />
+        ))}
+      </g>
+
       <g className="board__points" aria-hidden="true">
         {board.map(({ point, state, centre }) => (
           <circle
@@ -224,7 +306,9 @@ export const Board = ({
             data-hint={state.hint}
             data-arrived={state.lastMove ? (arrival?.from ? "moved" : "placed") : undefined}
             style={
-              state.lastMove && arrival?.from ? travelledFrom(arrival.from, point) : undefined
+              state.lastMove && arrival?.from
+                ? travelledFromPoint(arrival.from, point)
+                : undefined
             }
             cx={centre.x}
             cy={centre.y}
@@ -232,6 +316,32 @@ export const Board = ({
           />
         ))}
       </g>
+
+      {/*
+       * What the last move took off the board: the outline of the piece that
+       * stood here, at a radius nothing else on the board uses and in that
+       * piece's own ink rather than in any of the three the game's states are
+       * marked in. The point's own dot is still drawn inside it, which is what
+       * says the point is empty — a ghost is where a piece was, not one that is
+       * still there.
+       *
+       * It lives exactly as long as the ring on the piece that moved does. The
+       * two are halves of one move, and the next arrival clears both.
+       */}
+      {vacated.length > 0 && (
+        <g className="board__ghosts" data-testid="ghosts" aria-hidden="true">
+          {vacated.map(({ point, state, centre }) => (
+            <circle
+              key={point}
+              data-ghost={point}
+              data-taken={state.captured}
+              cx={centre.x}
+              cy={centre.y}
+              r={GHOST_RADIUS}
+            />
+          ))}
+        </g>
+      )}
 
       {destinations.length > 0 && (
         <g className="board__destinations" data-testid="destinations" aria-hidden="true">
@@ -261,7 +371,7 @@ export const Board = ({
               key={point}
               data-piece={state.occupant}
               data-arrived={arrival?.from ? "moved" : "placed"}
-              style={arrival?.from ? travelledFrom(arrival.from, point) : undefined}
+              style={arrival?.from ? travelledFromPoint(arrival.from, point) : undefined}
               cx={centre.x}
               cy={centre.y}
               r={LAST_MOVE_RADIUS}

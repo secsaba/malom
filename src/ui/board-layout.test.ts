@@ -1,17 +1,23 @@
 import { describe, expect, it } from "vitest";
 
 import { FILES, LINES, POINTS, RANKS, fileOf, rankOf } from "../engine/board";
+import { SIDES } from "../engine/position";
 import {
   BOARD_SIZE,
   COORDINATE_LABELS,
+  GHOST_RADIUS,
   HINT_RADIUS,
   LAST_MOVE_RADIUS,
   LINE_SEGMENTS,
+  MOST_CAPTURED,
   PIECE_RADIUS,
   POINT_RADIUS,
   FOCUS_SIZE,
   TARGET_RADIUS,
+  TROPHY_RADIUS,
   centreOf,
+  rackFor,
+  trophyAt,
 } from "./board-layout";
 
 describe("point positions", () => {
@@ -157,5 +163,94 @@ describe("coordinate labels", () => {
       expect(label?.x).toBeLessThan(left);
       expect(label?.x).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("the outline left where a piece was taken", () => {
+  it("is drawn at a radius nothing else on the board is", () => {
+    for (const other of [POINT_RADIUS, PIECE_RADIUS, HINT_RADIUS, LAST_MOVE_RADIUS]) {
+      expect(GHOST_RADIUS).not.toBe(other);
+    }
+  });
+
+  // The point's own dot is drawn inside it and the piece that could land here is
+  // drawn outside it, so the outline is neither of them said again.
+  it("stands clear of the empty point inside it and of the piece that would land on it", () => {
+    expect(GHOST_RADIUS).toBeGreaterThan(POINT_RADIUS);
+    expect(GHOST_RADIUS).toBeLessThan(PIECE_RADIUS);
+  });
+});
+
+describe("the heaps the captured pieces lie in", () => {
+  /** The eight points around the hole in the middle, which are the heaps' neighbours. */
+  const INNER = ["c3", "d3", "e3", "c4", "e4", "c5", "d5", "e5"] as const;
+
+  const apart = (one: { x: number; y: number }, other: { x: number; y: number }) =>
+    Math.hypot(one.x - other.x, one.y - other.y);
+
+  it("holds every piece a side can lose, which is seven of its nine", () => {
+    expect(MOST_CAPTURED).toBe(7);
+  });
+
+  // The whole reason the middle of the board can be spent on this: a full heap
+  // still touches nothing being played. A trophy that overlapped a piece would
+  // be the board saying two things about one circle.
+  it("never touches a piece standing on the board, even with both heaps full", () => {
+    for (const side of SIDES) {
+      for (let nth = 0; nth < MOST_CAPTURED; nth += 1) {
+        for (const point of INNER) {
+          expect(apart(trophyAt(side, nth), centreOf(point)), `${side} ${nth} by ${point}`)
+            .toBeGreaterThanOrEqual(PIECE_RADIUS + TROPHY_RADIUS);
+        }
+      }
+    }
+  });
+
+  it("gives each side its own side of the middle line, and never the other's", () => {
+    const middle = BOARD_SIZE / 2;
+
+    for (let nth = 0; nth < MOST_CAPTURED; nth += 1) {
+      expect(trophyAt("light", nth).y).toBeLessThan(middle);
+      expect(trophyAt("dark", nth).y).toBeGreaterThan(middle);
+    }
+  });
+
+  // A heap grows; it does not rearrange itself. A piece that shifted once
+  // another landed beside it would be a board moving under a player's eyes.
+  it("keeps every slot where it is however many pieces are in the heap", () => {
+    for (const side of SIDES) {
+      const first = trophyAt(side, 0);
+
+      for (let nth = 1; nth < MOST_CAPTURED; nth += 1) {
+        expect(trophyAt(side, nth).x).toBeGreaterThan(trophyAt(side, nth - 1).x);
+        expect(trophyAt(side, nth).y).toBe(first.y);
+      }
+    }
+  });
+
+  it("overlaps one piece with the next, so a heap reads as a pile and not as a row", () => {
+    for (const side of SIDES) {
+      expect(apart(trophyAt(side, 0), trophyAt(side, 1))).toBeLessThan(2 * TROPHY_RADIUS);
+    }
+  });
+
+  it("lays a rack under each heap that holds all seven and no more", () => {
+    for (const side of SIDES) {
+      const rack = rackFor(side);
+      const first = trophyAt(side, 0);
+      const last = trophyAt(side, MOST_CAPTURED - 1);
+
+      expect(rack.x).toBeLessThan(first.x - TROPHY_RADIUS);
+      expect(rack.x + rack.width).toBeGreaterThan(last.x + TROPHY_RADIUS);
+      expect(rack.y).toBeLessThan(first.y - TROPHY_RADIUS);
+      expect(rack.y + rack.height).toBeGreaterThan(first.y + TROPHY_RADIUS);
+    }
+  });
+
+  it("keeps the two racks clear of each other", () => {
+    const light = rackFor("light");
+    const dark = rackFor("dark");
+
+    expect(light.y + light.height).toBeLessThan(dark.y);
   });
 });

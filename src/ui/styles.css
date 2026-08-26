@@ -22,6 +22,22 @@
    */
   --point-hint-ink: #6b3fa0;
   --capture-ink: #e8875f;
+  /*
+   * The two pieces' own inks, for the marks drawn about a piece that is no
+   * longer on the board — the outline left where one was taken, and the flat
+   * disc it becomes in the heap. They are the middle stop of each dome's
+   * gradient, so a piece lying in the heap is the same colour as the one that
+   * was standing on the board, without the light on it.
+   */
+  --piece-light-ink: #f7f3e9;
+  --piece-dark-ink: #322e29;
+  /*
+   * The rack a heap of captured pieces lies in: the ground with the light taken
+   * out of it, which is what a shallow groove in a board looks like. It is the
+   * one mark on the board that is neither a state of the game nor a thing
+   * standing on it, so it is the quietest thing drawn.
+   */
+  --heap-rack: #e7d6b7;
   --result-ink: #f2e3c8;
 
   /*
@@ -46,6 +62,25 @@
 
 * {
   box-sizing: border-box;
+}
+
+/*
+ * Said but not shown: a thing the page has to read out to a player who cannot
+ * see the mark that says it, where the mark is the whole of what a player who
+ * can see it needs. It is clipped rather than hidden, because `display: none`
+ * and `visibility: hidden` take it out of the announcement along with the
+ * screen, which is the one thing it is there for.
+ */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 body {
@@ -349,6 +384,85 @@ body {
 }
 
 /*
+ * The outline left on the point a piece was taken from. Its radius is its own,
+ * so it is not the outline of a piece that could land here; it is dotted, where
+ * every other mark on the board is solid or dashed; and the point's own dot is
+ * still drawn inside it, which is what says the point is empty. The dots are in
+ * the board's own grey so that they are as visible on the cream ground for one
+ * side as for the other, and the side that lost the piece is told by the wash
+ * inside them — by lightness, which is how the two sides are told apart
+ * everywhere else on this board.
+ */
+.board__ghosts circle {
+  stroke: var(--board-line-ink);
+  stroke-width: 5;
+  stroke-dasharray: 1 14;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.board__ghosts circle[data-taken="light"] {
+  fill: var(--piece-light-ink);
+  fill-opacity: 0.5;
+}
+
+.board__ghosts circle[data-taken="dark"] {
+  fill: var(--piece-dark-ink);
+  fill-opacity: 0.32;
+}
+
+/*
+ * A captured piece where it comes to rest. It is flat — no dome, no shadow, none
+ * of what makes a piece on the board an object standing on it — because that is
+ * the whole of the difference between the two: the board's pieces stand up and
+ * catch the light, and the ones taken off it lie face down in a pile. The
+ * hairline is what gives the cream one an edge against the cream ground, which
+ * the dome used to give it.
+ */
+.board__heaps rect {
+  fill: var(--heap-rack);
+  pointer-events: none;
+}
+
+.board__heaps circle {
+  stroke: var(--board-line-ink);
+  stroke-width: 3;
+  pointer-events: none;
+}
+
+.board__heaps circle[data-trophy="light"] {
+  fill: var(--piece-light-ink);
+}
+
+.board__heaps circle[data-trophy="dark"] {
+  fill: var(--piece-dark-ink);
+}
+
+/*
+ * The piece being taken off the board: it leaves the point it stood on at the
+ * size it stood there and shrinks into its place in the heap, so a capture is
+ * something the player watches happen rather than something they find has
+ * happened. It travels further than an arrival does and takes longer over it,
+ * because it is the half of the move nobody is looking at.
+ *
+ * Like the arrival's, this is the lesser half of what the board says: the
+ * outline left behind and the heap it lands in are both still there for a player
+ * who has asked for no movement at all.
+ */
+@keyframes piece-taken {
+  from {
+    transform: translate(var(--arrived-x), var(--arrived-y)) scale(2.125);
+    opacity: 0.85;
+  }
+}
+
+.board [data-arrived="taken"] {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: piece-taken 520ms ease-out;
+}
+
+/*
  * The move the engine would play, asked for and answered: a ring in the hint's
  * own ink around each point the move touches — the piece to play, where to play
  * it, and the piece the mill it closes would take.
@@ -457,6 +571,17 @@ body {
 .status__capture {
   margin: 0.75rem 0 0;
   color: var(--capture-ink);
+}
+
+/*
+ * The capture just taken. It is news rather than an instruction, so it is dimmer
+ * than the prompt above it — which asks for something and is the one line in this
+ * block a player has to act on.
+ */
+.status__captured {
+  margin: 0.25rem 0 0;
+  color: var(--page-ink-dim);
+  font-variant-numeric: tabular-nums;
 }
 
 /* The computer, thinking: it says so, and it breathes while it does. */

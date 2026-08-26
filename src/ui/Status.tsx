@@ -1,6 +1,7 @@
 import { SIDES, opponentOf } from "../engine/position";
 import type { GameState, Result } from "../session/game-session";
 import { useStrings } from "./language";
+import { BETWEEN } from "./point-state";
 
 type StatusProps = {
   /** What the game session says the game looks like now. */
@@ -90,9 +91,36 @@ export const Status = ({ game }: StatusProps) => {
         ))}
       </dl>
 
+      {/*
+       * How many pieces each side has lost. The heaps in the middle of the board
+       * say it in ink, and this is the same thing in words: a mark the board
+       * makes with nothing to read out would be a state only half the players
+       * could know about, which is the one thing the board is not allowed to have
+       * (ADR-0006). It is out of the announcement for the reason the hands are —
+       * it changes under a player who has just been told something else — and it
+       * takes no room off the board, which on a phone there is none of to take.
+       */}
+      <p className="visually-hidden" data-testid="captured-count" aria-live="off">
+        {strings.game.capturedPieces}
+        {SIDES.map((side) => `${BETWEEN}${strings.game.side[side]} ${game.captured[side]}`).join("")}
+      </p>
+
       {game.pendingCapture && (
         <p className="status__capture" data-testid="capture-prompt">
           {strings.game.capture}
+        </p>
+      )}
+
+      {/*
+       * The capture once it has happened, which the board used to say nothing
+       * about at all: it said one was owed, and then a piece was simply gone. In
+       * the announcement rather than out of it, because it is news about the move
+       * just played and it is the half of that move a player watching the piece
+       * that moved does not see either.
+       */}
+      {game.lastCapture && (
+        <p className="status__captured" data-testid="captured">
+          {strings.game.captured[game.lastCapture.side]} {game.lastCapture.point}
         </p>
       )}
     </section>

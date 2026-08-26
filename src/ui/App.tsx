@@ -123,6 +123,8 @@ export const App = () => {
               legalPoints={state.legalPoints}
               selection={state.selection}
               arrival={state.lastArrival}
+              capture={state.lastCapture}
+              captured={state.captured}
               hint={state.hint}
               showCoordinates={showCoordinates}
               onSelect={select}
