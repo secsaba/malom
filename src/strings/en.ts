@@ -41,6 +41,10 @@ export const en: Strings = {
         capture: "hint: capture this",
       },
       lastMove: "last move",
+      captured: {
+        light: "a light piece was taken from here",
+        dark: "a dark piece was taken from here",
+      },
     },
   },
   game: {
@@ -59,6 +63,11 @@ export const en: Strings = {
     },
     piecesInHand: "Pieces in hand",
     capture: "Mill! Capture one of the opponent's pieces.",
+    captured: {
+      light: "Light piece captured:",
+      dark: "Dark piece captured:",
+    },
+    capturedPieces: "Captured pieces",
     thinking: "The computer is thinking…",
     result: {
       winner: {

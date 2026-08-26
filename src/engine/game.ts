@@ -103,7 +103,8 @@ export type Game = {
 };
 
 /** How many pieces each side starts with in hand. */
-const PIECES_PER_SIDE = 9;
+/** How many pieces a side has in the whole game, hand and board together. */
+export const PIECES_PER_SIDE = 9;
 
 /** How often a position may come up before the game is drawn. */
 const REPETITIONS_TO_DRAW = 3;

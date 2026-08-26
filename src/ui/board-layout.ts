@@ -18,6 +18,8 @@ import {
   fileOf,
   rankOf,
 } from "../engine/board";
+import { PIECES_PER_SIDE } from "../engine/game";
+import { PIECES_TO_LOSE, type Side } from "../engine/position";
 
 /** The side of the square viewBox, in SVG user units. */
 export const BOARD_SIZE = 720;
@@ -122,3 +124,112 @@ export const COORDINATE_LABELS: readonly CoordinateLabel[] = [
   ...FILES.map((file) => ({ text: file, x: xOf(file), y: yOf(RANKS[0]) + LABEL_OFFSET })),
   ...RANKS.map((rank) => ({ text: String(rank), x: xOf(FILES[0]) - LABEL_OFFSET, y: yOf(rank) })),
 ];
+
+/**
+ * The outline left on the point a piece was taken from.
+ * Its radius is its own —
+ * bigger than the empty point still drawn inside it, smaller than the piece that
+ * stood there and smaller than the outline of a piece that could land there — so
+ * that the board never has to tell two marks apart by their ink alone. What it
+ * is drawn as, dotted and in the taken piece's own colour rather than in any of
+ * the three inks the game's states are marked in, is the stylesheet's business.
+ */
+export const GHOST_RADIUS = 26;
+
+/**
+ * How big a captured piece is drawn where it comes to rest. It is half a piece,
+ * because a heap of seven has to fit in the hole in the middle of the board, and
+ * because a captured piece is not one anybody can play — the stylesheet draws it
+ * flat, with none of the light or the shadow that make a piece on the board an
+ * object standing on it.
+ */
+export const TROPHY_RADIUS = 16;
+
+/**
+ * The most pieces a side can lose: it started with nine and the game is over the
+ * moment it is down to two, so a heap is never asked to hold more than seven.
+ */
+export const MOST_CAPTURED = PIECES_PER_SIDE - PIECES_TO_LOSE;
+
+/**
+ * The middle of the board, which is the hole the heaps lie in. It is the one
+ * place on the drawing that holds nothing: d4 is not a point, no line crosses it,
+ * and on a wooden board it is where the taken pieces go.
+ */
+const CENTRE: Centre = { x: xOf("d"), y: yOf(4) };
+
+/**
+ * How far a heap's row sits from the middle line: far enough for the two rows to
+ * clear each other, near enough for both to stay inside the hole. Pushing them
+ * apart buys length as well as room — a row further from the middle passes the
+ * pieces either side of it at a greater distance, so it may reach further before
+ * it touches them.
+ */
+const HEAP_ROW_OFFSET = TROPHY_RADIUS + 14;
+
+/**
+ * How far along its row the outermost trophy of a full heap sits. It is as far as
+ * it can go without touching the pieces standing on the two points either side of
+ * the middle — c4 and e4, one step out — so the length of a row is settled by the
+ * board rather than by a number picked to look right.
+ */
+const HEAP_REACH = Math.floor(
+  STEP - Math.sqrt((PIECE_RADIUS + TROPHY_RADIUS) ** 2 - HEAP_ROW_OFFSET ** 2),
+);
+
+/** The gap between one trophy and the next, which overlaps them into a pile. */
+const TROPHY_STEP = (2 * HEAP_REACH) / (MOST_CAPTURED - 1);
+
+/** How much of the ground shows around a trophy lying in its rack. */
+const RACK_PADDING = 3;
+
+/**
+ * The rack a heap lies in: a shallow groove in the ground, as long as a full
+ * heap and drawn whether or not anything is in it yet.
+ *
+ * It is there so that a heap of one is a rack with one piece in it rather than a
+ * disc sitting at an arbitrary spot in the middle of the board — and so that an
+ * empty rack says what the middle of the board is for before the first capture
+ * rather than after it. The slots fill from one end, so the rack is also how far
+ * there is left to go.
+ */
+export type HeapRack = {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  readonly corner: number;
+};
+
+export const rackFor = (side: Side): HeapRack => {
+  const height = 2 * (TROPHY_RADIUS + RACK_PADDING);
+
+  return {
+    x: CENTRE.x - HEAP_REACH - TROPHY_RADIUS - RACK_PADDING,
+    y: HEAP_ROW[side] - height / 2,
+    width: 2 * (HEAP_REACH + TROPHY_RADIUS + RACK_PADDING),
+    height,
+    corner: height / 2,
+  };
+};
+
+/**
+ * Which way up the two heaps lie: each side's own losses on its own side of the
+ * middle line, so a heap answers one question — how much of this side is gone —
+ * and never two.
+ */
+const HEAP_ROW: Readonly<Record<Side, number>> = {
+  light: CENTRE.y - HEAP_ROW_OFFSET,
+  dark: CENTRE.y + HEAP_ROW_OFFSET,
+};
+
+/**
+ * Where the nth piece a side has lost lies. The slots are fixed rather than
+ * spread over however many pieces are in the heap, so a piece that has landed
+ * never shifts again when the next one lands beside it: a heap grows, it does not
+ * rearrange itself.
+ */
+export const trophyAt = (side: Side, nth: number): Centre => ({
+  x: CENTRE.x - HEAP_REACH + nth * TROPHY_STEP,
+  y: HEAP_ROW[side],
+});

@@ -34,6 +34,14 @@ export type PointState = {
   readonly hint: HintRole | undefined;
   /** Whether the piece that moved last came to rest here. */
   readonly lastMove: boolean;
+  /**
+   * The side whose piece the last move took off this point, where it took one
+   * from here. It is the one state of a point that is about a piece no longer
+   * on the board, so it is a side rather than a flag: the mark left behind is
+   * drawn in the taken piece's own ink, and there is nothing standing here to
+   * ask which that was.
+   */
+  readonly captured: Side | undefined;
 };
 
 /**
@@ -65,7 +73,7 @@ export const BETWEEN = ", ";
  * hear it the same way to hear the difference.
  */
 const wordsFor = (
-  { occupant, legal, selected, hint, lastMove }: PointState,
+  { occupant, legal, selected, hint, lastMove, captured }: PointState,
   strings: Strings,
 ): readonly string[] => {
   const { point } = strings.board;
@@ -76,6 +84,7 @@ const wordsFor = (
     ...(legal ? [point.legal] : []),
     ...(hint ? [point.hint[hint]] : []),
     ...(lastMove ? [point.lastMove] : []),
+    ...(captured ? [point.captured[captured]] : []),
   ];
 };
 

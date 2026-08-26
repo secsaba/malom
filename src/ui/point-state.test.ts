@@ -19,6 +19,7 @@ const PLAIN: PointState = {
   selected: false,
   hint: undefined,
   lastMove: false,
+  captured: undefined,
 };
 
 describe("what a hinted move has a point doing", () => {
@@ -84,12 +85,34 @@ describe("announcing a point", () => {
     );
   });
 
+  // The one state of a point that is about a piece no longer on the board. It is
+  // said as well as marked, because a player who cannot see the outline left
+  // behind was told nothing at all about the capture before.
+  it("says whose piece was taken off it, after saying that it is empty", () => {
+    const label = pointLabel("a7", { ...PLAIN, captured: "dark" }, strings);
+
+    expect(label).toBe(["a7", point.empty, point.captured.dark].join(BETWEEN));
+  });
+
+  it("names the side that lost the piece rather than the one that took it", () => {
+    expect(pointLabel("a7", { ...PLAIN, captured: "light" }, strings)).toContain(
+      point.captured.light,
+    );
+  });
+
   // Everything true of a point at once is still one sentence, in one order, so a
   // player hearing it twice hears the same thing said the same way.
   it("says everything the point is, occupancy first", () => {
     const label = pointLabel(
       "a4",
-      { occupant: "light", legal: true, selected: true, hint: "to", lastMove: true },
+      {
+        occupant: "light",
+        legal: true,
+        selected: true,
+        hint: "to",
+        lastMove: true,
+        captured: undefined,
+      },
       strings,
     );
 

@@ -33,6 +33,7 @@ import {
   type Game,
   type Move,
   NEW_GAME,
+  PIECES_PER_SIDE,
   type Phase,
   type Result,
   afterArrival,
@@ -46,6 +47,9 @@ import {
   destinationsFrom,
   emptyPoints,
   movablePointsOf,
+  opponentOf,
+  pointsHeldBy,
+  SIDES,
 } from "../engine/position";
 import { DEFAULT_DIFFICULTY, DIFFICULTIES, type Difficulty } from "../opponent/difficulty";
 import type { Assessment } from "../teaching/assessment";
@@ -158,6 +162,16 @@ export type Intent =
   | { readonly type: "move"; readonly point: PointId }
   | { readonly type: "capture"; readonly point: PointId };
 
+/**
+ * A piece taken off the board: where it stood, and whose it was. The side is
+ * carried rather than looked up, because by the time anything reads this the
+ * board no longer holds the piece to be asked about it.
+ */
+export type Capture = {
+  readonly point: PointId;
+  readonly side: Side;
+};
+
 /** What the session records as the game is played. */
 type Recorded = {
   /** The game as the rules have it, up to the last move played out in full. */
@@ -168,6 +182,13 @@ type Recorded = {
   readonly arrival: Arrival | undefined;
   /** Where the last piece to move came to rest, whoever moved it. */
   readonly lastArrival: Arrival | undefined;
+  /**
+   * The piece that move took off the board, where it took one. It runs in step
+   * with {@link Recorded.lastArrival} rather than with {@link Recorded.lastMove}
+   * — the two are halves of one move and are shown as one — so a move that
+   * captured nothing clears it, and a capture still owed has not happened yet.
+   */
+  readonly lastCapture: Capture | undefined;
   /**
    * The last move played out in full, whoever played it — the capture it earned
    * included, which is what tells it from {@link Recorded.lastArrival}: an
@@ -414,10 +435,48 @@ export type GameState = {
    * rather than have it appear. Nothing, in a game nobody has moved in yet.
    */
   readonly lastArrival: Arrival | undefined;
+  /**
+   * The piece that move took off the board, so the interface can leave a mark
+   * where it stood rather than have it vanish. It lives exactly as long as
+   * {@link GameState.lastArrival} does, because the two are halves of one move.
+   * Nothing, where the move captured nothing, and nothing while a capture is
+   * still owed — that piece is on the board until it is taken.
+   */
+  readonly lastCapture: Capture | undefined;
+  /**
+   * How many pieces each side has lost, which is the nine it started with less
+   * the hand it has not placed from and the board it still holds. It is derived
+   * from the position rather than tallied as the game goes, so a Review — which
+   * puts back an earlier position and an earlier hand — rewinds it with them and
+   * has nothing of its own to keep in step.
+   */
+  readonly captured: Readonly<Record<Side, number>>;
 };
 
 /** What the engine detected in a move it has nothing to say about. */
 const NOTHING_DETECTED: readonly Pattern[] = [];
+
+/** What has been taken off a board nothing has been taken off. */
+const NOTHING_CAPTURED: Readonly<Record<Side, number>> = { light: 0, dark: 0 };
+
+/**
+ * How many pieces each side has lost, counted off the board rather than tallied
+ * as the game goes: a side started with nine, and what it does not hold in its
+ * hand or on the board has been taken off it. Counting it this way is what lets
+ * a Review show the heaps as they stood — the position and the hand it puts back
+ * are the whole of the answer, so there is no second tally to wind back with
+ * them.
+ */
+const capturedIn = ({
+  position,
+  piecesInHand,
+}: Pick<GameState, "position" | "piecesInHand">): Readonly<Record<Side, number>> =>
+  Object.fromEntries(
+    SIDES.map((side) => [
+      side,
+      PIECES_PER_SIDE - piecesInHand[side] - pointsHeldBy(position, side).length,
+    ]),
+  ) as Readonly<Record<Side, number>>;
 
 /** What a game still being played has come to. */
 const NOTHING_SUMMARISED: readonly Summary[] = [];
@@ -553,7 +612,7 @@ const reviewedIn = ({ moves, reviewing }: MoveList): Played | undefined =>
  * while they read it would take the summary of it away with it.
  */
 const lookingBackAt = (
-  { move, game, assessment }: Played,
+  { move, by, game, assessment }: Played,
   taught: boolean,
 ): Partial<GameState> => ({
   position: game.position,
@@ -571,6 +630,11 @@ const lookingBackAt = (
   patterns: taught ? (assessment?.patterns ?? NOTHING_DETECTED) : NOTHING_DETECTED,
   assessing: false,
   lastArrival: { from: move.from, to: move.to },
+  // The mark the move left goes back with the board it left it on. What the
+  // heaps held then needs nothing here: they are counted off the position and
+  // the hand, and both of those have just been put back.
+  lastCapture:
+    move.capture === undefined ? undefined : { point: move.capture, side: opponentOf(by) },
 });
 
 // What the players see is spelled out rather than spread from what is recorded,
@@ -594,7 +658,7 @@ const stateOf = (
   // capture it owes will complete.
   const arrived = arrival && afterArrival(game, arrival);
 
-  return {
+  const shown: GameState = {
     position: arrived?.position ?? game.position,
     sideToMove: game.sideToMove,
     phase: phaseOf(game),
@@ -632,8 +696,13 @@ const stateOf = (
     // summary, and a player watching one climb is being graded twice per move.
     summary: game.result === undefined ? NOTHING_SUMMARISED : summariesOf(game.result, list.moves),
     lastArrival,
+    lastCapture: recorded.lastCapture,
+    // Overwritten below off whichever position and hand come out of the review.
+    captured: NOTHING_CAPTURED,
     ...(reviewed === undefined ? {} : lookingBackAt(reviewed, teaching.on)),
   };
+
+  return { ...shown, captured: capturedIn(shown) };
 };
 
 /**
@@ -650,6 +719,7 @@ const NEW_SESSION: Recorded = {
   selection: undefined,
   arrival: undefined,
   lastArrival: undefined,
+  lastCapture: undefined,
   lastMove: undefined,
 };
 
@@ -661,13 +731,17 @@ const afterSending = (recorded: Recorded, arrival: Arrival): Recorded => {
   const { game, lastMove } = recorded;
 
   // A move closing two mills still earns one capture: the debt is owed, not counted.
+  // Either way the mark on the board starts again from this arrival, so whatever
+  // the move before it took is cleared here rather than when this move is played
+  // out: the ring has already moved on, and the two travel together.
   return afterArrival(game, arrival).captures.length > 0
-    ? { game, selection: undefined, arrival, lastArrival: arrival, lastMove }
+    ? { game, selection: undefined, arrival, lastArrival: arrival, lastCapture: undefined, lastMove }
     : {
         game: afterMove(game, arrival),
         selection: undefined,
         arrival: undefined,
         lastArrival: arrival,
+        lastCapture: undefined,
         lastMove: arrival,
       };
 };
@@ -681,20 +755,34 @@ const afterCapturing = (game: Game, arrival: Arrival, point: PointId): Recorded 
     selection: undefined,
     arrival: undefined,
     lastArrival: arrival,
+    // Whose piece it was is recorded now, while the board still holds it: a
+    // capture is always of the side not to move, and the move is not over yet.
+    lastCapture: { point, side: opponentOf(game.sideToMove) },
     lastMove: move,
   };
 };
+
+/**
+ * What a whole move took off the board, asked of the game it was played in
+ * rather than the one it led to — the piece is gone from the second of those,
+ * and whose it was is the half the mark on the board is drawn in.
+ */
+const captureIn = (before: Game, move: Move): Capture | undefined =>
+  move.capture === undefined
+    ? undefined
+    : { point: move.capture, side: opponentOf(before.sideToMove) };
 
 /**
  * Where a whole move leaves the game, with no half of it left over: nothing
  * picked up and no capture owed, because the move arrived already decided. The
  * game passed is the one the move led to rather than the one it was played in.
  */
-const restedAt = (after: Game, move: Move): Recorded => ({
+const restedAt = (before: Game, after: Game, move: Move): Recorded => ({
   game: after,
   selection: undefined,
   arrival: undefined,
   lastArrival: { from: move.from, to: move.to },
+  lastCapture: captureIn(before, move),
   lastMove: move,
 });
 
@@ -704,7 +792,8 @@ const restedAt = (after: Game, move: Move): Recorded => ({
  * in the middle of it; the computer arrives at one already decided, so there is
  * no half of it for anyone to see.
  */
-const afterChoosing = (game: Game, move: Move): Recorded => restedAt(afterMove(game, move), move);
+const afterChoosing = (game: Game, move: Move): Recorded =>
+  restedAt(game, afterMove(game, move), move);
 
 /**
  * Picking a piece up, or putting the one already picked up back down: only a
@@ -867,7 +956,9 @@ export const createGameSession = ({
   for (const { move, by, game, assessment } of restored ?? []) {
     restoredHistory.push(recorded);
     restoredMoves.push({ move, by, game, assessment });
-    recorded = restedAt(game, move);
+    // The game before the move is the one the walk has reached; the one the
+    // record carries is where the move left it.
+    recorded = restedAt(recorded.game, game, move);
   }
 
   // Whether the player has said either way about teaching. Until they have, who

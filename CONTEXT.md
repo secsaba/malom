@@ -68,6 +68,11 @@ Removing one opponent piece, earned by closing a mill. A piece inside a mill may
 _Hungarian_: levétel (verb: levesz)
 _Avoid_: take, remove, kill, eat — and in Hungarian, ütés, which belongs to chess and draughts, not to malom
 
+**Captured piece**:
+A piece taken off the board, which is out of the game for good — there is no way back onto the board for one, and no phase in which a player gets one back. It belongs to the side that lost it rather than to the side that won it: what a heap of them measures is how much of a side is gone, and a side runs out of pieces in two ways at once, the hand it has not placed from and the board it has been taken off. Counting them as the capturer's trophies would measure the same thing from the other end and leave each side's own losses split between two places.
+_Hungarian_: levett bábu _(coined)_
+_Avoid_: taken piece, dead piece, trophy, prisoner — the last two naming it as something the opponent won rather than as something its own side lost
+
 **Blocked**:
 Describes a piece with no adjacent empty point, or a player with no legal move at all — the latter loses the game.
 _Hungarian_: beszorult
