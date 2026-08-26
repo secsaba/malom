@@ -17,10 +17,10 @@ import {
   PIECE_RADIUS,
   POINT_RADIUS,
   TARGET_RADIUS,
-  TROPHY_RADIUS,
+  CAPTURED_PIECE_RADIUS,
   centreOf,
   rackFor,
-  trophyAt,
+  capturedPieceAt,
 } from "./board-layout";
 import { useStrings } from "./language";
 import { type PointState, hintedAt, pointLabel } from "./point-state";
@@ -148,7 +148,7 @@ export const Board = ({
    */
   const heaps = SIDES.flatMap((side) =>
     Array.from({ length: captured[side] }, (_, nth) => {
-      const centre = trophyAt(side, nth);
+      const centre = capturedPieceAt(side, nth);
       const justTaken = capture?.side === side && nth === captured[side] - 1;
 
       return {
@@ -284,12 +284,12 @@ export const Board = ({
         {heaps.map(({ key, side, centre, style }) => (
             <circle
               key={key}
-              data-trophy={side}
-              data-arrived={style ? "taken" : undefined}
+              data-captured={side}
+              data-arrived={style ? "captured" : undefined}
               style={style}
               cx={centre.x}
             cy={centre.y}
-            r={TROPHY_RADIUS}
+            r={CAPTURED_PIECE_RADIUS}
           />
         ))}
       </g>
@@ -334,7 +334,7 @@ export const Board = ({
             <circle
               key={point}
               data-ghost={point}
-              data-taken={state.captured}
+              data-captured={state.captured}
               cx={centre.x}
               cy={centre.y}
               r={GHOST_RADIUS}

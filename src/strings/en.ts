@@ -42,8 +42,8 @@ export const en: Strings = {
       },
       lastMove: "last move",
       captured: {
-        light: "a light piece was taken from here",
-        dark: "a dark piece was taken from here",
+        light: "a light piece was captured here",
+        dark: "a dark piece was captured here",
       },
     },
   },
