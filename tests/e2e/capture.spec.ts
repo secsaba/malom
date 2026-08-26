@@ -13,9 +13,13 @@ import { strings } from "./strings";
 /** The outline left where a piece was taken from, whichever point that was. */
 const ghosts = (page: Page) => page.getByTestId("ghosts").locator("circle");
 
-/** The pieces lying in one side's heap in the middle of the board. */
+/**
+ * The pieces lying in one side's heap in the middle of the board. Scoped to the
+ * heaps: a captured piece and the outline left where it was captured from are
+ * both marks about a captured piece of that side, and both say so.
+ */
 const heap = (page: Page, side: "light" | "dark") =>
-  page.locator(`[data-trophy="${side}"]`);
+  page.getByTestId("heaps").locator(`circle[data-captured="${side}"]`);
 
 /**
  * Five placements that close light's a1-d1-g1 mill, leaving dark with a piece on
@@ -49,7 +53,7 @@ test("marks the point a piece was taken from and lays the piece in its own heap"
   // The point is empty, and says so — and carries the outline of what stood on it.
   await expect(pointAt(page, "a7")).not.toHaveAttribute("data-occupant", /.*/);
   await expect(ghosts(page)).toHaveCount(1);
-  await expect(page.locator('[data-ghost="a7"][data-taken="dark"]')).toHaveCount(1);
+  await expect(page.locator('[data-ghost="a7"][data-captured="dark"]')).toHaveCount(1);
 
   // The piece lies in the heap of the side that lost it, and never the other.
   await expect(heap(page, "dark")).toHaveCount(1);
@@ -102,7 +106,7 @@ test("brings the taken piece to its heap, and leaves both marks for a player who
     from: element.getAttribute("style"),
   }));
 
-  expect(travelled.animation).toBe("piece-taken");
+  expect(travelled.animation).toBe("piece-captured");
   expect(travelled.from).toContain("--arrived-x");
 
   await page.emulateMedia({ reducedMotion: "reduce" });

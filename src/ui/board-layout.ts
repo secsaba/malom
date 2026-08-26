@@ -126,13 +126,13 @@ export const COORDINATE_LABELS: readonly CoordinateLabel[] = [
 ];
 
 /**
- * The outline left on the point a piece was taken from.
- * Its radius is its own —
- * bigger than the empty point still drawn inside it, smaller than the piece that
- * stood there and smaller than the outline of a piece that could land there — so
- * that the board never has to tell two marks apart by their ink alone. What it
- * is drawn as, dotted and in the taken piece's own colour rather than in any of
- * the three inks the game's states are marked in, is the stylesheet's business.
+ * The outline left on the point a piece was captured from. Its radius is its own
+ * — bigger than the empty point still drawn inside it, and smaller both than the
+ * piece that stood there and than the outline of a piece that could land there —
+ * so that the board never has to tell two marks apart by their ink alone. What it
+ * is drawn as, dotted and in the captured piece's own colour rather than in any
+ * of the three inks the game's states are marked in, is the stylesheet's
+ * business.
  */
 export const GHOST_RADIUS = 26;
 
@@ -143,7 +143,7 @@ export const GHOST_RADIUS = 26;
  * flat, with none of the light or the shadow that make a piece on the board an
  * object standing on it.
  */
-export const TROPHY_RADIUS = 16;
+export const CAPTURED_PIECE_RADIUS = 16;
 
 /**
  * The most pieces a side can lose: it started with nine and the game is over the
@@ -154,7 +154,7 @@ export const MOST_CAPTURED = PIECES_PER_SIDE - PIECES_TO_LOSE;
 /**
  * The middle of the board, which is the hole the heaps lie in. It is the one
  * place on the drawing that holds nothing: d4 is not a point, no line crosses it,
- * and on a wooden board it is where the taken pieces go.
+ * and on a wooden board it is where the captured pieces go.
  */
 const CENTRE: Centre = { x: xOf("d"), y: yOf(4) };
 
@@ -165,22 +165,22 @@ const CENTRE: Centre = { x: xOf("d"), y: yOf(4) };
  * pieces either side of it at a greater distance, so it may reach further before
  * it touches them.
  */
-const HEAP_ROW_OFFSET = TROPHY_RADIUS + 14;
+const HEAP_ROW_OFFSET = CAPTURED_PIECE_RADIUS + 14;
 
 /**
- * How far along its row the outermost trophy of a full heap sits. It is as far as
- * it can go without touching the pieces standing on the two points either side of
- * the middle — c4 and e4, one step out — so the length of a row is settled by the
- * board rather than by a number picked to look right.
+ * How far along its row the outermost piece of a full heap sits. It is as far as
+ * it can go without touching the pieces standing on the two points either side
+ * of the middle — c4 and e4, one step out — so the length of a row is settled by
+ * the board rather than by a number picked to look right.
  */
 const HEAP_REACH = Math.floor(
-  STEP - Math.sqrt((PIECE_RADIUS + TROPHY_RADIUS) ** 2 - HEAP_ROW_OFFSET ** 2),
+  STEP - Math.sqrt((PIECE_RADIUS + CAPTURED_PIECE_RADIUS) ** 2 - HEAP_ROW_OFFSET ** 2),
 );
 
-/** The gap between one trophy and the next, which overlaps them into a pile. */
-const TROPHY_STEP = (2 * HEAP_REACH) / (MOST_CAPTURED - 1);
+/** The gap between one captured piece and the next, which overlaps them into a pile. */
+const CAPTURED_PIECE_STEP = (2 * HEAP_REACH) / (MOST_CAPTURED - 1);
 
-/** How much of the ground shows around a trophy lying in its rack. */
+/** How much of the ground shows around a captured piece lying in its rack. */
 const RACK_PADDING = 3;
 
 /**
@@ -202,12 +202,12 @@ export type HeapRack = {
 };
 
 export const rackFor = (side: Side): HeapRack => {
-  const height = 2 * (TROPHY_RADIUS + RACK_PADDING);
+  const height = 2 * (CAPTURED_PIECE_RADIUS + RACK_PADDING);
 
   return {
-    x: CENTRE.x - HEAP_REACH - TROPHY_RADIUS - RACK_PADDING,
+    x: CENTRE.x - HEAP_REACH - CAPTURED_PIECE_RADIUS - RACK_PADDING,
     y: HEAP_ROW[side] - height / 2,
-    width: 2 * (HEAP_REACH + TROPHY_RADIUS + RACK_PADDING),
+    width: 2 * (HEAP_REACH + CAPTURED_PIECE_RADIUS + RACK_PADDING),
     height,
     corner: height / 2,
   };
@@ -229,7 +229,7 @@ const HEAP_ROW: Readonly<Record<Side, number>> = {
  * never shifts again when the next one lands beside it: a heap grows, it does not
  * rearrange itself.
  */
-export const trophyAt = (side: Side, nth: number): Centre => ({
-  x: CENTRE.x - HEAP_REACH + nth * TROPHY_STEP,
+export const capturedPieceAt = (side: Side, nth: number): Centre => ({
+  x: CENTRE.x - HEAP_REACH + nth * CAPTURED_PIECE_STEP,
   y: HEAP_ROW[side],
 });

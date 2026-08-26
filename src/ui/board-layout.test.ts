@@ -14,10 +14,10 @@ import {
   POINT_RADIUS,
   FOCUS_SIZE,
   TARGET_RADIUS,
-  TROPHY_RADIUS,
+  CAPTURED_PIECE_RADIUS,
   centreOf,
   rackFor,
-  trophyAt,
+  capturedPieceAt,
 } from "./board-layout";
 
 describe("point positions", () => {
@@ -193,14 +193,14 @@ describe("the heaps the captured pieces lie in", () => {
   });
 
   // The whole reason the middle of the board can be spent on this: a full heap
-  // still touches nothing being played. A trophy that overlapped a piece would
+  // still touches nothing being played. A captured piece that overlapped a piece would
   // be the board saying two things about one circle.
   it("never touches a piece standing on the board, even with both heaps full", () => {
     for (const side of SIDES) {
       for (let nth = 0; nth < MOST_CAPTURED; nth += 1) {
         for (const point of INNER) {
-          expect(apart(trophyAt(side, nth), centreOf(point)), `${side} ${nth} by ${point}`)
-            .toBeGreaterThanOrEqual(PIECE_RADIUS + TROPHY_RADIUS);
+          expect(apart(capturedPieceAt(side, nth), centreOf(point)), `${side} ${nth} by ${point}`)
+            .toBeGreaterThanOrEqual(PIECE_RADIUS + CAPTURED_PIECE_RADIUS);
         }
       }
     }
@@ -210,8 +210,8 @@ describe("the heaps the captured pieces lie in", () => {
     const middle = BOARD_SIZE / 2;
 
     for (let nth = 0; nth < MOST_CAPTURED; nth += 1) {
-      expect(trophyAt("light", nth).y).toBeLessThan(middle);
-      expect(trophyAt("dark", nth).y).toBeGreaterThan(middle);
+      expect(capturedPieceAt("light", nth).y).toBeLessThan(middle);
+      expect(capturedPieceAt("dark", nth).y).toBeGreaterThan(middle);
     }
   });
 
@@ -219,31 +219,31 @@ describe("the heaps the captured pieces lie in", () => {
   // another landed beside it would be a board moving under a player's eyes.
   it("keeps every slot where it is however many pieces are in the heap", () => {
     for (const side of SIDES) {
-      const first = trophyAt(side, 0);
+      const first = capturedPieceAt(side, 0);
 
       for (let nth = 1; nth < MOST_CAPTURED; nth += 1) {
-        expect(trophyAt(side, nth).x).toBeGreaterThan(trophyAt(side, nth - 1).x);
-        expect(trophyAt(side, nth).y).toBe(first.y);
+        expect(capturedPieceAt(side, nth).x).toBeGreaterThan(capturedPieceAt(side, nth - 1).x);
+        expect(capturedPieceAt(side, nth).y).toBe(first.y);
       }
     }
   });
 
   it("overlaps one piece with the next, so a heap reads as a pile and not as a row", () => {
     for (const side of SIDES) {
-      expect(apart(trophyAt(side, 0), trophyAt(side, 1))).toBeLessThan(2 * TROPHY_RADIUS);
+      expect(apart(capturedPieceAt(side, 0), capturedPieceAt(side, 1))).toBeLessThan(2 * CAPTURED_PIECE_RADIUS);
     }
   });
 
   it("lays a rack under each heap that holds all seven and no more", () => {
     for (const side of SIDES) {
       const rack = rackFor(side);
-      const first = trophyAt(side, 0);
-      const last = trophyAt(side, MOST_CAPTURED - 1);
+      const first = capturedPieceAt(side, 0);
+      const last = capturedPieceAt(side, MOST_CAPTURED - 1);
 
-      expect(rack.x).toBeLessThan(first.x - TROPHY_RADIUS);
-      expect(rack.x + rack.width).toBeGreaterThan(last.x + TROPHY_RADIUS);
-      expect(rack.y).toBeLessThan(first.y - TROPHY_RADIUS);
-      expect(rack.y + rack.height).toBeGreaterThan(first.y + TROPHY_RADIUS);
+      expect(rack.x).toBeLessThan(first.x - CAPTURED_PIECE_RADIUS);
+      expect(rack.x + rack.width).toBeGreaterThan(last.x + CAPTURED_PIECE_RADIUS);
+      expect(rack.y).toBeLessThan(first.y - CAPTURED_PIECE_RADIUS);
+      expect(rack.y + rack.height).toBeGreaterThan(first.y + CAPTURED_PIECE_RADIUS);
     }
   });
 

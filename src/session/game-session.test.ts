@@ -916,6 +916,27 @@ describe("playing the computer", () => {
     expect(session.state.sideToMove).toBe("light");
   });
 
+  // The move the player is least likely to have watched, and the one this is all
+  // for: the computer arrives at a whole move already decided, so the half of it
+  // that took a piece has to leave the same marks the player's own capture does.
+  it("leaves the marks a capture leaves when the computer is the one capturing", async () => {
+    const opponent = askedOpponent();
+    const session = createGameSession({
+      chooseMove: opponent.chooseMove,
+      players: { opponentSide: "dark" },
+    });
+
+    place(session, "b2");
+    await opponent.reply({ to: "a1" });
+    place(session, "b4");
+    await opponent.reply({ to: "d1" });
+    place(session, "c5");
+    await opponent.reply({ to: "g1", capture: "b2" });
+
+    expect(session.state.lastCapture).toEqual({ point: "b2", side: "light" });
+    expect(session.state.captured).toEqual({ light: 1, dark: 0 });
+  });
+
   it("offers the player nothing to act on while the computer is to move", () => {
     const opponent = askedOpponent();
     const session = createGameSession({

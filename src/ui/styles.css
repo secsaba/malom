@@ -401,12 +401,12 @@ body {
   pointer-events: none;
 }
 
-.board__ghosts circle[data-taken="light"] {
+.board__ghosts circle[data-captured="light"] {
   fill: var(--piece-light-ink);
   fill-opacity: 0.5;
 }
 
-.board__ghosts circle[data-taken="dark"] {
+.board__ghosts circle[data-captured="dark"] {
   fill: var(--piece-dark-ink);
   fill-opacity: 0.32;
 }
@@ -430,11 +430,11 @@ body {
   pointer-events: none;
 }
 
-.board__heaps circle[data-trophy="light"] {
+.board__heaps circle[data-captured="light"] {
   fill: var(--piece-light-ink);
 }
 
-.board__heaps circle[data-trophy="dark"] {
+.board__heaps circle[data-captured="dark"] {
   fill: var(--piece-dark-ink);
 }
 
@@ -449,17 +449,17 @@ body {
  * outline left behind and the heap it lands in are both still there for a player
  * who has asked for no movement at all.
  */
-@keyframes piece-taken {
+@keyframes piece-captured {
   from {
     transform: translate(var(--arrived-x), var(--arrived-y)) scale(2.125);
     opacity: 0.85;
   }
 }
 
-.board [data-arrived="taken"] {
+.board [data-arrived="captured"] {
   transform-box: fill-box;
   transform-origin: center;
-  animation: piece-taken 520ms ease-out;
+  animation: piece-captured 520ms ease-out;
 }
 
 /*
