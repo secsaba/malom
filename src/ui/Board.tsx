@@ -282,12 +282,12 @@ export const Board = ({
         })}
 
         {heaps.map(({ key, side, centre, style }) => (
-            <circle
-              key={key}
-              data-captured={side}
-              data-arrived={style ? "captured" : undefined}
-              style={style}
-              cx={centre.x}
+          <circle
+            key={key}
+            data-captured={side}
+            data-arrived={style ? "captured" : undefined}
+            style={style}
+            cx={centre.x}
             cy={centre.y}
             r={CAPTURED_PIECE_RADIUS}
           />

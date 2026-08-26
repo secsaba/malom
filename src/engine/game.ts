@@ -102,8 +102,11 @@ export type Game = {
   readonly result: Result | undefined;
 };
 
-/** How many pieces each side starts with in hand. */
-/** How many pieces a side has in the whole game, hand and board together. */
+/**
+ * How many pieces a side has in the whole game: the hand it starts with, and
+ * then the hand and the board between them. What a side has lost is counted
+ * against this rather than tallied as the game goes.
+ */
 export const PIECES_PER_SIDE = 9;
 
 /** How often a position may come up before the game is drawn. */
