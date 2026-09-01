@@ -107,6 +107,17 @@ const expectPanelBelowTheBoard = async (page: Page, where: string) => {
   await expectNoScrollAcross(page, where);
 };
 
+/**
+ * Teaching switched on, which is the largest thing the panel does: the grade,
+ * the record and the summary all arrive under the board at once. The warning
+ * toggle is what says the panel has caught up — it is drawn only with teaching
+ * on, so waiting for it is waiting for the whole of the block to be there.
+ */
+const switchTeachingOn = async (page: Page) => {
+  await page.getByTestId("teaching-toggle").check();
+  await expect(page.getByTestId("warning-toggle"), "teaching on").toBeVisible();
+};
+
 /** The smallest a target may come out and still be a thing a finger can hit. */
 const FINGERTIP = 44;
 
@@ -275,8 +286,7 @@ test.describe("on a phone", () => {
   test("draws the board at one size whatever the panel is doing", async ({ page }) => {
     const before = await boardOnThePage(page);
 
-    await page.getByTestId("teaching-toggle").check();
-    await expect(page.getByTestId("warning-toggle")).toBeVisible();
+    await switchTeachingOn(page);
 
     expect(await boardOnThePage(page)).toEqual(before);
   });
@@ -322,7 +332,7 @@ test.describe("on a phone", () => {
     test(`draws nothing on top of anything else, teaching ${teaching ? "on" : "off"}`, async ({
       page,
     }) => {
-      if (teaching) await page.getByTestId("teaching-toggle").check();
+      if (teaching) await switchTeachingOn(page);
 
       await expectNothingOverAnything(page, `teaching ${teaching ? "on" : "off"}`);
     });
@@ -427,21 +437,58 @@ test("draws the board at one size while the panel grows, at every one-column wid
 }) => {
   await page.goto("./");
 
-  const teaching = page.getByTestId("teaching-toggle");
-
   for (const width of WIDTHS.filter((it) => it < TWO_COLUMNS)) {
     await page.setViewportSize({ width, height: 720 });
 
     const before = await boardOnThePage(page);
 
-    await teaching.check();
-    await expect(page.getByTestId("warning-toggle")).toBeVisible();
+    await switchTeachingOn(page);
 
     expect(await boardOnThePage(page), `${width}px`).toEqual(before);
 
-    await teaching.uncheck();
+    await page.getByTestId("teaching-toggle").uncheck();
   }
 });
+
+/**
+ * The two narrowest widths the site supports, each at the height the phones that
+ * have it come with. They are the shortest screens it meets standing up, and so
+ * the ones with the least room to stand the panel below the board in: the panel
+ * starts on the screen on both and runs off the bottom of it, and the way to the
+ * rest is down.
+ *
+ * They are also where ADR-0007 claimed a page that was one screen and never was.
+ * The suite asked that claim at 393x727 alone, where it was true, so nothing here
+ * contradicted it. What is asked of them under ADR-0009 is that scrolling is the
+ * whole of what the page does about the room it has not got: the panel is drawn
+ * below the board and reached by scrolling down to it, and nothing is drawn on
+ * top of anything else to spare the player the trip.
+ *
+ * Teaching on is the panel at its fullest, which is the most there is to scroll
+ * to on the screens with the least room to do it in.
+ */
+const SHORT_SCREENS = [
+  { width: WIDTHS[0], height: 568 },
+  { width: WIDTHS[1], height: 640 },
+] as const;
+
+for (const teaching of [false, true])
+  test(`scrolls to the panel on the shortest screens, teaching ${
+    teaching ? "on" : "off"
+  }`, async ({ page }) => {
+    await page.goto("./");
+
+    if (teaching) await switchTeachingOn(page);
+
+    for (const screen of SHORT_SCREENS) {
+      await page.setViewportSize(screen);
+
+      const where = `${screen.width}x${screen.height}`;
+
+      await expectPanelBelowTheBoard(page, where);
+      await expectNothingOverAnything(page, where);
+    }
+  });
 
 /**
  * A phone turned on its side is the screen the board's clamp is answered at from
@@ -491,10 +538,7 @@ test.describe("on a phone turned on its side", () => {
     }`, async ({ page }) => {
       await page.goto("./");
 
-      if (teaching) {
-        await page.getByTestId("teaching-toggle").check();
-        await expect(page.getByTestId("warning-toggle")).toBeVisible();
-      }
+      if (teaching) await switchTeachingOn(page);
 
       await expectPanelBelowTheBoard(page, "on its side");
       await expectNothingOverAnything(page, "the panel on its side");
