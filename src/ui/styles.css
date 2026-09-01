@@ -58,16 +58,6 @@
    * instead, because a board too small to hit is worse than a board to scroll to.
    */
   --board-floor: 20rem;
-
-  /*
-   * The least an open panel is worth opening: its handle, and enough of what is
-   * under it to read a grade or a move off without scrolling a window smaller
-   * than the text in it. Like the board's floor it is a floor and not a size —
-   * the panel takes half the screen where there is half a screen to take — and
-   * like the board's floor, where the room runs out the page scrolls rather than
-   * the panel shrinking to a sliver it can draw nothing in.
-   */
-  --panel-floor: 11.5rem;
 }
 
 * {
@@ -101,17 +91,12 @@ body {
 }
 
 /*
- * The page is one screen. The board is what the game is played on, and a board
- * that has to be scrolled back to is a board the player has lost — so the page
- * is exactly as tall as the viewport, and everything that cannot fit shrinks or
- * scrolls inside itself rather than pushing the board off the bottom.
- *
- * Exactly as tall, rather than at least: a definite height is what lets the board
- * shrink when the panel opens and grow back when it closes. What it costs is a
- * scroll of last resort here, for the screen so short that even the board's floor
- * will not fit on it — a phone turned on its side is the case. Nothing is ever
- * clipped, and nothing is unreachable; the page simply stops being one screen,
- * which is the lesser of the two failures.
+ * In one column the page is as tall as what is on it, and is scrolled. At least
+ * a screen tall, so that a page with room to spare still reaches the bottom edge;
+ * taller than that where what is on it is taller, because nothing here gives its
+ * room to anything else any more — the board is drawn from the screen and the
+ * panel is as tall as what is in it. Where there is room for two columns the page
+ * is one screen again, and that is set with the second column.
  *
  * The height is the viewport's dynamic one, which is the room a phone actually
  * leaves once its address bar has had its share; `100vh` is the fallback for a
@@ -120,23 +105,20 @@ body {
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
-  overflow: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /*
  * The board and what is being played on it: the two things that are never folded
- * away. Below the phone's breakpoint they are the whole screen; above it they are
- * the column beside the panel.
+ * away. Below the phone's breakpoint they are the top of the page; above it they
+ * are the column beside the panel.
  *
  * It keeps the automatic minimum height a flex item has, and is the one column on
  * the page that does: shrunk past the height of what is in it, it would not
  * scroll — nothing here is scrollable — it would simply go on drawing the status
  * below its own bottom edge and over the panel underneath, which is the turn and
- * the pieces in hand written across the handle. The board gives its room to the
- * panel down to its own floor, and once there is no more to give the page scrolls
- * rather than the column pretending it fits.
+ * the pieces in hand written across the handle.
  */
 .app__play {
   display: flex;
@@ -148,31 +130,41 @@ body {
 }
 
 /*
- * What the board is given: the width of the screen, and whatever height is left
- * once everything that cannot shrink has had its share. The board draws itself
- * to fit inside that, so the room the panel takes when it opens comes out of the
- * board and goes back to it when the panel closes.
+ * What the board is given: a square of the width the screen gives it, and nothing
+ * the panel does enters into it. The board is square, so a box as tall as it is
+ * wide is the whole of the drawing and there is no room left over to argue about;
+ * `flex: none` is what keeps the column it stands in from arguing anyway.
  *
- * The floor is where that stops. Height taken off the board is width taken off
+ * A size read off the screen alone is the fix ADR-0009 was written for. A board
+ * redrawn at another size leaves the frame it was drawn at before painted behind
+ * the new one when the site is run from the home screen as a web app, and a board
+ * that is never redrawn leaves the web view nothing to keep.
+ *
+ * The floor is the low end of the clamp, and it is doing the same job it always
+ * did against a different measure. Height taken off the board is width taken off
  * every one of its 24 targets, and a target below a fingertip is a board the
- * player cannot play — so the board keeps its floor and the page scrolls instead.
+ * player cannot play — so on a screen narrower than the floor the board keeps the
+ * floor and the page scrolls to it.
  *
- * The floor is the basis as well as the minimum, and that is what makes the
- * sentence above true rather than merely intended. A basis of `auto` is the
- * drawing's own height — the width of the screen, the board being square — so a
- * column asked how short it could be would answer with a board the width of a
- * phone on its side, and the page would scroll a screen and a half to a board
- * that never gave the panel anything. Starting from the floor, the honest answer
- * is the floor: the board grows into whatever room there is and gives it all back
- * down to here, and the scroll is the little that is left over rather than the
- * whole board.
+ * The high end is the phone turned on its side, where a board as wide as the
+ * screen would be taller than the screen. The box is capped there, and the
+ * drawing — which centres itself in whatever room it has — comes out square at
+ * the height of the screen with the room left over beside it. Where the two ends
+ * disagree — a screen shorter than the floor — the floor wins, as it does in a
+ * clamp and for the same reason: the cap is about the room, and the floor is
+ * about the finger. The cap is written twice for the browser that has never heard
+ * of `dvh`, because a cap that is dropped rather than fallen back on is a board
+ * drawn the width of a phone on its side and taller than the screen.
  */
 .app__board {
   display: flex;
-  flex: 1 1 var(--board-floor);
+  flex: none;
   justify-content: center;
   width: 100%;
+  aspect-ratio: 1;
   min-height: var(--board-floor);
+  max-height: 100vh;
+  max-height: 100dvh;
 }
 
 .app__header {
@@ -199,34 +191,22 @@ body {
 }
 
 /*
- * The panel: everything the page shows beside the board. On a phone it is folded
- * down to its handle, and opens above it into a share of the screen that the
- * board gives up for as long as it is open — a share and not the leftovers,
- * because the contents scroll inside themselves rather than growing until the
- * board is pushed off the bottom.
- *
- * A share, though, and not a sliver. It shrinks — that is what lets the contents
- * scroll inside themselves — but only down to what it can actually draw: shut,
- * the handle, and open, the handle and enough under it to read. Below that the
- * panel would be a box smaller than the button inside it, which is a handle
- * drawn over whatever the page put beneath it.
+ * The panel: everything the page shows beside the board. On a phone it stands
+ * below the board and is folded down to its handle, and opening it makes the page
+ * taller rather than making the board smaller — it is as tall as what is in it,
+ * and what is under the fold is reached by scrolling to it.
  */
 .panel {
   display: flex;
-  flex: 0 1 auto;
+  flex: none;
   flex-direction: column;
-  min-height: calc(2.75rem + var(--gutter));
   padding: 0 var(--gutter) var(--gutter);
-}
-
-.panel[data-expanded] {
-  min-height: var(--panel-floor);
 }
 
 /*
  * The handle: a fingertip tall at the very least, and the width of the screen.
- * It is the one control a player reaches for without looking, because it is the
- * last thing above the bottom edge.
+ * It is the widest control on the page, and the one thing standing between the
+ * board and everything the panel holds.
  */
 .panel__handle {
   display: flex;
@@ -274,13 +254,9 @@ body {
  */
 .panel__contents {
   display: none;
-  flex: 1 1 auto;
   flex-direction: column;
   gap: 1.5rem;
-  min-height: 0;
-  max-height: 50dvh;
   padding: 1rem 0 0;
-  overflow-y: auto;
 }
 
 .panel[data-expanded] .panel__contents {
@@ -1054,16 +1030,31 @@ body {
  * a bigger screen has to mean a bigger board.
  */
 @media (min-width: 60rem) {
+  /* Two columns fit on one screen, and what does not fit scrolls inside itself. */
   .app {
     flex-direction: row;
     align-items: stretch;
     gap: 2rem;
+    height: 100vh;
+    height: 100dvh;
     padding: 1.5rem;
+    overflow: auto;
   }
 
   .app__play {
     flex: 1 1 auto;
     padding: 0;
+  }
+
+  /*
+   * Here the board takes the height the column has left instead, and the panel
+   * still does not enter into it: the panel is always open beside it, so there is
+   * nothing that could redraw the board at another size.
+   */
+  .app__board {
+    flex: 1 1 var(--board-floor);
+    aspect-ratio: auto;
+    max-height: none;
   }
 
   .app__header h1 {
@@ -1084,10 +1075,17 @@ body {
     display: none;
   }
 
+  /*
+   * Here the panel is as tall as the column and no taller, so what is in it
+   * scrolls inside itself rather than running past the bottom of the screen. On a
+   * phone it is the page that grows instead, and none of this is set.
+   */
   .panel__contents {
     display: flex;
-    max-height: none;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 0;
+    overflow-y: auto;
   }
 }
 

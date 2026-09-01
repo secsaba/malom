@@ -17,10 +17,11 @@ const CONTENTS = "panel-contents";
  *
  * On a wide screen it stands next to the board and the handle is not drawn at
  * all: there is room for both, and a control that folds away what is already in
- * front of the player is a control with nothing to do. On a phone there is no
- * room, so it folds down to the handle at the foot of the screen and opens above
- * it — and closes again, which is the point of folding rather than scrolling: the
- * room the panel takes comes back to the board when the player is done reading.
+ * front of the player is a control with nothing to do. On a phone there is only
+ * one column, so it stands below the board, folded down to its handle, and opens
+ * under it. It costs the board nothing either way — the board is drawn from the
+ * screen — so what shutting it buys is a shorter page rather than a bigger
+ * board.
  *
  * Which of the two it is, is the stylesheet's business and not this component's.
  * The panel is the same panel either way, and a component that asked how wide
@@ -28,9 +29,9 @@ const CONTENTS = "panel-contents";
  * wrong.
  *
  * Whether it is open is kept here rather than passed in, because nothing outside
- * the panel reads it: it says which of two things the player is looking at now,
- * and it is deliberately not written down — a phone that came back from a reload
- * with the panel open would come back with the board half the size it was left.
+ * the panel reads it: it says how much of the page the player is looking at now,
+ * and it is deliberately not written down — that is a state of the reading and
+ * not a Setting, and a reload starts the reading again.
  */
 export const Panel = ({ children }: PanelProps) => {
   const strings = useStrings();
