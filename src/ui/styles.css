@@ -58,6 +58,16 @@
    * instead, because a board too small to hit is worse than a board to scroll to.
    */
   --board-floor: 20rem;
+
+  /*
+   * The least an open panel is worth opening: its handle, and enough of what is
+   * under it to read a grade or a move off without scrolling a window smaller
+   * than the text in it. Like the board's floor it is a floor and not a size —
+   * the panel takes half the screen where there is half a screen to take — and
+   * like the board's floor, where the room runs out the page scrolls rather than
+   * the panel shrinking to a sliver it can draw nothing in.
+   */
+  --panel-floor: 11.5rem;
 }
 
 * {
@@ -119,6 +129,14 @@ body {
  * The board and what is being played on it: the two things that are never folded
  * away. Below the phone's breakpoint they are the whole screen; above it they are
  * the column beside the panel.
+ *
+ * It keeps the automatic minimum height a flex item has, and is the one column on
+ * the page that does: shrunk past the height of what is in it, it would not
+ * scroll — nothing here is scrollable — it would simply go on drawing the status
+ * below its own bottom edge and over the panel underneath, which is the turn and
+ * the pieces in hand written across the handle. The board gives its room to the
+ * panel down to its own floor, and once there is no more to give the page scrolls
+ * rather than the column pretending it fits.
  */
 .app__play {
   display: flex;
@@ -126,7 +144,6 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-  min-height: 0;
   padding: var(--gutter) 0;
 }
 
@@ -139,10 +156,20 @@ body {
  * The floor is where that stops. Height taken off the board is width taken off
  * every one of its 24 targets, and a target below a fingertip is a board the
  * player cannot play — so the board keeps its floor and the page scrolls instead.
+ *
+ * The floor is the basis as well as the minimum, and that is what makes the
+ * sentence above true rather than merely intended. A basis of `auto` is the
+ * drawing's own height — the width of the screen, the board being square — so a
+ * column asked how short it could be would answer with a board the width of a
+ * phone on its side, and the page would scroll a screen and a half to a board
+ * that never gave the panel anything. Starting from the floor, the honest answer
+ * is the floor: the board grows into whatever room there is and gives it all back
+ * down to here, and the scroll is the little that is left over rather than the
+ * whole board.
  */
 .app__board {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 var(--board-floor);
   justify-content: center;
   width: 100%;
   min-height: var(--board-floor);
@@ -177,13 +204,23 @@ body {
  * board gives up for as long as it is open — a share and not the leftovers,
  * because the contents scroll inside themselves rather than growing until the
  * board is pushed off the bottom.
+ *
+ * A share, though, and not a sliver. It shrinks — that is what lets the contents
+ * scroll inside themselves — but only down to what it can actually draw: shut,
+ * the handle, and open, the handle and enough under it to read. Below that the
+ * panel would be a box smaller than the button inside it, which is a handle
+ * drawn over whatever the page put beneath it.
  */
 .panel {
   display: flex;
   flex: 0 1 auto;
   flex-direction: column;
-  min-height: 0;
+  min-height: calc(2.75rem + var(--gutter));
   padding: 0 var(--gutter) var(--gutter);
+}
+
+.panel[data-expanded] {
+  min-height: var(--panel-floor);
 }
 
 /*

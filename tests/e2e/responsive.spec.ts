@@ -73,6 +73,112 @@ const targetAt = async (page: Page, point: PointId) => {
 };
 
 /**
+ * Every run of glyphs the page actually paints, and where it paints it. It is
+ * measured with a range over the text itself rather than with the box of the
+ * element holding it: boxes are allowed to sit on top of one another — a padded
+ * one wrapping another is two boxes over the same pixels — and glyphs are not.
+ *
+ * What is said but not shown is left out, being nothing anybody can see on top
+ * of anything else, and so is anything the stylesheet has hidden.
+ */
+type TextRun = { text: string; where: string; x: number; y: number; width: number; height: number };
+
+const textRunsOn = (page: Page): Promise<TextRun[]> =>
+  page.evaluate(() => {
+    const runs: TextRun[] = [];
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const text = (node.textContent ?? "").trim();
+      const holder = node.parentElement;
+      if (!text || !holder || holder.closest(".visually-hidden")) continue;
+
+      const style = getComputedStyle(holder);
+      if (style.visibility === "hidden" || style.display === "none") continue;
+
+      const range = document.createRange();
+      range.selectNodeContents(node);
+
+      for (const box of Array.from(range.getClientRects())) {
+        if (box.width < 1 || box.height < 1) continue;
+        runs.push({
+          text: text.slice(0, 30),
+          where: holder.className || holder.tagName.toLowerCase(),
+          x: box.x,
+          y: box.y,
+          width: box.width,
+          height: box.height,
+        });
+      }
+    }
+
+    return runs;
+  });
+
+/**
+ * The slack allowed between two runs of glyphs. Boxes that merely touch —
+ * consecutive lines of a paragraph, a border between two of them — round into
+ * one another by a pixel, and a pixel of that is arithmetic rather than one word
+ * printed over another.
+ */
+const TOUCHING = 2;
+
+/**
+ * Every pair of glyph runs printed over one another, said in a sentence apiece:
+ * the page has drawn one thing on top of another and a player is reading both at
+ * once. Nought of them is the only acceptable number.
+ */
+const textOverTextOn = async (page: Page): Promise<string[]> => {
+  const runs = await textRunsOn(page);
+  const printedOver: string[] = [];
+
+  for (const [i, a] of runs.entries())
+    for (const b of runs.slice(i + 1)) {
+      const across = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+      const down = Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y);
+
+      if (across > TOUCHING && down > TOUCHING)
+        printedOver.push(`"${a.text}" (${a.where}) over "${b.text}" (${b.where})`);
+    }
+
+  return printedOver;
+};
+
+/**
+ * The columns the page is built out of, each asked whether what is in it fits
+ * inside it. Neither of them scrolls, so a column shrunk below its own contents
+ * does not clip them or offer them on a scrollbar: it goes on drawing them past
+ * its own bottom edge and over whatever the page put below it, which is the
+ * mechanism behind every overlap {@link textOverTextOn} can find. This is the
+ * same fault read off the boxes rather than off the glyphs, and it is what says
+ * which column let go.
+ */
+const spillingOn = (page: Page) =>
+  page.evaluate(() =>
+    [".app__play", ".panel"].flatMap((selector) => {
+      const column = document.querySelector(selector);
+      if (!(column instanceof HTMLElement)) return [];
+
+      const past = column.scrollHeight - column.clientHeight;
+
+      return past > 1 && getComputedStyle(column).overflowY === "visible"
+        ? [`${selector} draws ${past}px past its own box`]
+        : [];
+    }),
+  );
+
+/**
+ * That the page has drawn nothing on top of anything else — the whole of what a
+ * player means by the screen looking wrong, in one assertion. The board is
+ * exempt by construction: it is a drawing rather than text, and the only words
+ * on it are the coordinates, which are inside it.
+ */
+const expectNothingOverAnything = async (page: Page, where: string) => {
+  expect(await textOverTextOn(page), where).toEqual([]);
+  expect(await spillingOn(page), where).toEqual([]);
+};
+
+/**
  * A phone, as Playwright describes one: its screen, its pixel density and its
  * touchscreen. Which browser it would run in is left out on purpose — that is
  * the config's choice, and naming one here would ask for a worker of its own.
@@ -165,6 +271,40 @@ test.describe("on a phone", () => {
     await expectNoScroll(page, "the panel open");
   });
 
+  /**
+   * The screen a player would call broken: the panel opening on top of the status
+   * rather than beside it, so that whose turn it is and how many pieces are in
+   * hand are printed underneath the handle and both are unreadable.
+   *
+   * The board is what gives the panel its room, and it gives it down to its own
+   * floor and no further. Past that there is nothing left to give, and the page
+   * scrolls — it does not go on shrinking the column the board is in, because a
+   * column shrunk below what is in it does not scroll or clip, it simply keeps
+   * drawing, and what it draws lands on the panel below.
+   *
+   * Teaching on is the panel at its fullest — the grade, the record and the
+   * summary are all under there — and so the hardest case for the room there is.
+   */
+  for (const teaching of [false, true])
+    test(`draws nothing on top of anything else, teaching ${teaching ? "on" : "off"}`, async ({
+      page,
+    }) => {
+      const handle = page.getByTestId("panel-handle");
+
+      if (teaching) {
+        await handle.tap();
+        await page.getByTestId("teaching-toggle").check();
+        await handle.tap();
+      }
+
+      await expectNothingOverAnything(page, "the panel shut");
+
+      await handle.tap();
+      await expect(handle).toHaveAttribute("aria-expanded", "true");
+
+      await expectNothingOverAnything(page, "the panel open");
+    });
+
   /** A move is two taps on a touchscreen exactly as it is two clicks: the piece, and where it goes. */
   test("plays a piece to where it is tapped, and then a move by tapping twice", async ({
     page,
@@ -255,5 +395,25 @@ test.describe("on a phone turned on its side", () => {
 
     // Sideways is the one direction that is never the answer, at any height.
     expect((await scrollableBy(page)).across).toBeLessThanOrEqual(ROUNDING);
+
+    // Scrolling to what is left is the answer. Drawing it on top of the rest is not.
+    await expectNothingOverAnything(page, "on its side");
+  });
+
+  /**
+   * The panel opens here too, onto the screen with the least room to open it on.
+   * What it must not do is open into a box too small to draw itself in: a panel
+   * shrunk below its own handle is a handle printed over the status above it,
+   * which is the same failure as the board's floor giving way, one column down.
+   */
+  test("opens the panel into a share of the screen rather than into a sliver", async ({ page }) => {
+    await page.goto("./");
+
+    const handle = page.getByTestId("panel-handle");
+
+    await handle.tap();
+    await expect(handle).toHaveAttribute("aria-expanded", "true");
+
+    await expectNothingOverAnything(page, "the panel open on its side");
   });
 });
