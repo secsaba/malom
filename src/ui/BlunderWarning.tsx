@@ -18,8 +18,8 @@ type BlunderWarningProps = {
  * It stands with the board rather than in the panel with the rest of what
  * teaching offers, and it has to. The board is holding still and the move has
  * not been played, so a player who cannot see what is being waited for reads the
- * page as stuck — and the panel is folded away on a phone until the player opens
- * it, which is exactly where a question nobody can see would end up.
+ * page as stuck — and on a phone the panel is below the board and reached by
+ * scrolling, which is exactly where a question nobody can see would end up.
  *
  * Being asked is the whole of it: standing by the move plays it, and declining
  * leaves the board exactly as it stood, down to the piece the player had picked

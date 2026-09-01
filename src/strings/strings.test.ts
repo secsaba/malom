@@ -112,7 +112,6 @@ describe("the Hungarian strings", () => {
     expect(hu.teaching.gradeHeading).toBe("Értékelés");
     expect(hu.teaching.moveList.heading).toBe("Lépéslista");
     expect(hu.teaching.summary.weakness).toBe("Gyenge pont");
-    expect(hu.panel.handle).toBe("Részletek");
   });
 
   it("names the five grades as the glossary names them, best first", () => {
@@ -198,7 +197,6 @@ describe("the English strings", () => {
     expect(en.teaching.gradeHeading).toBe("Grade");
     expect(en.teaching.moveList.heading).toBe("Move list");
     expect(en.teaching.summary.weakness).toBe("Weakness");
-    expect(en.panel.handle).toBe("Details");
   });
 
   it("names the five grades as the glossary names them, best first", () => {

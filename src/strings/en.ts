@@ -21,9 +21,6 @@ export const en: Strings = {
      */
     title: "Nine Men's Morris",
   },
-  panel: {
-    handle: "Details",
-  },
   board: {
     label: "Morris board",
     showCoordinates: "Show coordinates",

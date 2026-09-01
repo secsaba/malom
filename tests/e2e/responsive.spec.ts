@@ -1,4 +1,4 @@
-import { type Locator, type Page, devices, expect, test } from "@playwright/test";
+import { type Page, devices, expect, test } from "@playwright/test";
 
 import { POINTS, type PointId } from "../../src/engine/board";
 import { MILL_FREE_PLACING } from "../fixtures/games";
@@ -63,9 +63,9 @@ const expectOneScreen = async (page: Page, where: string) => {
 
 /**
  * The drawn board again, measured against the top of the page rather than the
- * top of the screen. Pressing the handle scrolls the page to it, and a board
- * measured from the screen would come out somewhere else for that reason alone —
- * where it is on the page is what has to hold still.
+ * top of the screen. The phone page scrolls, and a board measured from the
+ * screen would come out somewhere else for that reason alone — where it is on
+ * the page is what has to hold still.
  */
 const boardOnThePage = async (page: Page) => {
   const drawn = await boardAt(page);
@@ -75,22 +75,36 @@ const boardOnThePage = async (page: Page) => {
 };
 
 /**
- * The board on each side of a press of the handle, and the handle put back as it
- * was found. The press is passed in because a phone presses it with a fingertip
- * and a window with a pointer, and the panel is the same panel either way.
+ * The panel's own box. Unlike the board there is no drawing inside it to measure
+ * instead: the panel is a column of blocks, so where the section came out is
+ * where the panel is.
  */
-const boardAcrossTheToggle = async (page: Page, press: (handle: Locator) => Promise<void>) => {
-  const handle = page.getByTestId("panel-handle");
-  const shut = await boardOnThePage(page);
+const panelAt = async (page: Page) => {
+  const panel = await page.getByTestId("panel").boundingBox();
+  expect(panel).not.toBeNull();
 
-  await press(handle);
-  await expect(handle).toHaveAttribute("aria-expanded", "true");
-  const open = await boardOnThePage(page);
+  return panel!;
+};
 
-  await press(handle);
-  await expect(handle).toHaveAttribute("aria-expanded", "false");
+/**
+ * That the panel stands below the board with the whole of it drawn, and that the
+ * way to it is down the page and never across it — which is the one column's
+ * layout in a sentence, and what the fold used to answer for.
+ *
+ * The setup is the last block in the panel, so a setup that is visible is the
+ * whole of the panel drawn: nothing is behind a control, there being no control
+ * left to be behind.
+ */
+const expectPanelBelowTheBoard = async (page: Page, where: string) => {
+  const board = await boardAt(page);
+  const panel = await panelAt(page);
 
-  return { shut, open };
+  expect(panel.y, where).toBeGreaterThanOrEqual(board.y + board.height);
+  expect(panel.x, where).toBe(0);
+  await expect(page.getByTestId("setup"), where).toBeVisible();
+
+  expect((await scrollableBy(page)).down, where).toBeGreaterThan(ROUNDING);
+  await expectNoScrollAcross(page, where);
 };
 
 /** The smallest a target may come out and still be a thing a finger can hit. */
@@ -253,40 +267,28 @@ test.describe("on a phone", () => {
    * drawn at before painted behind the new one. The stale paint reproduces in no
    * browser that can be driven, so what is held to here is the resize behind it —
    * with no resize there is nothing for the web view to keep.
+   *
+   * Switching teaching on is the largest thing the panel does now that it never
+   * folds: the grade, the record and the summary all arrive under the board at
+   * once. The board is measured on each side of it and has not moved.
    */
   test("draws the board at one size whatever the panel is doing", async ({ page }) => {
-    const { shut, open } = await boardAcrossTheToggle(page, (handle) => handle.tap());
+    const before = await boardOnThePage(page);
 
-    expect(open).toEqual(shut);
+    await page.getByTestId("teaching-toggle").check();
+    await expect(page.getByTestId("warning-toggle")).toBeVisible();
+
+    expect(await boardOnThePage(page)).toEqual(before);
   });
 
-  test("folds the panel down to a handle, and opens it when the player asks", async ({ page }) => {
-    const handle = page.getByTestId("panel-handle");
-    const setup = page.getByTestId("setup");
-
-    await expect(handle).toHaveText(strings.panel.handle);
-    await expect(handle).toHaveAttribute("aria-expanded", "false");
-    await expect(setup).toBeHidden();
-
-    await handle.tap();
-
-    await expect(handle).toHaveAttribute("aria-expanded", "true");
-    await expect(setup).toBeVisible();
-
-    // The board is still where it was: the panel costs it nothing to open.
-    await expect(page.getByTestId("board-ground")).toBeVisible();
-    await expectNoScrollAcross(page, "the panel open");
-
-    await handle.tap();
-
-    await expect(handle).toHaveAttribute("aria-expanded", "false");
-    await expect(setup).toBeHidden();
+  test("stands the panel below the board, with everything in it shown", async ({ page }) => {
+    await expectPanelBelowTheBoard(page, "a phone");
   });
 
   /**
    * Whose turn it is, and the question a blunder is put back with, are what a
-   * player has to answer to go on playing. Neither is behind the handle: a
-   * question nobody can see is a game that reads as stuck.
+   * player has to answer to go on playing. Neither is in the panel, and neither
+   * is scrolled to: a question nobody can see is a game that reads as stuck.
    */
   test("leaves the turn out where the player can see it", async ({ page }) => {
     await expect(page.getByTestId("side-to-move")).toBeVisible();
@@ -303,35 +305,15 @@ test.describe("on a phone", () => {
   });
 
   /**
-   * The board is played on while the panel is open — a learner reading the grade
-   * on the move they just played is looking at both — and its targets are the
-   * same targets they were with the panel shut, because it is the same board at
-   * the same size. This is that read off a target rather than off the drawing.
-   */
-  test("keeps the targets hittable with the panel open", async ({ page }) => {
-    const handle = page.getByTestId("panel-handle");
-
-    await handle.tap();
-    await expect(handle).toHaveAttribute("aria-expanded", "true");
-
-    const target = await targetAt(page, "a1");
-
-    expect(target.width).toBeGreaterThanOrEqual(FINGERTIP);
-    expect(target.height).toBeGreaterThanOrEqual(FINGERTIP);
-    await expect(page.getByTestId("board-ground")).toBeVisible();
-    await expectNoScrollAcross(page, "the panel open");
-  });
-
-  /**
-   * The screen a player would call broken: the panel opening on top of the status
+   * The screen a player would call broken: the panel drawn on top of the status
    * rather than below it, so that whose turn it is and how many pieces are in
-   * hand are printed underneath the handle and both are unreadable.
+   * hand are printed underneath it and both are unreadable.
    *
-   * Nothing here shrinks to make room for anything else any more — the board is
-   * drawn from the screen, the panel is as tall as what is in it, and the page
-   * grows. What has to hold is that growing is all it does: a column shrunk below
-   * what is in it does not scroll or clip, it simply keeps drawing, and what it
-   * draws lands on whatever the page put below.
+   * Nothing here shrinks to make room for anything else — the board is drawn from
+   * the screen, the panel is as tall as what is in it, and the page grows. What
+   * has to hold is that growing is all it does: a column shrunk below what is in
+   * it does not scroll or clip, it simply keeps drawing, and what it draws lands
+   * on whatever the page put below.
    *
    * Teaching on is the panel at its fullest — the grade, the record and the
    * summary are all under there — and so the hardest case for the room there is.
@@ -340,20 +322,9 @@ test.describe("on a phone", () => {
     test(`draws nothing on top of anything else, teaching ${teaching ? "on" : "off"}`, async ({
       page,
     }) => {
-      const handle = page.getByTestId("panel-handle");
+      if (teaching) await page.getByTestId("teaching-toggle").check();
 
-      if (teaching) {
-        await handle.tap();
-        await page.getByTestId("teaching-toggle").check();
-        await handle.tap();
-      }
-
-      await expectNothingOverAnything(page, "the panel shut");
-
-      await handle.tap();
-      await expect(handle).toHaveAttribute("aria-expanded", "true");
-
-      await expectNothingOverAnything(page, "the panel open");
+      await expectNothingOverAnything(page, `teaching ${teaching ? "on" : "off"}`);
     });
 
   /** A move is two taps on a touchscreen exactly as it is two clicks: the piece, and where it goes. */
@@ -378,14 +349,13 @@ test.describe("on a phone", () => {
 test.describe("on a desktop", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test("stands the panel beside the board rather than behind a handle", async ({ page }) => {
+  test("stands the panel beside the board rather than below it", async ({ page }) => {
     await page.goto("./");
 
-    await expect(page.getByTestId("panel-handle")).toBeHidden();
     await expect(page.getByTestId("setup")).toBeVisible();
 
     const board = await boardAt(page);
-    const panel = (await page.getByTestId("panel").boundingBox())!;
+    const panel = await panelAt(page);
 
     // Beside: the panel starts to the right of the board and shares its rows.
     expect(panel.x).toBeGreaterThanOrEqual(board.x + board.width);
@@ -424,39 +394,52 @@ test("scrolls sideways at no width, and keeps a target a fingertip wide at all o
 
 /**
  * Where the second column starts, which is the stylesheet's 60rem in the pixels a
- * viewport is set in. Below it there is one column and a handle to press; above
- * it the panel stands open beside the board and there is nothing to press.
+ * viewport is set in. Below it there is one column, with the panel under the
+ * board; above it the panel stands beside the board instead.
  */
 const TWO_COLUMNS = 960;
 
 /**
- * The same widths that have a handle, asked the question the fault turns on: the
- * board comes out at the same size with the panel shut and open, and a target is
- * still a fingertip wide with it open. The handle is waited for rather than
- * skipped past, so a width that stopped having one fails here instead of quietly
- * asking nothing.
+ * Every width with one column, asked at each of them what the fold used to
+ * answer: the whole of the panel is drawn, below the board, and reached by
+ * scrolling down the page. A width that quietly stopped having a panel under the
+ * board fails here rather than being skipped past.
  */
-test("draws the board at one size across the toggle at every width", async ({ page }) => {
+test("shows the whole panel below the board at every one-column width", async ({ page }) => {
   await page.goto("./");
 
   for (const width of WIDTHS.filter((it) => it < TWO_COLUMNS)) {
     await page.setViewportSize({ width, height: 720 });
 
-    const handle = page.getByTestId("panel-handle");
-    await expect(handle, `${width}px`).toBeVisible();
+    await expectPanelBelowTheBoard(page, `${width}px`);
+  }
+});
 
-    const shut = await boardOnThePage(page);
+/**
+ * The board's drawn box is unchanged by anything the panel does, asked at every
+ * one-column width rather than only at the phone's — the panel grows by a
+ * different amount at each of them, and the board is what must not move by any of
+ * it. Switching teaching on is the largest thing it does: the grade, the record
+ * and the summary all arrive under the board at once.
+ */
+test("draws the board at one size while the panel grows, at every one-column width", async ({
+  page,
+}) => {
+  await page.goto("./");
 
-    await handle.click();
-    await expect(handle).toHaveAttribute("aria-expanded", "true");
+  const teaching = page.getByTestId("teaching-toggle");
 
-    const target = await targetAt(page, "a1");
+  for (const width of WIDTHS.filter((it) => it < TWO_COLUMNS)) {
+    await page.setViewportSize({ width, height: 720 });
 
-    expect(await boardOnThePage(page), `${width}px`).toEqual(shut);
-    expect(target.width, `${width}px`).toBeGreaterThanOrEqual(FINGERTIP);
-    expect(target.height, `${width}px`).toBeGreaterThanOrEqual(FINGERTIP);
+    const before = await boardOnThePage(page);
 
-    await handle.click();
+    await teaching.check();
+    await expect(page.getByTestId("warning-toggle")).toBeVisible();
+
+    expect(await boardOnThePage(page), `${width}px`).toEqual(before);
+
+    await teaching.uncheck();
   }
 });
 
@@ -495,33 +478,25 @@ test.describe("on a phone turned on its side", () => {
   });
 
   /**
-   * The panel opens here too, onto the screen with the least room to open it on.
-   * It costs the board nothing here either — this is the width at which a board
-   * that gave the panel room would have the furthest to fall — and it is drawn
-   * below what is above it rather than over it.
+   * The panel stands below the board here too, on the screen with the least room
+   * to stand it on: it is drawn under what is above it rather than over it, and
+   * the page grows to hold it rather than anything shrinking to make way.
    *
    * Teaching on is the panel at its fullest, and on its side is the screen with
    * the least room for it: the two together are the hardest case the page meets.
    */
   for (const teaching of [false, true])
-    test(`opens the panel below the board rather than out of it, teaching ${
+    test(`stands the panel below the board rather than out of it, teaching ${
       teaching ? "on" : "off"
     }`, async ({ page }) => {
       await page.goto("./");
 
-      const handle = page.getByTestId("panel-handle");
-
       if (teaching) {
-        await handle.tap();
         await page.getByTestId("teaching-toggle").check();
-        await handle.tap();
+        await expect(page.getByTestId("warning-toggle")).toBeVisible();
       }
 
-      const { shut, open } = await boardAcrossTheToggle(page, (it) => it.tap());
-
-      expect(open).toEqual(shut);
-
-      await handle.tap();
-      await expectNothingOverAnything(page, "the panel open on its side");
+      await expectPanelBelowTheBoard(page, "on its side");
+      await expectNothingOverAnything(page, "the panel on its side");
     });
 });

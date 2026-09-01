@@ -110,15 +110,15 @@ body {
 }
 
 /*
- * The board and what is being played on it: the two things that are never folded
- * away. Below the phone's breakpoint they are the top of the page; above it they
+ * The board and what is being played on it: the two things that are never in the
+ * panel. Below the phone's breakpoint they are the top of the page; above it they
  * are the column beside the panel.
  *
  * It keeps the automatic minimum height a flex item has, and is the one column on
  * the page that does: shrunk past the height of what is in it, it would not
  * scroll — nothing here is scrollable — it would simply go on drawing the status
  * below its own bottom edge and over the panel underneath, which is the turn and
- * the pieces in hand written across the handle.
+ * the pieces in hand written across the top of the panel.
  */
 .app__play {
   display: flex;
@@ -192,9 +192,9 @@ body {
 
 /*
  * The panel: everything the page shows beside the board. On a phone it stands
- * below the board and is folded down to its handle, and opening it makes the page
- * taller rather than making the board smaller — it is as tall as what is in it,
- * and what is under the fold is reached by scrolling to it.
+ * below the board, always shown and never folded away — it is as tall as what is
+ * in it, the page is as tall as the panel and the board together, and what falls
+ * below the bottom of the screen is reached by scrolling to it.
  */
 .panel {
   display: flex;
@@ -204,71 +204,23 @@ body {
 }
 
 /*
- * The handle: a fingertip tall at the very least, and the width of the screen.
- * It is the widest control on the page, and the one thing standing between the
- * board and everything the panel holds.
- */
-.panel__handle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  width: 100%;
-  min-height: 2.75rem;
-  padding: 0.5rem 1rem;
-  border: 1px solid var(--page-ink-dim);
-  border-radius: 0.5rem;
-  background: transparent;
-  color: var(--page-ink);
-  font: inherit;
-  cursor: pointer;
-  user-select: none;
-}
-
-.panel__handle:hover {
-  background: var(--point-selected-ink);
-}
-
-/*
- * Which way the handle goes: up while the panel is folded away, down once it is
- * open. It is the one mark on the handle that is not a word, and it says only
- * what `aria-expanded` says beside it — nothing is told by the chevron alone.
- */
-.panel__chevron {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-right: 2px solid currentcolor;
-  border-bottom: 2px solid currentcolor;
-  transform: rotate(-135deg);
-  transition: transform 160ms ease-out;
-}
-
-.panel[data-expanded] .panel__chevron {
-  transform: rotate(45deg);
-}
-
-/*
- * Folded away until the handle is pressed — and folded away with `display: none`
- * rather than merely put out of sight, because a control nobody can see is not
- * one anybody should reach by pressing Tab.
+ * What is in the panel, one block under another. On a phone this is the foot of
+ * the page and the whole of what a player scrolls to; the panel's order is what
+ * they pay that scroll in, so what is read during a move stands above what is
+ * only chosen between games.
  */
 .panel__contents {
-  display: none;
+  display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 1rem 0 0;
-}
-
-.panel[data-expanded] .panel__contents {
-  display: flex;
 }
 
 /*
  * The board takes the whole of the box it is given and draws itself as large as
  * it can inside it, centred — which is what makes one rule serve every screen:
  * where the width runs out first the board fills it, and where the height does
- * — a panel open under it, a phone turned on its side — the board comes out
- * smaller with the room left over around it rather than under it.
+ * — a phone turned on its side is that case — the board comes out smaller with
+ * the room left over around it rather than under it.
  *
  * Nothing caps it in one column, because a column with nothing beside it has
  * nothing to give the room to: a board that stopped at 32rem on a tablet would
@@ -681,7 +633,7 @@ body {
 /*
  * The move is checked but not played, so the board is holding still: this line
  * is what says the page is waiting rather than stuck. It stands with the board
- * rather than in the panel, because a panel the player has folded away is
+ * rather than in the panel, because a panel below the bottom of the screen is
  * exactly where a line nobody can see would go.
  */
 .blunder-check {
@@ -1021,8 +973,8 @@ body {
 
 /*
  * Room for two columns: the board keeps the left of the screen and the panel
- * stands beside it, open, with the handle gone — a control that folds away what
- * is already in front of the player has nothing left to do.
+ * stands beside it rather than below it, which is the whole of what the second
+ * column buys.
  *
  * The breakpoint is where the second column stops costing the board more than
  * the panel gains. Below it, taking a panel's width out of the screen would
@@ -1071,20 +1023,14 @@ body {
     padding: 0;
   }
 
-  .panel__handle {
-    display: none;
-  }
-
   /*
    * Here the panel is as tall as the column and no taller, so what is in it
    * scrolls inside itself rather than running past the bottom of the screen. On a
    * phone it is the page that grows instead, and none of this is set.
    */
   .panel__contents {
-    display: flex;
     flex: 1 1 auto;
     min-height: 0;
-    padding: 0;
     overflow-y: auto;
   }
 }
@@ -1097,9 +1043,5 @@ body {
   .board [data-arrived],
   .status__thinking {
     animation: none;
-  }
-
-  .panel__chevron {
-    transition: none;
   }
 }

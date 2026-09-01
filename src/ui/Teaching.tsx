@@ -60,7 +60,7 @@ type TeachingProps = {
  * looking for what teaching offers will find it. It is off until they ask. What
  * the warning then does is {@link ./BlunderWarning.tsx}'s and not this block's:
  * a question the player has to answer is not something to leave in a panel they
- * can fold away.
+ * have to scroll to.
  *
  * The grade comes and goes with the move it is about, and there is nothing in
  * its place while the engine works one out: a line reading that a grade is on
